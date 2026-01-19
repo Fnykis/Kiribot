@@ -1,0 +1,20 @@
+{
+  "name": "kiribot",
+  "version": "0.0.1",
+  "description": "Bot for the Kiriaka Discord server",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node .",
+    "register": "node src/registerCommands.js"
+  },
+  "author": "Olle Lindberg (Fnykis)",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "googleapis": "^143.0.0",
+    "lockfile": "^1.0.4",
+    "rest": "^2.0.0",
+    "routes": "^2.1.0"
+  }
+}

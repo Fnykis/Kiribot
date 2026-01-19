@@ -1,0 +1,10 @@
+{
+	"token": "[YOUR BOT TOKEN]",
+	"clientId": "[YOUR CLIENT ID]",
+	"guildId": "[YOUR GUILD ID]",
+	"spreadsheetId": "[YOUR SPREADSHEET ID]",
+	"sheetsTab": "[YOUR SHEETS TAB NAME]",
+	"calendarSpreadsheetId": "[YOUR CALENDAR SPREADSHEET ID]",
+	"calendarTab": "[YOUR CALENDAR TAB NAME]",
+	"googleCredsPath": "./src/service-account.json"
+}
