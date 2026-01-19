@@ -462,6 +462,7 @@ Discord roles + messages
 - Lock files and old log files are cleaned up daily; logs rotate monthly in `logs/`.
 - Event data is archived when events pass (JSON moves to `src/events/archived`).
 - The contact flow uses a shared handler for workgroups/sections; there is a code comment noting the section variant behaves unexpectedly.
+- If the server has to be recreated there are several bot messages (hubs) that will not be created automatically but are included in the script files.
 - UI text is mostly Swedish.
 - Calendar export via `SheetsToICS.js` requires Google Apps Script deployment.
 
