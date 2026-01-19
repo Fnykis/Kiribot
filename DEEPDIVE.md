@@ -1,0 +1,465 @@
+# Kiribot – Deep‑Dive README
+
+## What the bot takes care of (overview)
+- Profile flows for members (name, status, instruments, workgroups, details, key status).
+- Event signups, event threads, and information updates.
+- Signup tooling for moderators (create, edit, cancel, reopen, delete, lists).
+- Automated lists (sections, workgroups, member details, key holders).
+- Calendar channel updates and Google Sheets sync.
+- Fika list from Google Sheets, with fika + storstäd instructions.
+- Reminders to members who have not responded.
+- Google Drive folders and links for events.
+- Daily/hourly scheduled maintenance, backups, and cleanup.
+
+---
+
+## Feature Deep Dives – End Users
+
+Each feature includes what the user sees **and** what the bot does under the hood.
+
+### 1) Your Profile hub (`din-profil`)
+- A profile message with three button rows for `Namn`, `Medlemstatus`, `Instrument`, `Arbetsgrupp`, `Detaljer`, `Nyckel`, `Visa din profil`.
+- Each button opens either a modal or a button grid; replies are ephemeral confirmations.
+- Changing instrument/workgroup roles can reveal new channels tied to those roles.
+
+<details>
+<summary>Under the hood</summary>
+
+- `postYourProfile()` edits the **latest** message in `din-profil` and injects three rows of buttons (it never auto‑creates the message).
+- `Namn` opens `modal_namn` and updates the Discord nickname, then logs the change.
+- `Medlemstatus`, `Instrument`, and `Arbetsgrupp` open ephemeral role pickers; role toggles trigger `checkRoles()` + `verktygSignup()` to rebuild lists and signup tooling.
+- `Detaljer` writes to `detailsList.json` for the current user (sanitized field keys), then calls `updateDetails()` to reconcile the file and `verktygSignup()` to refresh tooling.
+- `Nyckel` is handled by a dedicated button flow (see key holder list).
+- `Visa din profil` merges status + role‑color membership with `detailsList.json` if present; otherwise it falls back to role‑only data.
+
+**Flow (visual)**
+```
+Button → Modal/Buttons → Role & JSON update → Lists refreshed
+```
+</details>
+
+---
+
+### 2) Member status & personal details
+- Status buttons (Aktiv/Inaktiv) where the current status is highlighted/disabled.
+- A details modal with fields (kost, körkort, bil); nyckel is handled separately via buttons.
+- After saving, an ephemeral confirmation is shown.
+
+<details>
+<summary>Under the hood</summary>
+
+- Status buttons are generated from the `aktiv` / `inaktiv` roles; the current role is rendered as disabled.
+- Clicking a status button adds the chosen role, removes the opposite role, and then runs `checkRoles()`, `updateDetails()`, and `verktygSignup()` to refresh lists and tools.
+- `updateDetails()` fetches all members (with retry + rate‑limit handling), ensures required fields, and stores users under `aktiv` or `inaktiv` in `detailsList.json`.
+- Required fields are normalized (`å/ä/ö` sanitized) and missing values are filled with `-` to keep the dataset consistent.
+- Details buttons are generated dynamically from `requiredFields` and posted/updated in `medlemsdetaljer`.
+
+**Flow**
+```
+Status change → role swap → details list rebuild → lists posted
+```
+</details>
+
+---
+
+### 3) Section & workgroup membership
+- Button grids listing instruments or workgroups (5 per row).
+- Toggled roles update button styling immediately.
+- New role visibility can reveal section/workgroup channels, and join/leave notices appear in those channels.
+
+<details>
+<summary>Under the hood</summary>
+
+- Buttons are built from roles by color (`#e91e63` instruments, `#f1c40f` workgroups), grouped 5 per row, and rendered ephemerally.
+- Clicking a role toggles membership and posts join/leave notices via `sendInstrumentNotification()` / `sendWorkgroupNotification()`.
+- After changes, `checkRoles()` rebuilds `instrumentList.json` and `groupList.json`, then updates list embeds.
+- Role membership is reused later for signups, contact flows, and permissions.
+
+**Flow**
+```
+Choose role → role toggled → notification posted → lists updated
+```
+</details>
+
+---
+
+### 4) Contact a section or workgroup
+- Click “Kontakt” → pick a target channel from a button list (channels you already can see are disabled).
+- Fill in subject + message in a modal.
+- A private thread is created; relevant members are mentioned and you get a thread link in an ephemeral reply.
+
+<details>
+<summary>Under the hood</summary>
+
+- The bot reads the current category, lists sibling text channels, and excludes the “list” channels + the current channel.
+- Each target becomes a button; buttons are disabled if the user already has `ViewChannel` permissions there.
+- Selecting a target opens a modal, then filters **active** members who can view the target channel (bots + server owner excluded).
+- A private thread is created in the contact channel, and the message is posted with controlled `allowedMentions` for recipients + sender.
+- The user receives an ephemeral confirmation with a thread link; errors are handled with follow‑ups if the interaction expired.
+
+**Flow**
+```
+Contact button → select target → modal → private thread + mentions
+```
+</details>
+
+---
+
+### 5) Event signups (`signups`)
+- Each event is a signup embed with `Ja`, `Nej`, `Kanske` buttons.
+- Pressing a button opens an optional note modal; if you lack instrument role or nickname, you get a blocking message instead.
+- After submitting, you get an ephemeral confirmation and the event thread updates.
+
+<details>
+<summary>Under the hood</summary>
+
+- When a user presses `Ja/Nej/Kanske`, the bot first verifies the user has at least one instrument role and a nickname; otherwise it blocks the response.
+- It opens a modal for an optional note and waits for a submit (timeout → empty note).
+- The event ID is read from the embed footer; the matching JSON file is locked and re‑read to avoid concurrent writes.
+- The user is removed from **all** instrument arrays, then re‑added under each currently held instrument role with `{name, id, response, note}`.
+- The JSON is saved, the lock is released, the event thread is updated, and the user gets an ephemeral confirmation.
+
+**Flow**
+```
+Button → Optional note modal → JSON update → thread update
+```
+</details>
+
+---
+
+### 6) Event threads (`spelningar`)
+- A discussion thread per event in `spelningar` with a link back to the signup message.
+- A pinned “Information:” message near the top.
+- Live “ja/kanske” lists that update as people respond.
+- A button to list “ja” signups per instrument (ephemeral output).
+
+<details>
+<summary>Under the hood</summary>
+
+- `eventThread()` creates a thread in `spelningar` with a starter post that embeds the event ID on the last line.
+- The thread starter includes a link back to the signup message and initial empty lists for `ja`/`kanske`.
+- The bot posts a second message `"Information:"`, attempts to pin it, and logs permission warnings if pinning fails.
+- Thread permissions are adjusted to allow pinning by everyone (required from Feb 2026).
+- `eventThreadUpdate()` finds the thread by scanning active/archived threads, unarchives if needed, rebuilds participant lists from JSON, and edits the starter message.
+- The thread contains a `Instrumentlista (endast ja)` button that returns a per‑instrument list of “ja”.
+
+**Flow**
+```
+Signup created → thread created → pinned information message
+```
+</details>
+
+---
+
+### 7) /info command (inside event threads)
+- In a thread, type `/info` to get buttons: “Lägg till info” / “Ändra info”.
+- A modal to add/edit info, then a choice to notify silently, post in thread, or tag participants.
+- The pinned information message updates immediately.
+
+<details>
+<summary>Under the hood</summary>
+
+- Only works in bot‑created event threads; it extracts the event ID from the starter message footer.
+- Loads event JSON from active events only; passed events are rejected.
+- “Lägg till info” appends to `information.text` (max 1200 chars total), “Ändra info” replaces it.
+- Updates are done under a lock file and persisted to `src/events/active/*.json`.
+- The pinned information message (2nd message) is rewritten as `## ℹ️ Information …`.
+- After saving, a notification menu offers: silent update, post in thread, or post + tag ja/kanske participants.
+
+**Flow**
+```
+/info → modal → JSON + pinned message update → optional notify
+```
+</details>
+
+---
+
+### 8) Fika list + instructions (`fikalista`)
+- A continuously updated list of fika responsibilities with upcoming dates highlighted.
+- Buttons for fika instructions and storstäd instructions (ephemeral responses).
+
+<details>
+<summary>Under the hood</summary>
+
+- Uses the service account in `src/service-account.json` + `config.json` to read Sheets.
+- Period (B5) and responsible person (B6) are read from the fika tab; entries come from `A8:H50`.
+- Storstäd flag is read from column B; extra info from column C; names are collected from columns D+.
+- The first upcoming date gets “nästa” emojis; passed dates are rendered as quoted blocks.
+- Raw data is compared against `previousFikaData`; the message updates only when the underlying data changes.
+- Instruction buttons pull text from `Instruktioner!A2` (fika) and `Checklista!A2` (storstäd).
+
+**Flow**
+```
+Hourly sheet read → message edit → instructions on demand
+```
+</details>
+
+---
+
+### 9) Key holder list (`nyckellista`)
+- `Nyckel` button in profile opens a `Ja/Nej` toggle for key ownership.
+- A public list of key holders is posted in `nyckellista` and refreshes after updates.
+
+<details>
+<summary>Under the hood</summary>
+
+- Reads `detailsList.json`, merges `aktiv` + `inaktiv`, filters `nyckel === 'Ja'`, sorts names, and posts an embed.
+- On update, edits the **latest** message in `nyckellista`; otherwise posts a new one.
+
+**Flow**
+```
+Nyckel button → status update → list refresh
+```
+</details>
+
+---
+
+### 10) Calendar channel (`kalender`)
+- Upcoming events grouped by month, with past/invalid dates handled separately.
+- If an event has a signup message, the calendar entry is a clickable link.
+
+<details>
+<summary>Under the hood</summary>
+
+- Scans `src/events/active/*.json` and collects name/date/time/active/link + event ID.
+- Invalid date formats are listed first; valid dates are grouped by year/month.
+- Past events are archived via `moveToArchived()` which moves JSON files and removes signup buttons.
+- If a signup message link exists, the calendar entry becomes a clickable Discord message link.
+- The calendar is updated by editing the **latest** message in `kalender`.
+- `verktygSignup()` also runs `syncEventsToSheet()` to push active + archived events to the calendar sheet.
+
+**Flow**
+```
+Event JSON scan → sort/group → calendar message update
+```
+</details>
+
+---
+
+### 11) Channel guardrails (signup channel)
+- If you chat in `signups`, your message is removed and you get a DM telling where to ask questions (including your original text for copy/paste).
+
+<details>
+<summary>Under the hood</summary>
+
+- Messages in the restricted channel are deleted immediately.
+- The user receives a DM with instructions and their original message for easy copy/paste.
+</details>
+
+---
+
+## Feature Deep Dives – Moderators
+
+### 1) Moderator tools (`moderatorverktyg`)
+- A button that opens a control panel (ephemeral).
+- Actions: add/edit/remove workgroup, add/edit/remove section, adjust permissions, cleanup signups.
+- Non‑authorized users get an ephemeral “no permission” reply.
+
+<details>
+<summary>Under the hood</summary>
+
+- Access is gated by moderator roles (or guild owner); unauthorized users get an ephemeral denial.
+- Workgroups and sections are stored as roles (workgroups use `#f1c40f`, sections use `#e91e63`).
+- “Add” can optionally create a channel with role‑based view permissions in the correct category.
+- “Edit” renames the role and attempts to rename the channel **only** if the channel has no other role overwrites.
+- “Remove” deletes the role and removes the channel if that channel only belonged to that role.
+
+**Flow**
+```
+Open tools → choose action → role/channel created or updated
+```
+</details>
+
+---
+
+### 2) Signupverktyg channel (`verktyg-signup`)
+- “Signupverktyg” button + “Hur gör jag?” help button.
+- A panel with dropdowns to list all responses, yes‑per‑instrument, and details (kost/körkort/bil).
+- If you lack permissions, the panel shows an access‑denied message.
+
+<details>
+<summary>Under the hood</summary>
+
+- `btn_signupverktyg` is only updated in place; if the message is deleted, it is **not** recreated.
+- `updateSignupButtonMessage()` scans the channel to locate the message containing `btn_signupverktyg` and edits it.
+- The panel enforces permissions via `src/data/permissions.json` before showing controls.
+- The dropdowns are built from active event JSON and sorted (invalid dates first).
+- Detail list dropdowns cross‑reference `detailsList.json` for kost/körkort/bil.
+- “Hur gör jag?” posts links to fixed help threads for create/edit flows.
+
+**Flow**
+```
+Button → dropdown → JSON + details cross‑read → ephemeral list
+```
+</details>
+
+---
+
+### 3) Create, edit, cancel, reopen, delete signups
+- Create signups via a modal (name, date, time, location, info).
+- Edit/cancel/reopen/delete via buttons (“Ändra signupen”), with immediate visual changes.
+- Deleting requires a second confirmation click and removes the signup message.
+
+<details>
+<summary>Under the hood</summary>
+
+- “Skapa ny signup” posts an embed in `signups`, pings `aktiv`, writes a JSON file, and creates an event thread.
+- Filenames use `makeFileNameFriendly(name)_<id>.json` with a random 9‑digit ID and a per‑instrument signup map.
+- Edit can be initiated from the dropdown or the context menu and uses a lock file when writing JSON.
+- Cancel sets `active=false`, prefixes the embed title with `[AVBÖJD]`, and disables signup buttons.
+- Reopen restores the original title and re‑enables signup buttons.
+- Delete removes both the JSON file and the signup message (with a double‑click confirmation step).
+- Every action refreshes the calendar and `verktygSignup()` lists.
+
+**Flow**
+```
+Moderation action → JSON update → signup message update → calendar refresh
+```
+</details>
+
+---
+
+### 4) Reminder system
+- A dropdown to pick an event and a button to send reminders.
+- Members receive a private thread with `Ja/Nej/Kanske` buttons and a link to the signup.
+
+<details>
+<summary>Under the hood</summary>
+
+- Builds the target list from `aktiv` members who have **not** responded (and are not bots).
+- Creates a private thread in `privata-meddelanden`, adds all recipients, and posts a reminder with buttons.
+- Clicking a reminder button writes a response back to the event JSON under a lock, then updates the event thread.
+- `remindersSent` is stored in the event JSON; it only triggers a warning, not a hard block.
+
+**Flow**
+```
+Send reminder → private thread + buttons → JSON update → thread update
+```
+</details>
+
+---
+
+### 5) Permissions management
+- “Justera behörigheter” button.
+- Toggle buttons per workgroup to grant/revoke access to “Skapa signup”.
+
+<details>
+<summary>Under the hood</summary>
+
+- Permissions are stored in `src/data/permissions.json` and edited with toggle buttons.
+- The toggles are rendered from workgroup roles (color `#f1c40f`) and saved via `savePermissions()`.
+- The settings gate access to the “Skapa signup” controls inside Signupverktyg.
+
+**Flow**
+```
+Toggle role → permissions.json update → signup creation access changed
+```
+</details>
+
+---
+
+### 6) Cleanup old signups
+- “Städa upp signups” action with a summary report of files moved, messages cleaned, and errors.
+
+<details>
+<summary>Under the hood</summary>
+
+- Scans recent signup messages, identifies signups by `Ja/Nej/Kanske` buttons, and extracts dates.
+- Past events are moved from `src/events/active` → `src/events/archived`.
+- Signup buttons are removed from the original message; the message itself is kept for reference.
+- Returns a summary of files moved, messages cleaned, and errors.
+</details>
+
+---
+
+## Good to know for moderators
+These are **dependencies** the bot relies on. Changing them without updating code/config will break flows.
+- **Role colors**: instrument roles must be `#e91e63`, workgroup roles must be `#f1c40f` (used to detect membership).
+- **Role names**: status roles must be named `aktiv` and `inaktiv` (used in lists, details, and reminders).
+- **Signup emoji names**: `ja`, `nej`, `kanske` (used in threads and button replies).
+- **Channel IDs**: most channels are hardcoded in `src/index.js` (renaming is fine, deleting or replacing channels requires updating IDs).
+- **Thread structure**: event threads are expected to be bot‑created with an event ID on the last line and a pinned “Information:” message as the second message.
+- **Signup identity**: replies are blocked unless the user has an instrument role and a Discord nickname set.
+- **Google Sheets tabs/ranges**: fika + storstäd depend on fixed tabs/cells; calendar sync depends on `calendarTab`.
+- **Drive IDs**: event folders and backup folders are fixed IDs in code.
+- **Manual posts**: profile hub, moderator tools, and member‑details buttons are **not auto‑posted**; if those messages are deleted they must be re‑created manually.
+- **Signupverktyg panel**: the bot only *updates* an existing message with `btn_signupverktyg`; if it is missing, nothing is posted.
+- **Event messages vs. event files**: the events are saved as JSON files in `src/events/`. Removing a message does not remove the file. JSON files from accidentally removed messages can be cleaned up using the *Moderatorverktyg*.
+- **Brittle database**: the database of user's profile details are stored as JSON files. **No database** is used which is noted as a brittle system.
+
+## Server expectations vs. bot‑owned data
+
+### Expected from the Discord server
+These are **not** created automatically (except where noted):
+- **Channels & categories** (IDs are hardcoded in `src/index.js`):
+  - `din-profil`, `kalender`, `signups`, `spelningar`, `verktyg-signup`,
+    `medlemsdetaljer`, `sektionslista`, `arbetsgruppslista`,
+    `kontakta-sektion`, `kontakta-arbetsgrupp`,
+    `fikalista`, `nyckellista`, `moderatorverktyg`, `allmänt-spelningar`,
+    `privata-meddelanden`.
+  - Categories: `sektioner`, `arbetsgrupper`.
+- **Roles**:
+  - Status roles: `aktiv`, `inaktiv`.
+  - Instrument roles: color `#e91e63`.
+  - Workgroup roles: color `#f1c40f`.
+  - Moderator access roles: IDs in code (`role_moderator`, `role_discordgruppen`).
+- **Emoji** names for signup responses: `ja`, `nej`, `kanske`.
+- **Permissions**: bot must manage roles, edit messages, create threads, and (from Feb 2026) pin in threads.
+
+### Expected from Google / external systems
+- `config.json` provides:
+  - `spreadsheetId` + `sheetsTab` for fika list.
+  - `calendarSpreadsheetId` + `calendarTab` for calendar sync.
+  - `googleCredsPath` (service account JSON).
+- Google Drive folder IDs are hardcoded:
+  - Event folders parent (`findOrCreateYearFolder`).
+  - Backup root folder (`backupJsonFiles`).
+  - Backup subfolders (must be created manually).
+
+### Bot‑owned data (files it maintains)
+- `src/detailsList.json` – member details + key status.
+- `src/instrumentList.json` – section lists.
+- `src/groupList.json` – workgroup lists.
+- `src/events/active/*.json` – active events.
+- `src/events/archived/*.json` – archived events.
+- `src/data/permissions.json` – feature permissions (e.g., who can create signups).
+- Logs in `logs/` and Google Drive backups (twice daily).
+
+---
+
+## Automated background tasks
+These run without user interaction:
+- **On startup**: loads permissions, posts lists, updates Signupverktyg, and schedules tasks.
+- **Daily (03:00)**: runs `checkRoles()`, `updateDetails()` (delayed to avoid rate limits), and refreshes calendar + key list.
+- **Hourly**: updates the fika list and checks for passed events.
+- **After event time**: creates the Drive folder and posts/updates the link in the event thread.
+- **Backups**: uploads JSON data to Drive twice daily and cleans old logs/locks/backups.
+
+### Google Drive link behavior (after event time)
+- If the pinned information message exists, the Drive link is appended to `information.text` and the pinned message is updated.
+- A notification message is posted in the thread linking back to the information message.
+- If the information message is missing, the bot falls back to posting and pinning a standalone Drive link message.
+
+---
+
+## Under‑the‑hood data flow (summary visual)
+```
+Discord roles + messages
+   → JSON state (details/events)
+      → Channel posts (lists, calendar, threads)
+         → Google Sheets/Drive sync
+```
+
+---
+
+## Notes & limitations
+- Most IDs (channels, roles, Drive folders) are hardcoded in `src/index.js`.
+- Event Drive folder creation only runs after the event time is passed.
+- Drive backup subfolders must exist; the bot will not create them.
+- The bot uses file locks to avoid JSON corruption during concurrent writes.
+- Lock files and old log files are cleaned up daily; logs rotate monthly in `logs/`.
+- Event data is archived when events pass (JSON moves to `src/events/archived`).
+- The contact flow uses a shared handler for workgroups/sections; there is a code comment noting the section variant behaves unexpectedly.
+- UI text is mostly Swedish.
+- Calendar export via `SheetsToICS.js` requires Google Apps Script deployment.
+
