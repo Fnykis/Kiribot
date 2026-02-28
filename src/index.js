@@ -3734,7 +3734,10 @@ async function updateInformationMessage(thread, text) {
 		const messageArray = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 		if (messageArray.length >= 2) {
 			const informationMessage = messageArray[1]; // Second message (after starter)
-			if (informationMessage.content.startsWith('Information:')) {
+			const isInformationMessage =
+				informationMessage.content.startsWith('## ℹ️ Information') ||
+				informationMessage.content.startsWith('Information:');
+			if (isInformationMessage) {
 				const newContent = text ? `## ℹ️ Information ${text}` : '## ℹ️ Information';
 				await informationMessage.edit(newContent);
 				return informationMessage.id;
@@ -3855,7 +3858,7 @@ client.on(Events.InteractionCreate, async interaction => {
 			.addComponents(btn_add, btn_edit);
 
 		await interaction.reply({
-			content: 'Välj vad du vill göra:',
+			content: 'Denna funktion är för att lägga till *information* om spelningen så att medlemmar lätt kan hitta vad som gäller.Detta hamnar högst upp i tråden.\n\nSkriv gärna ditt namn eller din arbetsgrupp innan ditt meddelande.\nExempel: *"Stars: Vi kommer ha massa guld!"*, *"Olle: Jag har nyckel till rummet vi lämnar kläder i."*\n\nVälj vad du vill göra:',
 			components: [row],
 			flags: MessageFlags.Ephemeral
 		});
@@ -3969,7 +3972,7 @@ client.on(Events.InteractionCreate, async interaction => {
 				.setStyle(TextInputStyle.Paragraph)
 				.setMaxLength(1200)
 				.setValue(currentText)
-				.setRequired(true);
+				.setRequired(false);
 
 			const actionRow = new ActionRowBuilder().addComponents(textInput);
 			modal.addComponents(actionRow);
@@ -3994,7 +3997,9 @@ client.on(Events.InteractionCreate, async interaction => {
 	try {
 		const isAdd = interaction.customId.startsWith('modal_info_add_');
 		const eventId = interaction.customId.split('_')[3];
-		const newText = interaction.fields.getTextInputValue('infoTextInput');
+		const rawText = interaction.fields.getTextInputValue('infoTextInput');
+		const normalizedText = rawText.trim();
+		const newText = normalizedText ? rawText : '';
 
 		// Load event JSON
 		const files = fs.readdirSync(dir_EventsActive);
@@ -4037,8 +4042,17 @@ client.on(Events.InteractionCreate, async interaction => {
 
 				// Update text
 				if (isAdd) {
+					if (!normalizedText) {
+						lockFile.unlock(`${fileName}.lock`, () => {});
+						await interaction.reply({
+							content: 'Informationen kan inte vara tom.',
+							flags: MessageFlags.Ephemeral
+						});
+						return;
+					}
 					// Append with two newline separators
-					eventData.information.text = (eventData.information.text || '') + '\n\n' + newText;
+					const existingText = eventData.information.text || '';
+					eventData.information.text = existingText ? `${existingText}\n\n${newText}` : newText;
 				} else {
 					// Replace entirely
 					eventData.information.text = newText;
@@ -4070,17 +4084,17 @@ client.on(Events.InteractionCreate, async interaction => {
 				// Create notification buttons
 				const btn_notify_thread = new ButtonBuilder()
 					.setCustomId(`info_notify_thread_${eventId}`)
-					.setLabel('Meddela i tråden utan att tagga medverkande')
+					.setLabel('Normal')
 					.setStyle(ButtonStyle.Secondary);
 
 				const btn_notify_tagged = new ButtonBuilder()
 					.setCustomId(`info_notify_tagged_${eventId}`)
-					.setLabel('Tagga medverkande i ett meddelande i tråden')
+					.setLabel('Tagga')
 					.setStyle(ButtonStyle.Secondary);
 
 				const btn_notify_silent = new ButtonBuilder()
 					.setCustomId(`info_notify_silent_${eventId}`)
-					.setLabel('Uppdatera tyst - inget nytt meddelande')
+					.setLabel('Tyst')
 					.setStyle(ButtonStyle.Secondary);
 
 				const row = new ActionRowBuilder()
@@ -4091,7 +4105,7 @@ client.on(Events.InteractionCreate, async interaction => {
 				// For now, we'll fetch it again when needed
 
 				await interaction.reply({
-					content: 'Vill du meddela att ny information lagts till?',
+					content: 'Välj hur du vill meddela tråden:\n**Normal** – Kiribot skickar ett meddelande i tråden utan att tagga någon (rekommenderat).\n**Tagga** – Kiribot pingar alla som signat upp sig. Det här är bra när det är viktigt att alla får veta att det har uppdaterats. Till exampel när spelningen alldeles strax börjar.\n**Tyst** – Kiribot uppdaterar utan nytt meddelande i tråden. Bra när man till exempel bara ändrar felstavningar etc.',
 					components: [row],
 					flags: MessageFlags.Ephemeral
 				});
@@ -4150,7 +4164,10 @@ client.on(Events.InteractionCreate, async interaction => {
 		let informationMessageId = null;
 		if (messageArray.length >= 2) {
 			const informationMessage = messageArray[1];
-			if (informationMessage.content.startsWith('Information:')) {
+			const isInformationMessage =
+				informationMessage.content.startsWith('## ℹ️ Information') ||
+				informationMessage.content.startsWith('Information:');
+			if (isInformationMessage) {
 				informationMessageId = informationMessage.id;
 			}
 		}
@@ -6534,7 +6551,7 @@ async function eventThread(signupData) {
 			logActivity(`Warning: Could not set pin messages permission in thread for '${signupData.name}' (Thread ID: ${thread.id}): ${permError.message}`);
 		}
 
-		// Post "Information:" message and pin it
+		// Post "## ℹ️ Information" message and pin it
 		// Note: Bot needs PIN_MESSAGES permission (required starting February 2026)
 		try {
 			// Verify bot has permission to pin messages
@@ -6544,8 +6561,8 @@ async function eventThread(signupData) {
 				logActivity(`Warning: Bot does not have PIN_MESSAGES permission in thread for '${signupData.name}' (Thread ID: ${thread.id}). Pinning will fail after February 2026.`);
 			}
 			
-			// Post the "Information:" message (this will always be the second message)
-			const informationMessage = await thread.send("Information:");
+			// Post the "## ℹ️ Information" message (this will always be the second message)
+			const informationMessage = await thread.send("## ℹ️ Information");
 			
 			// Pin the information message
 			await informationMessage.pin();
@@ -6789,7 +6806,10 @@ async function hasExistingDriveLinkMessage(thread) {
 		// Check the information message (second message) for Google Drive link
 		if (messageArray.length >= 2) {
 			const informationMessage = messageArray[1];
-			if (informationMessage.content.startsWith('Information:')) {
+			if (
+				informationMessage.content.startsWith('## ℹ️ Information') ||
+				informationMessage.content.startsWith('Information:')
+			) {
 				const content = informationMessage.content.toLowerCase();
 				if (content.includes('google drive')) {
 					return true; // Information message already contains Drive link
@@ -6843,7 +6863,10 @@ async function postDriveLinkToEventThread(eventId, driveUrl, eventName) {
 		let informationMessage = null;
 		if (messageArray.length >= 2) {
 			const potentialInfoMessage = messageArray[1];
-			if (potentialInfoMessage.content.startsWith('Information:')) {
+			if (
+				potentialInfoMessage.content.startsWith('## ℹ️ Information') ||
+				potentialInfoMessage.content.startsWith('Information:')
+			) {
 				informationMessage = potentialInfoMessage;
 			}
 		}
@@ -6873,7 +6896,7 @@ async function postDriveLinkToEventThread(eventId, driveUrl, eventName) {
 			const newInformationText = currentText + driveLinkText;
 			
 			// Update the information message
-			const newContent = `Information:\n${newInformationText}`;
+			const newContent = `## ℹ️ Information ${newInformationText}`;
 			await informationMessage.edit(newContent);
 			
 			// Update event data JSON file with the new text
