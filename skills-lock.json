@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "discord-bot-architect": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "computedHash": "b3d1f3df0f1dcbb5ea34962c91e70198e539daec9f4f0358087a36a1e5f80eef"
+    }
+  }
+}
