@@ -183,7 +183,7 @@ Signup created → thread created → pinned information message
 <details>
 <summary>Under the hood</summary>
 
-- Uses the service account in `src/service-account.json` + `config.json` to read Sheets.
+- Uses the service account in `src/services/service-account.json` + `config.json` to read Sheets.
 - Period (B5) and responsible person (B6) are read from the fika tab; entries come from `A8:H50`.
 - Storstäd flag is read from column B; extra info from column C; names are collected from columns D+.
 - The first upcoming date gets “nästa” emojis; passed dates are rendered as quoted blocks.
@@ -379,7 +379,7 @@ These are **dependencies** the bot relies on. Changing them without updating cod
 - **Role colors**: instrument roles must be `#e91e63`, workgroup roles must be `#f1c40f` (used to detect membership).
 - **Role names**: status roles must be named `aktiv` and `inaktiv` (used in lists, details, and reminders).
 - **Signup emoji names**: `ja`, `nej`, `kanske` (used in threads and button replies).
-- **Channel IDs**: most channels are hardcoded in `src/index.js` (renaming is fine, deleting or replacing channels requires updating IDs).
+- **Channel IDs**: most channels are hardcoded in `src/core/constants.js` (renaming is fine, deleting or replacing channels requires updating IDs).
 - **Thread structure**: event threads are expected to be bot‑created with an event ID on the last line and a pinned “Information:” message as the second message.
 - **Signup identity**: replies are blocked unless the user has an instrument role and a Discord nickname set.
 - **Google Sheets tabs/ranges**: fika + storstäd depend on fixed tabs/cells; calendar sync depends on `calendarTab`.
@@ -393,7 +393,7 @@ These are **dependencies** the bot relies on. Changing them without updating cod
 
 ### Expected from the Discord server
 These are **not** created automatically (except where noted):
-- **Channels & categories** (IDs are hardcoded in `src/index.js`):
+- **Channels & categories** (IDs are hardcoded in `src/core/constants.js`):
   - `din-profil`, `kalender`, `signups`, `spelningar`, `verktyg-signup`,
     `medlemsdetaljer`, `sektionslista`, `arbetsgruppslista`,
     `kontakta-sektion`, `kontakta-arbetsgrupp`,
@@ -419,9 +419,9 @@ These are **not** created automatically (except where noted):
   - Backup subfolders (must be created manually).
 
 ### Bot‑owned data (files it maintains)
-- `src/detailsList.json` – member details + key status.
-- `src/instrumentList.json` – section lists.
-- `src/groupList.json` – workgroup lists.
+- `src/data/detailsList.json` – member details + key status.
+- `src/data/instrumentList.json` – section lists.
+- `src/data/groupList.json` – workgroup lists.
 - `src/events/active/*.json` – active events.
 - `src/events/archived/*.json` – archived events.
 - `src/data/permissions.json` – feature permissions (e.g., who can create signups).
@@ -455,7 +455,7 @@ Discord roles + messages
 ---
 
 ## Notes & limitations
-- Most IDs (channels, roles, Drive folders) are hardcoded in `src/index.js`.
+- Most IDs (channels, roles, Drive folders) are hardcoded in `src/core/constants.js`.
 - Event Drive folder creation only runs after the event time is passed.
 - Drive backup subfolders must exist; the bot will not create them.
 - The bot uses file locks to avoid JSON corruption during concurrent writes.

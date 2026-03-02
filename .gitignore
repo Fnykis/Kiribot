@@ -3,12 +3,12 @@
 
 # config files
 config.json
-src/service-account.json
+src/services/service-account.json
 
 # member data (PII)
-src/detailsList.json
-src/groupList.json
-src/instrumentList.json
+src/data/detailsList.json
+src/data/groupList.json
+src/data/instrumentList.json
 src/data/permissions.json
 
 # event data (contains user IDs and signup responses)

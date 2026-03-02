@@ -34,7 +34,7 @@ For feature behavior, moderator flows, and the full deep‑dive, see `DEEPDIVE.m
 3. Set up Google Cloud Service Account:
    - Enable Google Sheets API and Google Drive API
    - Create a service account and download the credentials JSON
-   - Place it at `src/service-account.json`
+   - Place it at `src/services/service-account.json`
    - Share your Sheets with the service account email (edit access)
 4. Configure the bot in `config.json`:
    ```json
@@ -46,20 +46,24 @@ For feature behavior, moderator flows, and the full deep‑dive, see `DEEPDIVE.m
      "sheetsTab": "YOUR_FIKA_TAB_NAME",
      "calendarSpreadsheetId": "YOUR_CALENDAR_SPREADSHEET_ID",
      "calendarTab": "YOUR_CALENDAR_TAB_NAME",
-     "googleCredsPath": "./src/service-account.json"
+     "googleCredsPath": "./src/services/service-account.json"
    }
    ```
 5. Required Discord roles:
    - Status roles: `aktiv`, `inaktiv`
    - Instrument roles: color `#e91e63`
    - Workgroup roles: color `#f1c40f`
-6. Required Discord channels (IDs are hardcoded in `src/index.js`):
+6. Required Discord channels (IDs are hardcoded in `src/core/constants.js`):
    - `din-profil`, `kalender`, `signups`, `spelningar`, `verktyg-signup`
    - `medlemsdetaljer`, `sektionslista`, `arbetsgruppslista`
    - `kontakta-sektion`, `kontakta-arbetsgrupp`
    - `fikalista`, `nyckellista`, `moderatorverktyg`, `allmänt-spelningar`
    - `privata-meddelanden`
-7. Run the bot:
+7. Register slash commands (run once, or after adding new commands):
+   ```bash
+   npm run register
+   ```
+8. Run the bot:
    ```bash
    npm start
    ```
@@ -67,20 +71,56 @@ For feature behavior, moderator flows, and the full deep‑dive, see `DEEPDIVE.m
 ## File structure
 ```
 kiribot/
-├── config.json              # Bot configuration
+├── config.json              # Bot configuration (gitignored)
 ├── package.json             # Dependencies and scripts
-├── logs/                    # Monthly log files (auto-generated)
+├── logs/                    # Monthly log files — gitignored, auto-generated
 └── src/
-    ├── index.js             # Main bot logic
-    ├── service-account.json # Google Cloud service account credentials
-    ├── detailsList.json     # Member details storage
-    ├── instrumentList.json  # Instrument section lists
-    ├── groupList.json       # Workgroup member lists
-    ├── data/
-    │   └── permissions.json # Permission configuration
-    └── events/              # Event data storage
-        ├── active/          # Current events
-        └── archived/        # Past events
+    ├── index.js             # Entry point — loads events and logs in
+    ├── core/
+    │   ├── client.js        # Discord Client singleton
+    │   ├── constants.js     # All channel/role/category IDs and colors
+    │   └── logger.js        # logActivity + log cleanup
+    ├── state/
+    │   └── store.js         # Shared mutable state (requiredFields, permissionSettings, etc.)
+    ├── utils/
+    │   ├── dateUtils.js     # Date/time parsing utilities
+    │   ├── stringUtils.js   # String formatting utilities
+    │   └── interactionUtils.js  # getNickname, safeReply
+    ├── services/
+    │   ├── registerCommands.js  # Slash command registration script
+    │   ├── service-account.json # Google Cloud credentials (gitignored)
+    │   ├── scheduler.js     # Task scheduling (daily, hourly, twice-daily)
+    │   ├── lockUtils.js     # Lock file cleanup
+    │   ├── permissions.js   # Load/save permission settings
+    │   └── google/
+    │       ├── auth.js      # Google service account auth factory
+    │       ├── sheets.js    # Fika list, calendar sync (Google Sheets)
+    │       └── drive.js     # Event folders, backups (Google Drive)
+    ├── features/
+    │   ├── profile.js       # postYourProfile, instrument/workgroup notifications
+    │   ├── details.js       # updateDetails, postDetailsButtons
+    │   ├── lists.js         # checkRoles, instrument/workgroup/nyckel list posts
+    │   ├── calendar.js      # postCalendar, postSignupButtons
+    │   ├── signup.js        # Event/signup business logic
+    │   ├── eventThread.js   # Spelningar threads, info messages
+    │   └── moderator.js     # postModeratorTools
+    ├── commands/
+    │   └── info.js          # /info slash command
+    ├── interactions/
+    │   ├── buttons/         # profile, contact, signup, moderator, nyckel, info, misc
+    │   ├── modals/          # profile, workgroups, signup, info
+    │   └── menus/           # signupDropdowns, editSignupDropdown, reminderDropdown
+    ├── events/
+    │   ├── ready.js         # Startup tasks and scheduler setup
+    │   ├── interactionCreate.js  # Routes interactions to handlers
+    │   ├── messageCreate.js # Deletes messages in restricted channels
+    │   ├── guildMemberAdd.js    # Updates lists when a member joins
+    │   └── errorHandlers.js # Client error, rate limit, process exceptions
+    └── data/
+        ├── permissions.json     # Permission config — gitignored, auto-generated
+        ├── detailsList.json     # Member details — gitignored, auto-generated
+        ├── instrumentList.json  # Instrument section lists — gitignored, auto-generated
+        └── groupList.json       # Workgroup member lists — gitignored, auto-generated
 ```
 
 ## Contributing
@@ -88,4 +128,3 @@ This bot was created by Olle Lindberg (Fnykis) for the Kiriaka organization. For
 
 ## License
 This project is licensed under the Apache License 2.0.
-

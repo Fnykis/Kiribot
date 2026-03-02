@@ -1,5 +1,5 @@
 const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
-const { token, guildId, clientId } = require('../config.json');
+const { token, guildId, clientId } = require('../../config.json');
 
 const commands = [
 	{
