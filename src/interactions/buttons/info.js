@@ -97,7 +97,29 @@ module.exports = {
                     return;
                 }
 
-                const currentText = eventData.information.text || '';
+                // Read current text from the Discord info message — more reliable than JSON
+                // since drive.js and other handlers can write to the JSON without always
+                // staying in sync with what the message actually shows.
+                let currentText = eventData.information.text || '';
+                const thread = interaction.channel;
+                if (thread.isThread()) {
+                    try {
+                        const messages = await thread.messages.fetch({ after: thread.id, limit: 1 });
+                        if (messages.size > 0) {
+                            const infoMsg = messages.first();
+                            const prefix = '## ℹ️ Information';
+                            if (infoMsg.content === prefix) {
+                                currentText = '';
+                            } else if (infoMsg.content.startsWith(prefix)) {
+                                // Handles both new format (prefix + \n) and old format (prefix + space)
+                                currentText = infoMsg.content.slice(prefix.length + 1);
+                            }
+                        }
+                    } catch (fetchError) {
+                        logActivity(`Could not fetch info message for edit pre-fill, falling back to JSON: ${fetchError.message}`);
+                    }
+                }
+                if (currentText.length > 1200) currentText = currentText.substring(0, 1200);
 
                 let modalTitle = `Ändra information för ${eventData.name}`;
                 if (modalTitle.length > 45) {
@@ -155,11 +177,10 @@ module.exports = {
                     return;
                 }
 
-                const messages = await thread.messages.fetch({ limit: 20 });
-                const messageArray = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+                const messages = await thread.messages.fetch({ after: thread.id, limit: 1 });
                 let informationMessageId = null;
-                if (messageArray.length >= 2) {
-                    const informationMessage = messageArray[1];
+                if (messages.size > 0) {
+                    const informationMessage = messages.first();
                     const isInformationMessage =
                         informationMessage.content.startsWith('## ℹ️ Information') ||
                         informationMessage.content.startsWith('Information:');

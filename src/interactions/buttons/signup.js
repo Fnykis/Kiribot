@@ -759,9 +759,9 @@ module.exports = {
                             .setCustomId('infoInput')
                             .setLabel("Info")
                             .setStyle(TextInputStyle.Paragraph)
-                            .setValue(embed.description)
                             .setMaxLength(1500)
                             .setRequired(false);
+                        if (embed.description) infoInput.setValue(embed.description);
 
                         const actionRow1 = new ActionRowBuilder().addComponents(nameInput);
                         const actionRow2 = new ActionRowBuilder().addComponents(dateInput);

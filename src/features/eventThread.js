@@ -298,18 +298,20 @@ async function findEventThread(eventId) {
 // Helper function to update information message in thread
 async function updateInformationMessage(thread, text) {
 	try {
-		const messages = await thread.messages.fetch({ limit: 20 });
-		const messageArray = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-		if (messageArray.length >= 2) {
-			const informationMessage = messageArray[1]; // Second message (after starter)
-			const isInformationMessage =
-				informationMessage.content.startsWith('## ℹ️ Information') ||
-				informationMessage.content.startsWith('Information:');
-			if (isInformationMessage) {
-				const newContent = text ? `## ℹ️ Information ${text}` : '## ℹ️ Information';
-				await informationMessage.edit(newContent);
-				return informationMessage.id;
-			}
+		// Fetch the message immediately after the starter (info message is always 2nd).
+		// Using `after: thread.id` avoids relying on `limit: 20` most-recent fetch,
+		// which would miss the info message in long threads.
+		const messages = await thread.messages.fetch({ after: thread.id, limit: 1 });
+		if (messages.size === 0) return null;
+
+		const informationMessage = messages.first();
+		const isInformationMessage =
+			informationMessage.content.startsWith('## ℹ️ Information') ||
+			informationMessage.content.startsWith('Information:');
+		if (isInformationMessage) {
+			const newContent = text ? `## ℹ️ Information\n${text}` : '## ℹ️ Information';
+			await informationMessage.edit(newContent);
+			return informationMessage.id;
 		}
 		return null;
 	} catch (error) {
