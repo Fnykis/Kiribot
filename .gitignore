@@ -5,6 +5,11 @@
 config.json
 src/services/service-account.json
 
+# local one-time script (runtime only)
+src/one-time/oneTimeFunction.js
+src/one-time/oneTimeFunction.local.js
+src/one-time/oneTimeFunctions.local.js
+
 # member data (PII)
 src/data/detailsList.json
 src/data/groupList.json

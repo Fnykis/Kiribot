@@ -1,10 +1,15 @@
-const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
+const { REST, Routes } = require('discord.js');
 const { token, guildId, clientId } = require('../../config.json');
 
 const commands = [
 	{
 		name: 'info',
 		description: 'Lägg till eller ändra viktig information'
+	},
+	{
+		name: 'one-time',
+		description: 'Kör en tillfällig engångsfunktion från lokal fil',
+		default_member_permissions: '8'
 	}
 ];
 
@@ -25,4 +30,3 @@ const rest = new REST({ version: '10' }).setToken(token);
 		console.error('Error registering commands:', error);
 	}
 })();
-

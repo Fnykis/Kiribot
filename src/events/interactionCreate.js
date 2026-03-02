@@ -23,6 +23,7 @@ const reminderDropdown = require('../interactions/menus/reminderDropdown');
 
 // Commands
 const infoCommand = require('../commands/info');
+const executeOneTimeFunctionCommand = require('../commands/executeOneTimeFunction');
 
 // Context menu command (handled in signupButtons)
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
@@ -35,6 +36,8 @@ module.exports = {
 			if (interaction.isChatInputCommand()) {
 				if (interaction.commandName === 'info') {
 					await infoCommand.execute(interaction);
+				} else if (interaction.commandName === 'one-time') {
+					await executeOneTimeFunctionCommand.execute(interaction);
 				}
 
 			} else if (interaction.isContextMenuCommand()) {
