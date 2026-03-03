@@ -3,6 +3,8 @@ const fs = require('fs');
 const logActivity = require('../../core/logger');
 const { postNyckelList } = require('../../features/lists');
 
+const role_nyckel = '1478480556772819106';
+
 module.exports = {
     matches(customId) {
         return (
@@ -69,6 +71,8 @@ module.exports = {
                     detailsData = JSON.parse(fs.readFileSync(detailsFilePath, 'utf8'));
                 }
 
+                const member = await interaction.guild.members.fetch(interaction.user.id);
+
                 let userFound = false;
                 ['aktiv', 'inaktiv'].forEach(status => {
                     const userIndex = detailsData[status].findIndex(user => user.id === interaction.user.id);
@@ -79,7 +83,6 @@ module.exports = {
                 });
 
                 if (!userFound) {
-                    const member = await interaction.guild.members.fetch(interaction.user.id);
                     const isActive = member.roles.cache.some(role => role.name === 'aktiv');
                     const newUser = {
                         id: interaction.user.id,
@@ -94,6 +97,19 @@ module.exports = {
                     } else {
                         detailsData.inaktiv.push(newUser);
                     }
+                }
+
+                const nyckelRole = interaction.guild.roles.cache.get(role_nyckel);
+                if (!nyckelRole) {
+                    throw new Error(`Nyckel role with ID ${role_nyckel} was not found in guild.`);
+                }
+
+                if (newStatus === 'Ja' && !member.roles.cache.has(role_nyckel)) {
+                    await member.roles.add(role_nyckel);
+                }
+
+                if (newStatus === 'Nej' && member.roles.cache.has(role_nyckel)) {
+                    await member.roles.remove(role_nyckel);
                 }
 
                 fs.writeFileSync(detailsFilePath, JSON.stringify(detailsData, null, 2));
