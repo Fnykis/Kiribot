@@ -9,6 +9,7 @@ const moderatorButtons = require('../interactions/buttons/moderator');
 const nyckelButtons = require('../interactions/buttons/nyckel');
 const infoButtons = require('../interactions/buttons/info');
 const miscButtons = require('../interactions/buttons/misc');
+const showSignupsButtons = require('../interactions/buttons/showsignups');
 
 // Modal handlers
 const profileModals = require('../interactions/modals/profile');
@@ -49,6 +50,7 @@ module.exports = {
 				const customId = interaction.customId;
 				if (profileButtons.matches(customId)) await profileButtons.execute(interaction);
 				else if (signupButtons.matches(customId)) await signupButtons.execute(interaction);
+				else if (showSignupsButtons.matches(customId)) await showSignupsButtons.execute(interaction);
 				else if (contactButtons.matches(customId)) await contactButtons.execute(interaction);
 				else if (moderatorButtons.matches(customId)) await moderatorButtons.execute(interaction);
 				else if (nyckelButtons.matches(customId)) await nyckelButtons.execute(interaction);

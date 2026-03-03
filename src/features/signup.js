@@ -477,11 +477,16 @@ async function updateSignupButtonMessage() {
 			// Add another delay before editing to avoid rate limits
 			await new Promise(resolve => setTimeout(resolve, 1000));
 
-			// Create the new "Signupverktyg" button
+			const btn_showSignups = new ButtonBuilder()
+				.setCustomId('btn_showSignups')
+				.setLabel('Visa mina signups')
+				.setStyle(ButtonStyle.Primary);
+
+			// Create the "Signupverktyg" button
 			const btn_signupverktyg = new ButtonBuilder()
 				.setCustomId('btn_signupverktyg')
 				.setLabel('Signupverktyg')
-				.setStyle(ButtonStyle.Primary);
+				.setStyle(ButtonStyle.Secondary);
 
 			// Create the "Hur gör jag?" button in grey
 			const btn_signupHowTo = new ButtonBuilder()
@@ -490,7 +495,7 @@ async function updateSignupButtonMessage() {
 				.setStyle(ButtonStyle.Secondary);
 
 			const row1_buttons = new ActionRowBuilder()
-				.addComponents(btn_signupverktyg, btn_signupHowTo);
+				.addComponents(btn_showSignups, btn_signupverktyg, btn_signupHowTo);
 
 			await targetMessage.edit({
 				components: [row1_buttons]
