@@ -6,7 +6,7 @@ const logActivity = require('../core/logger');
 const { ch_Spelningar, ch_Signup, dir_EventsActive, guildId } = require('../core/constants');
 const { getEventJSON } = require('./signup');
 
-async function eventThreadUpdate(targetEventId = null) {
+async function eventThreadUpdate(targetEventId = null, updateContext = null) {
 	let eventName = 'unknown';
 	let eventId = targetEventId || 'unknown';
 	let threadId = 'unknown';
@@ -129,7 +129,17 @@ async function eventThreadUpdate(targetEventId = null) {
 			content: newContent,
 			components: [row]
 		});
-		logActivity(`Updated event thread for: ${data.name}`);
+
+		// Only log successful thread updates when they were triggered by a user action.
+		if (updateContext && updateContext.updatedById) {
+			const actorName =
+				updateContext.updatedByNickname ||
+				updateContext.updatedByName ||
+				updateContext.updatedByTag ||
+				'Unknown user';
+			const updatedByDisplay = `${actorName} (${updateContext.updatedById})`;
+			logActivity(`Updated event thread for: ${data.name} by ${updatedByDisplay}`);
+		}
 	} catch (error) {
 		// Enhanced error logging with context
 		const errorDetails = {

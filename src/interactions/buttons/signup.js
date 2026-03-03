@@ -119,7 +119,11 @@ module.exports = {
 
                     fs.writeFileSync(path.join(dir_EventsActive, fileName), JSON.stringify(data));
 
-                    eventThreadUpdate(id);
+                    eventThreadUpdate(id, {
+                        updatedById: interaction.user.id,
+                        updatedByNickname: getNickname(interaction),
+                        updatedByName: member.displayName
+                    });
 
                     lockFile.unlock(`${fileName}.lock`, (err) => {
                         if (err) {
@@ -656,7 +660,11 @@ module.exports = {
 
                     fs.writeFileSync(path.join(dir_EventsActive, fileName), JSON.stringify(data));
 
-                    eventThreadUpdate(eventId);
+                    eventThreadUpdate(eventId, {
+                        updatedById: interaction.user.id,
+                        updatedByNickname: getNickname(interaction),
+                        updatedByName: member.displayName
+                    });
 
                     lockFile.unlock(`${fileName}.lock`, (err) => {
                         if (err) {
