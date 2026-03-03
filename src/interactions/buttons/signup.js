@@ -73,9 +73,10 @@ module.exports = {
                 await interaction.showModal(modal);
 
                 let modalNote = "";
+                let submittedAcknowledged = false;
                 const submitted = await interaction.awaitModalSubmit({
                     time: 60000,
-                    filter: i => i.user.id === interaction.user.id,
+                    filter: i => i.user.id === interaction.user.id && i.customId === 'modal_note',
                 }).catch(error => {
                     console.error(error);
                     return null;
@@ -83,8 +84,12 @@ module.exports = {
 
                 if (submitted) {
                     modalNote = submitted.fields.getTextInputValue('noteInput');
-                } else {
-                    modalNote = "";
+                    try {
+                        await submitted.deferReply({ flags: MessageFlags.Ephemeral });
+                        submittedAcknowledged = true;
+                    } catch (error) {
+                        logActivity(`Failed to acknowledge modal interaction for ${member.displayName} (interaction ID: ${submitted.id}): ${error.message}${error.code ? ` (code: ${error.code})` : ''}`);
+                    }
                 }
 
                 let message = await interaction.channel.messages.fetch(messageId);
@@ -140,25 +145,19 @@ module.exports = {
                         default: replyEmoji = ""; break;
                     }
 
-                    if (submitted) {
+                    if (submitted && submittedAcknowledged) {
                         const replyContent = `${replyEmoji} Du har meddelat **${buttonText}** på **${data.name}** som **${roles.map(obj => obj.name).join(", ")}.**\nSvara igen om du vill ändra din medverkan.`;
                         try {
-                            await submitted.reply({ content: replyContent, flags: MessageFlags.Ephemeral });
+                            await submitted.editReply({ content: replyContent });
                         } catch (error) {
                             if (error.code === 10062) {
-                                if (submitted.replied || submitted.deferred) {
-                                    try {
-                                        await submitted.followUp({ content: replyContent, flags: MessageFlags.Ephemeral });
-                                    } catch (followUpError) {
-                                        logActivity(`Failed to send followUp message to ${member.displayName} on ${data.name} (interaction ID: ${submitted.id}, already replied: ${submitted.replied}, deferred: ${submitted.deferred}): ${followUpError.message}${followUpError.code ? ` (code: ${followUpError.code})` : ''}`);
-                                    }
-                                } else {
-                                    logActivity(`Interaction expired for ${member.displayName} on ${data.name} (interaction ID: ${submitted.id}). Could not reply or send DM. Signup was processed successfully. Error: ${error.message}`);
-                                }
+                                logActivity(`Interaction token expired after signup processing for ${member.displayName} on ${data.name} (interaction ID: ${submitted.id}). Signup was processed successfully. Error: ${error.message}`);
                             } else {
-                                logActivity(`Error replying to interaction for ${member.displayName} on ${data.name} (interaction ID: ${submitted.id}): ${error.message}${error.code ? ` (code: ${error.code})` : ''}`);
+                                logActivity(`Error editing interaction reply for ${member.displayName} on ${data.name} (interaction ID: ${submitted.id}): ${error.message}${error.code ? ` (code: ${error.code})` : ''}`);
                             }
                         }
+                    } else if (submitted && !submittedAcknowledged) {
+                        logActivity(`Signup processed for ${member.displayName} on ${data.name}, but modal interaction could not be acknowledged (interaction ID: ${submitted.id}).`);
                     }
                 });
             } catch (error) {
