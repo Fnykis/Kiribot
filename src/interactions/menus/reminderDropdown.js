@@ -10,17 +10,29 @@ module.exports = {
     },
 
     async execute(interaction) {
+        const sendEphemeral = async (payload) => {
+            const response = typeof payload === 'string'
+                ? { content: payload, flags: MessageFlags.Ephemeral }
+                : { ...payload, flags: MessageFlags.Ephemeral };
+
+            if (interaction.replied || interaction.deferred) {
+                return interaction.followUp(response);
+            }
+            return interaction.reply(response);
+        };
+
         try {
             const selectedEventId = interaction.values[0];
+            if (!selectedEventId) {
+                await sendEphemeral('Kunde inte läsa valt event. Försök igen.');
+                return;
+            }
 
             const files = fs.readdirSync(dir_EventsActive);
             const fileName = files.find(file => file.endsWith('_' + selectedEventId + '.json'));
 
             if (!fileName) {
-                await interaction.reply({
-                    content: 'Kunde inte hitta spelningen. Den kanske har tagits bort.',
-                    flags: MessageFlags.Ephemeral
-                });
+                await sendEphemeral('Kunde inte hitta spelningen. Den kanske har tagits bort.');
                 return;
             }
 
@@ -37,18 +49,14 @@ module.exports = {
             const row_buttons = new ActionRowBuilder()
                 .addComponents(btn_sendReminder);
 
-            await interaction.reply({
+            await sendEphemeral({
                 content: `Detta kommer skicka ett meddelande till alla aktiva medlemmar som __inte__ svarat på spelningen **${data.name}** med en påminnelse om att svara på signupen.${warningText}`,
                 components: [row_buttons],
-                flags: MessageFlags.Ephemeral
             });
 
         } catch (error) {
             logActivity(`Error in reminderDropdown handler: ${error}`);
-            await interaction.reply({
-                content: 'Ett fel uppstod när spelningen skulle hämtas.',
-                flags: MessageFlags.Ephemeral
-            });
+            await sendEphemeral('Ett fel uppstod när spelningen skulle hämtas.');
         }
     }
 };

@@ -418,15 +418,16 @@ module.exports = {
         // sendReminder_* button
         if (customId.startsWith('sendReminder_')) {
             try {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
                 const eventId = customId.split('_')[1];
 
                 const files = fs.readdirSync(dir_EventsActive);
                 const fileName = files.find(file => file.endsWith('_' + eventId + '.json'));
 
                 if (!fileName) {
-                    await interaction.reply({
+                    await interaction.editReply({
                         content: 'Kunde inte hitta spelningen. Den kanske har tagits bort.',
-                        flags: MessageFlags.Ephemeral
                     });
                     return;
                 }
@@ -435,9 +436,8 @@ module.exports = {
 
                 const aktivRole = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === 'aktiv');
                 if (!aktivRole) {
-                    await interaction.reply({
+                    await interaction.editReply({
                         content: 'Kunde inte hitta "aktiv" medlemmar.',
-                        flags: MessageFlags.Ephemeral
                     });
                     return;
                 }
@@ -462,6 +462,13 @@ module.exports = {
                     !signedUpUserIds.has(member.id)
                 );
 
+                if (membersToRemind.size === 0) {
+                    await interaction.editReply({
+                        content: `Ingen påminnelse skickad. Alla aktiva medlemmar har redan svarat på **${data.name}**.`
+                    });
+                    return;
+                }
+
                 let eventDateString = data.date || 'Okänt datum';
                 if (data.time) {
                     eventDateString += ` | ${data.time}`;
@@ -469,20 +476,15 @@ module.exports = {
 
                 const eventLink = `https://discord.com/channels/${guildId}/${ch_Signup}/${data.link}`;
 
-                data.remindersSent = true;
-                fs.writeFileSync(path.join(dir_EventsActive, fileName), JSON.stringify(data, null, 2));
-
                 const reminderChannel = client.channels.cache.get(ch_PrivataMeddelanden);
                 if (!reminderChannel) {
-                    await interaction.reply({
+                    await interaction.editReply({
                         content: 'Kunde inte hitta kanalen för privata meddelanden.',
-                        flags: MessageFlags.Ephemeral
                     });
                     return;
                 }
 
                 const mentionIds = Array.from(membersToRemind.keys());
-                const mentions = mentionIds.map(id => `<@${id}>`).join(' ');
 
                 const thread = await reminderChannel.threads.create({
                     name: `Påminnelse: ${data.name}`.slice(0, 100),
@@ -490,10 +492,14 @@ module.exports = {
                     type: ChannelType.PrivateThread,
                 });
 
+                let membersAdded = 0;
+                let addErrors = 0;
                 for (const memberId of mentionIds) {
                     try {
                         await thread.members.add(memberId);
+                        membersAdded++;
                     } catch (error) {
+                        addErrors++;
                         logActivity(`Error adding member ${memberId} to reminder thread: ${error.message}`);
                     }
                 }
@@ -516,28 +522,52 @@ module.exports = {
                 const row_reminder_buttons = new ActionRowBuilder()
                     .addComponents(btn_ja_reminder, btn_nej_reminder, btn_kanske_reminder);
 
+                const mentionChunks = [];
+                const maxMentionsPerMessage = 60;
+                for (let i = 0; i < mentionIds.length; i += maxMentionsPerMessage) {
+                    mentionChunks.push(mentionIds.slice(i, i + maxMentionsPerMessage));
+                }
+
+                const firstChunk = mentionChunks.shift() || [];
+                const firstMentions = firstChunk.map(id => `<@${id}>`).join(' ');
+
                 await thread.send({
-                    content: `Kära Kirrisar!\n\nNi som taggats i detta meddelande har inte svarat på signupen för **${data.name}**.\nSvara så snart som möjligt, även om du inte kan delta, så att vi kan planera för spelningen!✨\n\n**Datum:** ${eventDateString}\n**Signup:** ${eventLink}\n\n-# ${mentions}`,
+                    content: `Kära Kirrisar!\n\nNi som taggats i detta meddelande har inte svarat på signupen för **${data.name}**.\nSvara så snart som möjligt, även om du inte kan delta, så att vi kan planera för spelningen!✨\n\n**Datum:** ${eventDateString}\n**Signup:** ${eventLink}\n\n-# ${firstMentions}`,
                     components: [row_reminder_buttons],
-                    allowedMentions: { users: mentionIds }
+                    allowedMentions: { users: firstChunk }
                 });
+
+                for (const chunk of mentionChunks) {
+                    const chunkMentions = chunk.map(id => `<@${id}>`).join(' ');
+                    await thread.send({
+                        content: `-# ${chunkMentions}`,
+                        allowedMentions: { users: chunk }
+                    });
+                }
 
                 data.remindersSent = true;
                 fs.writeFileSync(path.join(dir_EventsActive, fileName), JSON.stringify(data, null, 2));
 
-                await interaction.reply({
-                    content: `Påminnelse skickad till ${membersToRemind.size} medlemmar som inte svarat på **[${data.name}]**.`,
-                    flags: MessageFlags.Ephemeral
+                await interaction.editReply({
+                    content: `Påminnelse skickad till ${membersToRemind.size} medlemmar som inte svarat på **${data.name}**.${addErrors > 0 ? ` (${membersAdded} tillagda i tråden, ${addErrors} kunde inte läggas till.)` : ''}`
                 });
 
-                logActivity(`${interaction.user.tag} sent reminder for event: ${data.name} to ${membersToRemind.size} members`);
+                logActivity(`${interaction.user.tag} sent reminder for event: ${data.name} to ${membersToRemind.size} members (${membersAdded} added to thread, ${addErrors} add errors)`);
 
             } catch (error) {
                 logActivity(`Error in sendReminder handler: ${error}`);
-                await interaction.reply({
-                    content: 'Ett fel uppstod när påminnelsen skulle skickas.',
-                    flags: MessageFlags.Ephemeral
-                });
+                try {
+                    if (interaction.deferred || interaction.replied) {
+                        await interaction.editReply({ content: 'Ett fel uppstod när påminnelsen skulle skickas.' });
+                    } else {
+                        await interaction.reply({
+                            content: 'Ett fel uppstod när påminnelsen skulle skickas.',
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
+                } catch (replyError) {
+                    logActivity(`Error sending error response in sendReminder handler: ${replyError}`);
+                }
             }
             return;
         }
