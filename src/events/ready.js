@@ -1,6 +1,7 @@
 const { Events } = require('discord.js');
 const logActivity = require('../core/logger');
 const { cleanupOldLogs } = require('../core/logger');
+const { cleanupOldUiMetricsLogs } = require('../core/uiMetricsLogger');
 const { loadPermissions } = require('../services/permissions');
 const { scheduleDailyTask, scheduleHourlyTask, scheduleTwiceDailyTask } = require('../services/scheduler');
 const { cleanupLocks } = require('../services/lockUtils');
@@ -41,6 +42,7 @@ async function dailyTasks() {
 	}, 60 * 1000); // 1 minute delay after checkRoles completes
 	cleanupLocks();
 	cleanupOldLogs();
+	cleanupOldUiMetricsLogs();
 	verktygSignup();
 	cleanupOldBackups();
 	postNyckelList(true);

@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const logActivity = require('../core/logger');
+const logUiInteraction = require('../core/uiMetricsLogger');
 
 // Button handlers
 const profileButtons = require('../interactions/buttons/profile');
@@ -47,6 +48,7 @@ module.exports = {
 				}
 
 			} else if (interaction.isButton()) {
+				logUiInteraction(interaction);
 				const customId = interaction.customId;
 				if (profileButtons.matches(customId)) await profileButtons.execute(interaction);
 				else if (signupButtons.matches(customId)) await signupButtons.execute(interaction);
@@ -65,6 +67,7 @@ module.exports = {
 				else if (infoModals.matches(customId)) await infoModals.execute(interaction);
 
 			} else if (interaction.isStringSelectMenu()) {
+				logUiInteraction(interaction);
 				const customId = interaction.customId;
 				if (signupDropdowns.matches(customId)) await signupDropdowns.execute(interaction);
 				else if (editSignupDropdown.matches(customId)) await editSignupDropdown.execute(interaction);
