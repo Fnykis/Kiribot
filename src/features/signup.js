@@ -7,6 +7,8 @@ const logActivity = require('../core/logger');
 const { dir_EventsActive, dir_EventsArchived, ch_Signup, ch_Verktyg_Signup, ch_Spelningar, guildId } = require('../core/constants');
 const { parseEventDate } = require('../utils/dateUtils');
 const { syncEventsToSheet } = require('../services/google/sheets');
+const { findEventThread } = require('./eventThread');
+const { logArchived } = require('../services/eventMetrics');
 
 function getEventJSON(eventId) {
 	try {
@@ -275,6 +277,15 @@ async function cleanupOutdatedSignups(nickname) {
                             // Move the file
                             fs.renameSync(oldPath, newPath);
                             filesMoved++;
+
+                            try {
+                                const archivedData = JSON.parse(fs.readFileSync(newPath, 'utf8'));
+                                const guild = signupChannel.guild;
+                                const summary = await buildArchiveSummary(archivedData, guild);
+                                logArchived(fileName, archivedData.createdAt, summary);
+                            } catch (metricsErr) {
+                                logActivity(`Failed to write archive metrics for ${fileName}: ${metricsErr}`);
+                            }
                         }
                     }
                 } catch (fileError) {
@@ -308,6 +319,37 @@ async function cleanupOutdatedSignups(nickname) {
     return { filesMoved, messagesCleaned, errors };
 }
 
+async function buildArchiveSummary(eventData, guild) {
+    let ja = 0, nej = 0, kanske = 0;
+    const instruments = {};
+
+    for (const [instrument, entries] of Object.entries(eventData.signups || {})) {
+        const iJa     = entries.filter(e => e.response === 'ja').length;
+        const iNej    = entries.filter(e => e.response === 'nej').length;
+        const iKanske = entries.filter(e => e.response === 'kanske').length;
+        ja     += iJa;
+        nej    += iNej;
+        kanske += iKanske;
+        instruments[instrument] = { ja: iJa, nej: iNej, kanske: iKanske, total: entries.length };
+    }
+
+    const aktivRole    = guild ? guild.roles.cache.find(r => r.name.toLowerCase() === 'aktiv') : null;
+    const activeMembers = aktivRole ? aktivRole.members.size : 0;
+
+    const thread        = await findEventThread(eventData.id).catch(() => null);
+    const threadMessages = thread ? (thread.messageCount ?? 0) : 0;
+
+    return {
+        eventName: eventData.name,
+        eventDate: eventData.date,
+        total: ja + nej + kanske,
+        ja, nej, kanske,
+        activeMembers,
+        threadMessages,
+        instruments
+    };
+}
+
 async function moveToArchived(event) {
 
     // Move the file from active to archived
@@ -322,6 +364,15 @@ async function moveToArchived(event) {
 
         // Move the file
         fs.renameSync(oldPath, newPath);
+
+        try {
+            const archivedData = JSON.parse(fs.readFileSync(newPath, 'utf8'));
+            const guild = client.guilds.cache.get(guildId);
+            const summary = await buildArchiveSummary(archivedData, guild);
+            logArchived(event.file, archivedData.createdAt, summary);
+        } catch (metricsErr) {
+            logActivity(`Failed to write archive metrics for ${event.file}: ${metricsErr}`);
+        }
     } catch (err) {
         logActivity(`Failed to move file to archived: ${err}`);
         // You might want to throw an error or handle it differently

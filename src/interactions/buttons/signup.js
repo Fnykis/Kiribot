@@ -13,6 +13,7 @@ const { getNickname } = require('../../utils/interactionUtils');
 const { postCalendar } = require('../../features/calendar');
 const { verktygSignup, listaSvar, listaInstrument, listaDetaljer, cleanupOutdatedSignups } = require('../../features/signup');
 const { eventThread, eventThreadUpdate } = require('../../features/eventThread');
+const { logSignup, logSignupEdit, logReminderSent, logCancelled, logReopened, deleteEventLog } = require('../../services/eventMetrics');
 
 module.exports = {
     matches(customId) {
@@ -107,6 +108,12 @@ module.exports = {
                     }
                     let data = JSON.parse(fs.readFileSync(path.join(dir_EventsActive, fileName), 'utf8'));
 
+                    let prevResponse = null;
+                    for (const role in data.signups) {
+                        const entry = data.signups[role].find(e => e.id === member.id);
+                        if (entry) { prevResponse = entry.response; break; }
+                    }
+
                     for (let role in data.signups) {
                         data.signups[role] = data.signups[role].filter(entry => entry.name !== member.displayName);
                     }
@@ -123,6 +130,12 @@ module.exports = {
                     });
 
                     fs.writeFileSync(path.join(dir_EventsActive, fileName), JSON.stringify(data));
+
+                    if (!prevResponse) {
+                        logSignup(fileName, data.createdAt, buttonId);
+                    } else if (prevResponse !== buttonId) {
+                        logSignupEdit(fileName, data.createdAt, prevResponse, buttonId);
+                    }
 
                     eventThreadUpdate(id, {
                         updatedById: interaction.user.id,
@@ -550,6 +563,7 @@ module.exports = {
 
                 data.remindersSent = true;
                 fs.writeFileSync(path.join(dir_EventsActive, fileName), JSON.stringify(data, null, 2));
+                logReminderSent(fileName, data.createdAt);
 
                 await interaction.editReply({
                     content: `Påminnelse skickad till ${membersToRemind.size} medlemmar som inte svarat på **${data.name}**.${addErrors > 0 ? ` (${membersAdded} tillagda i tråden, ${addErrors} kunde inte läggas till.)` : ''}`
@@ -642,6 +656,12 @@ module.exports = {
 
                     let data = JSON.parse(fs.readFileSync(path.join(dir_EventsActive, fileName), 'utf8'));
 
+                    let prevResponse = null;
+                    for (const role in data.signups) {
+                        const entry = data.signups[role].find(e => e.id === member.id);
+                        if (entry) { prevResponse = entry.response; break; }
+                    }
+
                     for (let role in data.signups) {
                         data.signups[role] = data.signups[role].filter(entry => entry.name !== member.displayName);
                     }
@@ -658,6 +678,12 @@ module.exports = {
                     });
 
                     fs.writeFileSync(path.join(dir_EventsActive, fileName), JSON.stringify(data));
+
+                    if (!prevResponse) {
+                        logSignup(fileName, data.createdAt, responseType);
+                    } else if (prevResponse !== responseType) {
+                        logSignupEdit(fileName, data.createdAt, prevResponse, responseType);
+                    }
 
                     eventThreadUpdate(eventId, {
                         updatedById: interaction.user.id,
@@ -816,6 +842,7 @@ module.exports = {
                     try {
                         data.active = false;
                         fs.writeFileSync(dir_EventsActive + '/' + fileName, JSON.stringify(data));
+                        logCancelled(fileName, data.createdAt);
 
                         const avboj_newEmbed = {
                             "title": '[AVBÖJD] ~~' + embed.title + '~~',
@@ -861,6 +888,7 @@ module.exports = {
                 case 'oppna':
                     data.active = true;
                     fs.writeFileSync(dir_EventsActive + '/' + fileName, JSON.stringify(data));
+                    logReopened(fileName, data.createdAt);
 
                     const oppna_newEmbed = {
                         "title": embed.title.replace(/~~/g, '').replaceAll('[AVBÖJD] ', ''),
@@ -904,6 +932,7 @@ module.exports = {
                     deleting = true;
                     break;
                 case 'tryckigen':
+                    deleteEventLog(fileName, data.createdAt);
                     fs.unlinkSync(dir_EventsActive + '/' + fileName);
                     deleted = true;
                     deleting = true;

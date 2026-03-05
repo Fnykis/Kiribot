@@ -11,6 +11,7 @@ const { getNickname } = require('../../utils/interactionUtils');
 const { postCalendar } = require('../../features/calendar');
 const { verktygSignup } = require('../../features/signup');
 const { eventThread } = require('../../features/eventThread');
+const { logEventCreated } = require('../../services/eventMetrics');
 
 module.exports = {
     matches(customId) {
@@ -120,9 +121,12 @@ module.exports = {
                     "createDriveDir": true,
                     "link": messageId,
                     "signups": instruments,
-                    "information": {"text": ""}
+                    "information": {"text": ""},
+                    "createdAt": new Date().toISOString()
                 };
-                fs.writeFileSync(dir_EventsActive + '/' + makeFileNameFriendly(signupName) + '_' + signupId + '.json', JSON.stringify(signupData));
+                const signupFileName = makeFileNameFriendly(signupName) + '_' + signupId + '.json';
+                fs.writeFileSync(dir_EventsActive + '/' + signupFileName, JSON.stringify(signupData));
+                logEventCreated(signupFileName, signupName, signupData.createdAt);
 
                 eventThread(signupData);
 
