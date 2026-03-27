@@ -63,7 +63,7 @@ module.exports = {
                     signupTime = correctedTime;
                 }
 
-                let contentReply = `${interaction.user} Spelningen skapad. Se #verktyg för att se detaljerade signup-listor.`;
+                let contentReply = `${interaction.user} Spelningen skapad! Se #verktyg för att se detaljerade signup-listor.`;
                 if (correctedDate == null) contentReply += '\n_Om du vill att datumet ska fungera i kalendern behöver formatet se ut såhär: DD/MM/YY_';
 
                 let signupDateAndTime = "";
@@ -130,7 +130,19 @@ module.exports = {
 
                 eventThread(signupData);
 
-                await interaction.reply({ content: contentReply, flags: MessageFlags.Ephemeral });
+                const btn_noDrive = new ButtonBuilder()
+                    .setCustomId('noDriveLink_' + signupId)
+                    .setLabel('Skapa INTE Drive-länk')
+                    .setStyle(ButtonStyle.Danger);
+
+                const row_noDrive = new ActionRowBuilder()
+                    .addComponents(btn_noDrive);
+
+                await interaction.reply({
+                    content: contentReply + "\n\nOm du **inte** vill att det skapas en Google Drive länk så klickar du på knappen nedan.\n-# Om du inte klickar knappen kommer en mapp och länk skapas.",
+                    components: [row_noDrive],
+                    flags: MessageFlags.Ephemeral
+                });
 
                 logActivity(getNickname(interaction) + " created a new signup: " + signupName);
                 postCalendar(true);

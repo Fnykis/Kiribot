@@ -30,7 +30,8 @@ module.exports = {
             customId.startsWith('tabort_') ||
             customId.startsWith('listaInstrument_') ||
             customId.startsWith('sendReminder_') ||
-            customId.startsWith('reminder_')
+            customId.startsWith('reminder_') ||
+            customId.startsWith('noDriveLink_')
         );
     },
 
@@ -714,6 +715,29 @@ module.exports = {
                 } catch (replyError) {
                     logActivity(`Error replying to reminder button interaction: ${replyError}`);
                 }
+            }
+            return;
+        }
+
+        // noDriveLink_<signupId> button
+        if (customId.startsWith('noDriveLink_')) {
+            try {
+                const signupId = customId.split('_')[1];
+                let files = fs.readdirSync(dir_EventsActive);
+                let fileName = files.find(file => file.endsWith('_' + signupId + '.json'));
+                if (!fileName) {
+                    await interaction.reply({ content: 'Kunde inte hitta spelningen.', flags: MessageFlags.Ephemeral });
+                    return;
+                }
+
+                let data = JSON.parse(fs.readFileSync(path.join(dir_EventsActive, fileName), 'utf8'));
+                data.createDriveDir = false;
+                fs.writeFileSync(path.join(dir_EventsActive, fileName), JSON.stringify(data));
+
+                await interaction.update({ content: 'Google Drive-länk kommer **inte** skapas för denna spelning.', components: [] });
+                logActivity(getNickname(interaction) + " disabled Drive link for " + data.name);
+            } catch (error) {
+                logActivity("Error in noDriveLink button: " + error);
             }
             return;
         }
