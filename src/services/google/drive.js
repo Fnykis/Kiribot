@@ -5,7 +5,7 @@ const { PermissionFlagsBits } = require('discord.js');
 const lockFile = require('lockfile');
 const { createAuth } = require('./auth');
 const logActivity = require('../../core/logger');
-const { dir_EventsActive, dir_EventsArchived, ch_Spelningar } = require('../../core/constants');
+const { dir_EventsActive, dir_EventsArchived, ch_Spelningar, ch_GruppMedia, guildId } = require('../../core/constants');
 const client = require('../../core/client');
 const { parseSwedishTime } = require('../../utils/dateUtils');
 const { getEventJSON } = require('../../features/signup');
@@ -804,4 +804,78 @@ async function cleanupOldBackups() {
 	}
 }
 
-module.exports = { findOrCreateYearFolder, createEventDriveFolder, hasExistingDriveLinkMessage, postDriveLinkToEventThread, processPassedEvent, checkAndProcessPassedEvents, findSubfolder, backupJsonFiles, cleanupArchivedActiveEvents, cleanupOldBackups };
+// Check for empty Drive folders created this month and notify Grupp Media
+async function checkEmptyDriveFolders() {
+	try {
+		const auth = createAuth(['https://www.googleapis.com/auth/drive']);
+		const drive = google.drive({ version: 'v3', auth });
+
+		const now = new Date();
+		const currentYear = String(now.getFullYear());
+
+		// Find the current year folder
+		const yearFolderId = await findOrCreateYearFolder(drive, currentYear);
+
+		// List all subfolders in the year folder, including createdTime
+		const foldersResponse = await drive.files.list({
+			q: `'${yearFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+			fields: 'files(id, name, createdTime, webViewLink)',
+		});
+
+		if (!foldersResponse.data.files || foldersResponse.data.files.length === 0) {
+			return;
+		}
+
+		// Filter to folders created last month
+		const monthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+		const monthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+
+		const thisMonthFolders = foldersResponse.data.files.filter(folder => {
+			const created = new Date(folder.createdTime);
+			return created >= monthStart && created < monthEnd;
+		});
+
+		if (thisMonthFolders.length === 0) {
+			return;
+		}
+
+		// Check each folder for children
+		const emptyFolders = [];
+		for (const folder of thisMonthFolders) {
+			const children = await drive.files.list({
+				q: `'${folder.id}' in parents and trashed=false`,
+				fields: 'files(id)',
+				pageSize: 1,
+			});
+
+			if (!children.data.files || children.data.files.length === 0) {
+				emptyFolders.push(folder);
+			}
+		}
+
+		if (emptyFolders.length === 0) {
+			return;
+		}
+
+		// Send summary to Grupp Media channel
+		const guild = client.guilds.cache.get(guildId);
+		if (!guild) return;
+		const channel = guild.channels.cache.get(ch_GruppMedia);
+		if (!channel) return;
+
+		const folderList = emptyFolders.map(f => {
+			const url = f.webViewLink || `https://drive.google.com/drive/folders/${f.id}`;
+			return `- **${f.name}** — [Öppna i Drive](${url})`;
+		}).join('\n');
+
+		const monthNames = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
+		const lastMonth = monthNames[monthStart.getMonth()];
+
+		await channel.send(`📂 **Mappar som skapade i ${lastMonth} som fortfarande är tomma:**\n\n${folderList}`);
+
+	} catch (error) {
+		logActivity(`Error in checkEmptyDriveFolders: ${error.message}`);
+	}
+}
+
+module.exports = { findOrCreateYearFolder, createEventDriveFolder, hasExistingDriveLinkMessage, postDriveLinkToEventThread, processPassedEvent, checkAndProcessPassedEvents, findSubfolder, backupJsonFiles, cleanupArchivedActiveEvents, cleanupOldBackups, checkEmptyDriveFolders };

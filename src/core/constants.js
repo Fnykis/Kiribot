@@ -18,6 +18,7 @@ const ch_FikaList = '1413819045576183888';				// The channel fika list
 const ch_ModeratorVerktyg = '1331385309098676295';		// The channel moderatorverktyg
 const ch_Nyckellista = '1437452414679519387';			// The channel nyckellista
 const ch_PrivataMeddelanden = '1416019629993627750';	// The channel privata meddelanden
+const ch_GruppMedia = '1139446284965654529';			// The channel grupp media
 const ch_BotTest = '1231042885411930253';
 
 const cat_Arbetsgrupper = '1139444099716489346';		// The category arbetsgrupper
@@ -49,6 +50,7 @@ module.exports = {
 	ch_Nyckellista,
 	ch_PrivataMeddelanden,
 	ch_BotTest,
+	ch_GruppMedia,
 	cat_Arbetsgrupper,
 	cat_Sektioner,
 	role_discordgruppen,

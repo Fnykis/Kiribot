@@ -5,7 +5,7 @@ const { cleanupOldUiMetricsLogs } = require('../core/uiMetricsLogger');
 const { loadPermissions } = require('../services/permissions');
 const { scheduleDailyTask, scheduleHourlyTask, scheduleTwiceDailyTask } = require('../services/scheduler');
 const { cleanupLocks } = require('../services/lockUtils');
-const { backupJsonFiles, cleanupOldBackups, checkAndProcessPassedEvents } = require('../services/google/drive');
+const { backupJsonFiles, cleanupOldBackups, checkAndProcessPassedEvents, checkEmptyDriveFolders } = require('../services/google/drive');
 const { postFikaList } = require('../services/google/sheets');
 const { checkRoles, postNyckelList } = require('../features/lists');
 const { updateDetails } = require('../features/details');
@@ -24,6 +24,10 @@ module.exports = {
 		scheduleHourlyTask(postFikaList);
 		scheduleHourlyTask(checkAndProcessPassedEvents);
 		scheduleTwiceDailyTask(3, 0, 15, 0, backupJsonFiles); // Backup at 3 AM and 3 PM
+		scheduleDailyTask(9, 0, () => {
+			// Only run on the 1st of each month
+			if (new Date().getDate() === 1) checkEmptyDriveFolders();
+		}); // Check for empty Drive folders on the 1st of each month at 9 AM
 		logActivity(`Ready! Logged in as ${readyClient.user.tag}`);
 		// testFunction: delay updateSignupButtonMessage by 5 seconds on startup
 		setTimeout(() => {
