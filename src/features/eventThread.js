@@ -209,8 +209,10 @@ async function eventThread(signupData) {
 		}
 
 		logActivity(`Created discussion thread for event: '${signupData.name}' (Thread ID: ${thread.id})`);
+		return `https://discord.com/channels/${guildId}/${thread.id}`;
 	} catch (error) {
 		logActivity(`Error creating event thread for '${signupData.name}' (Thread ID: ${thread.id}): ${error.message}`);
+		return null;
 	}
 }
 

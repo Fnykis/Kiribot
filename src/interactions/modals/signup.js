@@ -10,7 +10,7 @@ const { makeFileNameFriendly } = require('../../utils/stringUtils');
 const { getNickname } = require('../../utils/interactionUtils');
 const { postCalendar } = require('../../features/calendar');
 const { verktygSignup } = require('../../features/signup');
-const { eventThread } = require('../../features/eventThread');
+const { eventThread, findEventThread } = require('../../features/eventThread');
 const { logEventCreated } = require('../../services/eventMetrics');
 
 module.exports = {
@@ -128,8 +128,6 @@ module.exports = {
                 fs.writeFileSync(dir_EventsActive + '/' + signupFileName, JSON.stringify(signupData));
                 logEventCreated(signupFileName, signupName, signupData.createdAt);
 
-                eventThread(signupData);
-
                 const btn_noDrive = new ButtonBuilder()
                     .setCustomId('noDriveLink_' + signupId)
                     .setLabel('Skapa INTE Drive-länk')
@@ -147,6 +145,12 @@ module.exports = {
                 logActivity(getNickname(interaction) + " created a new signup: " + signupName);
                 postCalendar(true);
                 verktygSignup();
+
+                const threadUrl = await eventThread(signupData);
+                if (threadUrl) {
+                    embed.url = threadUrl;
+                    await message.edit({ embeds: [embed], components: [row_buttons] });
+                }
 
             } catch (error) {
                 logActivity(`Error during modal submission for user ${interaction.user.tag} (${interaction.user.id}):`, error);
@@ -273,6 +277,11 @@ module.exports = {
                             }
                         });
                     });
+
+                    const thread = await findEventThread(signupEditId);
+                    if (thread) {
+                        embedEdit.url = `https://discord.com/channels/${guildId}/${thread.id}`;
+                    }
 
                     await message.edit({ embeds: [embedEdit], components: [row_buttons] });
                     await interaction.reply({ content: contentReply, flags: MessageFlags.Ephemeral });
