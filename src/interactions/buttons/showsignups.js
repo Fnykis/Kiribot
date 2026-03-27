@@ -8,11 +8,7 @@ const { getNickname } = require('../../utils/interactionUtils');
 
 function formatEventDate(dateObj, rawDate, time, onlyDate) {
 	const datePart = dateObj
-		? dateObj.toLocaleDateString('sv-SE', {
-			day: '2-digit',
-			month: '2-digit',
-			year: '2-digit'
-		})
+		? `${dateObj.getDate()}/${dateObj.getMonth() + 1}`
 		: (rawDate || 'okänt datum');
 
 	if (!time || typeof time !== 'string' || time.trim().length === 0) {
@@ -40,9 +36,9 @@ function getResponseLabels(interaction) {
 	const emoteKanske = interaction.client.emojis.cache.find(emoji => emoji.name === 'kanske');
 
 	return {
-		ja: `${emoteJa || '✅'} Ja`,
-		nej: `${emoteNej || '❌'} Nej`,
-		kanske: `${emoteKanske || '❔'} Kanske`
+		ja: `${emoteJa || '✅'}`,
+		nej: `${emoteNej || '❌'}`,
+		kanske: `${emoteKanske || '❔'}`
 	};
 }
 
@@ -130,35 +126,23 @@ module.exports = {
 				return a.name.localeCompare(b.name, 'sv');
 			});
 
-			const unanswered = events.filter(event => !event.userReply);
-			const answered = events.filter(event => !!event.userReply);
+			let message = `## Dina svar\n`;
+			message += events
+				.map(event => {
+					const truncatedName = event.name.length > 35
+						? event.name.slice(0, 35) + '…'
+						: event.name;
+					const nameLink = event.signupLink
+						? `[${truncatedName}](${event.signupLink})`
+						: truncatedName;
+					const datePart = formatEventDate(event.date, event.rawDate, event.time, true);
 
-			let message = `## Dina signups\nAktiva events: **${events.length}**\nEj svarat: **${unanswered.length}**\n\n`;
-
-			if (unanswered.length > 0) {
-				message += '**⚠️ Du har inte svarat på:**\n';
-				message += unanswered
-					.map(event => {
-						const eventName = event.signupLink
-							? `**[${event.name}](${event.signupLink})**`
-							: `**${event.name}**`;
-						return `- ${formatEventDate(event.date, event.rawDate, event.time, true)} ${eventName}`;
-					})
-					.join('\n');
-				message += '\n\n';
-			}
-
-			message += '**Dina svar:**\n';
-			message += answered.length > 0
-				? answered
-					.map(event => {
-						const eventName = event.signupLink
-							? `**[${event.name}](${event.signupLink})**`
-							: `**${event.name}**`;
-						return `- ${formatEventDate(event.date, event.rawDate, event.time, true)} ${eventName} ${event.userReply}`;
-					})
-					.join('\n')
-				: 'Du har inte svarat på några aktiva events ännu.';
+					if (event.userReply) {
+						return `${event.userReply} ${datePart} ${nameLink}`;
+					}
+					return `**⚠️ ${datePart} ${nameLink}**`;
+				})
+				.join('\n');
 
 			if (message.length > 2000) {
 				message = message.slice(0, 1950) + '\n\n...Listan är för lång och har trunkerats.';
