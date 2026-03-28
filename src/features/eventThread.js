@@ -77,7 +77,7 @@ async function eventThreadUpdate(targetEventId = null) {
 
 		// Reconstruct the base content from data to prevent parsing errors from corrupted messages.
 		// This makes the update process robust and also repairs previously corrupted messages.
-		const baseContent = `## ${data.name}\n**Signup: https://discord.com/channels/${targetThread.guild.id}/${ch_Signup}/${data.link}**`;
+		const baseContent = `## **[${data.name}](https://discord.com/channels/${targetThread.guild.id}/${ch_Signup}/${data.link})**`;
 
 		// Collect users who replied "ja" and "kanske" with their IDs
 		let jaUsers = new Map();
@@ -159,7 +159,7 @@ async function eventThread(signupData) {
 
 		// Create the thread title and content
 		const threadTitle = `${signupData.name}`;
-		const threadContent = `## ${signupData.name}\n**Signup: https://discord.com/channels/${guildId}/${ch_Signup}/${signupData.link}**\n\n${emote_ja} 0: Ingen\n\n${emote_kanske} 0: Ingen\n\n-# ${signupData.id}`;
+		const threadContent = `## **[${signupData.name}](https://discord.com/channels/${guildId}/${ch_Signup}/${signupData.link})**\n\n${emote_ja} 0: Ingen\n\n${emote_kanske} 0: Ingen\n\n-# ${signupData.id}`;
 
 		// Create the thread
 		const thread = await channel.threads.create({
