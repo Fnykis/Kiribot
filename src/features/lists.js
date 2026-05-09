@@ -148,6 +148,7 @@ async function postNyckelList(update) {
     let description = "🔑 Följande personer har nyckel till replokalen\n\n";
     if (usersWithKey.length > 0) {
         description += usersWithKey.join('\n');
+        description += "\n\nPersoner med nyckel kan taggas med @nyckelbärare i meddelanden.";
     } else {
         description += "Inga personer har registrerat nyckel ännu.";
     }
@@ -155,9 +156,6 @@ async function postNyckelList(update) {
     const embed = {
         "title": 'Nyckellista',
         "description": description,
-        "footer": {
-			"text":  'Personer med nyckel kan taggas med **@nyckelbärare** i meddelanden.'
-        },
         "color": 7419530
     };
 
