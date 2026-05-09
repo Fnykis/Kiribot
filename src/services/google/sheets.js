@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const { createAuth } = require('./auth');
 const logActivity = require('../../core/logger');
 const store = require('../../state/store');
@@ -224,6 +224,8 @@ async function postFikaList(update) {
 			await channel.send({ content: messageContent, components: [row] });
 		}
 
+		await syncAktivMembersToSheet();
+
 	} catch (error) {
 		logActivity(`Error posting fika list: ${error.message}`);
 	}
@@ -292,6 +294,61 @@ async function getFikaInstructions() {
 	} catch (error) {
 		logActivity(`Error fetching fika instructions: ${error.message}`);
 		return 'Kunde inte hämta fikainstruktioner.';
+	}
+}
+
+async function syncAktivMembersToSheet() {
+	try {
+		const auth = createAuth(['https://www.googleapis.com/auth/spreadsheets']);
+		const sheets = google.sheets({ version: 'v4', auth });
+
+		const config = require('../../../config.json');
+		const spreadsheetId = config.spreadsheetId;
+
+		const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+		const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.sheetId === 22487304);
+		if (!sheet) {
+			logActivity('Could not find sheet with gid=22487304');
+			return;
+		}
+		const tabName = sheet.properties.title;
+
+		const guild = client.guilds.cache.get(config.guildId);
+		if (!guild) {
+			logActivity('Could not find guild for Aktiv member sync');
+			return;
+		}
+
+		if (guild.members.cache.size < 2) {
+			await guild.members.fetch();
+		}
+
+		const aktivRole = guild.roles.cache.find(r => r.name.toLowerCase() === 'aktiv');
+		if (!aktivRole) {
+			logActivity('Could not find Aktiv role');
+			return;
+		}
+
+		const memberNames = [...aktivRole.members.values()]
+			.map(m => m.displayName)
+			.sort((a, b) => a.localeCompare(b, 'sv'));
+
+		await sheets.spreadsheets.values.clear({
+			spreadsheetId,
+			range: `${tabName}!A:A`,
+		});
+
+		if (memberNames.length > 0) {
+			await sheets.spreadsheets.values.update({
+				spreadsheetId,
+				range: `${tabName}!A1:A${memberNames.length}`,
+				valueInputOption: 'RAW',
+				resource: { values: memberNames.map(name => [name]) },
+			});
+		}
+
+	} catch (error) {
+		logActivity(`Error syncing Aktiv members to sheet: ${error.message}`);
 	}
 }
 
@@ -449,4 +506,79 @@ async function syncEventsToSheet() {
 	}
 }
 
-module.exports = { postFikaList, getCleaningInstructions, getFikaInstructions, syncEventsToSheet };
+async function sendFikaReminder() {
+	try {
+		const auth = createAuth(['https://www.googleapis.com/auth/spreadsheets.readonly']);
+		const sheets = google.sheets({ version: 'v4', auth });
+		const config = require('../../../config.json');
+		const spreadsheetId = config.spreadsheetId;
+
+		const dataRange = `${config.sheetsTab}!A8:H50`;
+		const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: dataRange });
+		const rows = response.data.values;
+		if (!rows || rows.length === 0) return;
+
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+
+		let fikaEntry = null;
+		for (const row of rows) {
+			const date = row[0];
+			if (!date || date.trim() === '') break;
+
+			const dateObj = new Date(date);
+			if (isNaN(dateObj.getTime())) continue;
+			dateObj.setHours(0, 0, 0, 0);
+
+			if (dateObj.getTime() < today.getTime()) continue;
+
+			// First upcoming date — check if it's today
+			if (dateObj.getTime() === today.getTime()) {
+				const storstad = row[1] === 'TRUE' || row[1] === true;
+				const extraInfo = row[2] || '';
+				const names = [];
+				for (let j = 3; j < row.length; j++) {
+					if (row[j] && row[j].trim() !== '') names.push(row[j].trim());
+				}
+				fikaEntry = { storstad, extraInfo, names };
+			}
+			break;
+		}
+
+		if (!fikaEntry) return;
+
+		const guild = client.guilds.cache.get(config.guildId);
+		if (!guild) return;
+		if (guild.members.cache.size < 2) await guild.members.fetch();
+
+		const mentions = fikaEntry.names.map(name => {
+			const member = guild.members.cache.find(m => m.displayName.toLowerCase() === name.toLowerCase());
+			return member ? `<@${member.id}>` : name;
+		});
+
+		const dateLabel = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+		let content = `## Fikadags! 🍌\n`;
+		if (fikaEntry.storstad) content += `### Obs! **Storstäd** idag!\n`;
+		if (fikaEntry.extraInfo) content += `_${fikaEntry.extraInfo}_\n`;
+		content += `\n${mentions.join(', ')} — ni har fika och städ idag!\nUndrar ni något om städet som ska göras varje vecka så finns det knappar i #fikalista.`;
+		content += `\n-# Tagga medlemmar om ni vill lägga till dem i tråden.`;
+
+		const channel = client.channels.cache.get(ch_FikaList);
+		if (!channel) return;
+
+		const thread = await channel.threads.create({
+			name: `Fika ${dateLabel}`,
+			type: ChannelType.PrivateThread,
+			invitable: true,
+		});
+
+		await thread.send(content);
+		logActivity(`Sent fika reminder thread for ${dateLabel}`);
+
+	} catch (error) {
+		logActivity(`Error sending fika reminder: ${error.message}`);
+	}
+}
+
+module.exports = { postFikaList, getCleaningInstructions, getFikaInstructions, syncEventsToSheet, syncAktivMembersToSheet, sendFikaReminder };

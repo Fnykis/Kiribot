@@ -6,7 +6,7 @@ const { loadPermissions } = require('../services/permissions');
 const { scheduleDailyTask, scheduleHourlyTask, scheduleTwiceDailyTask } = require('../services/scheduler');
 const { cleanupLocks } = require('../services/lockUtils');
 const { backupJsonFiles, cleanupOldBackups, checkAndProcessPassedEvents, checkEmptyDriveFolders } = require('../services/google/drive');
-const { postFikaList } = require('../services/google/sheets');
+const { postFikaList, syncAktivMembersToSheet, sendFikaReminder } = require('../services/google/sheets');
 const { checkRoles, postNyckelList } = require('../features/lists');
 const { updateDetails } = require('../features/details');
 const { postCalendar } = require('../features/calendar');
@@ -22,12 +22,14 @@ module.exports = {
 		// scheduleDailyTask(8, 0, remindUsers);
 		remindUsers();
 		scheduleHourlyTask(postFikaList);
+		scheduleDailyTask(8, 0, sendFikaReminder);
 		scheduleHourlyTask(checkAndProcessPassedEvents);
 		scheduleTwiceDailyTask(3, 0, 15, 0, backupJsonFiles); // Backup at 3 AM and 3 PM
 		scheduleDailyTask(9, 0, () => {
 			// Only run on the 1st of each month
 			if (new Date().getDate() === 1) checkEmptyDriveFolders();
 		}); // Check for empty Drive folders on the 1st of each month at 9 AM
+		setTimeout(() => syncAktivMembersToSheet(), 60 * 1000);
 		logActivity(`Ready! Logged in as ${readyClient.user.tag}`);
 		// testFunction: delay updateSignupButtonMessage by 5 seconds on startup
 		setTimeout(() => {

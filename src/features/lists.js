@@ -155,6 +155,9 @@ async function postNyckelList(update) {
     const embed = {
         "title": 'Nyckellista',
         "description": description,
+        "footer": {
+			"text":  'Personer med nyckel kan taggas med **@nyckelbärare** i meddelanden.'
+        },
         "color": 7419530
     };
 
