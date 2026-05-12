@@ -27,7 +27,9 @@ const reminderDropdown = require('../interactions/menus/reminderDropdown');
 const infoCommand = require('../commands/info');
 const executeOneTimeFunctionCommand = require('../commands/executeOneTimeFunction');
 
-// Context menu command (handled in signupButtons)
+// Context menu handlers
+const planLineup = require('../interactions/contextMenus/planLineup');
+
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 
 module.exports = {
@@ -45,6 +47,8 @@ module.exports = {
 			} else if (interaction.isContextMenuCommand()) {
 				if (interaction.commandName === 'Ändra signup') {
 					await handleChangeSignup(interaction);
+				} else if (planLineup.matches(interaction.commandName)) {
+					await planLineup.execute(interaction);
 				}
 
 			} else if (interaction.isButton()) {
