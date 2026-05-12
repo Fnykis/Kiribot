@@ -1,9 +1,12 @@
-# dependencies
+# dependencies (cloudflared is cloudflared-linux-amd64)
 /node_modules
+cloudflared
 
 # config files
 config.json
+config.yml
 src/services/service-account.json
+tunnel-credentials.json
 
 # docs (ignore everything except superpowers subtree)
 /docs/*

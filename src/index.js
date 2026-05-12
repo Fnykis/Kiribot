@@ -3,6 +3,7 @@ const path = require('path');
 const client = require('./core/client');
 const config = require('../config.json');
 const logActivity = require('./core/logger');
+const { spawn } = require('child_process');
 const { register: registerErrorHandlers } = require('./events/errorHandlers');
 const { start: startExpress } = require('./core/express');
 
@@ -23,6 +24,17 @@ for (const file of eventFiles) {
 		}
 	}
 }
+
+// Start cloudflared tunnel as sidecar process
+const cloudflaredBin = path.join('/home/container', 'cloudflared');
+try { fs.chmodSync(cloudflaredBin, 0o755); } catch (_) {}
+const cloudflared = spawn(
+    cloudflaredBin,
+    ['tunnel', '--config', '/home/container/config.yml', 'run'],
+    { stdio: 'inherit' }
+);
+cloudflared.on('error', err => logActivity('cloudflared failed to start:', err));
+cloudflared.on('exit', code => logActivity(`cloudflared exited with code ${code}`));
 
 // Start Express after bot is ready (needs client.guilds.cache populated)
 client.once('ready', () => {
