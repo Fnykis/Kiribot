@@ -1,9 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const client = require('./core/client');
-const { token } = require('../config.json');
+const config = require('../config.json');
 const logActivity = require('./core/logger');
 const { register: registerErrorHandlers } = require('./events/errorHandlers');
+const { start: startExpress } = require('./core/express');
 
 // Register error handlers before anything else
 registerErrorHandlers();
@@ -23,5 +24,12 @@ for (const file of eventFiles) {
 	}
 }
 
+// Start Express after bot is ready (needs client.guilds.cache populated)
+client.once('ready', () => {
+	startExpress({ client, config }).catch(err =>
+		logActivity('Failed to start Express:', err)
+	);
+});
+
 // Log in to Discord
-client.login(token).catch(err => logActivity('Failed to login:', err));
+client.login(config.token).catch(err => logActivity('Failed to login:', err));
