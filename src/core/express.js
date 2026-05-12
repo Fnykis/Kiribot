@@ -6,6 +6,8 @@ const createGuildMemberService = require('../services/guildMember');
 const createAuthMiddleware = require('../middleware/auth');
 const createTokenRoute = require('../routes/api/token');
 const createMeRoute = require('../routes/api/me');
+const createConcertPendingRoute = require('../routes/api/concert');
+const { pendingConcerts } = require('../features/lineup');
 
 function buildApp({ client, config }) {
     const oauth = createOAuthService({
@@ -30,6 +32,7 @@ function buildApp({ client, config }) {
 
     app.post('/api/token', createTokenRoute({ oauth, logger }));
     app.get('/api/me', authMiddleware, createMeRoute());
+    app.get('/api/concert/pending', authMiddleware, createConcertPendingRoute({ pendingConcerts }));
 
     app.use((err, req, res, _next) => {
         logger('express unhandled error:', err);
