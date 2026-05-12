@@ -10,6 +10,10 @@ const commands = [
 		name: 'one-time',
 		description: 'Kör en tillfällig engångsfunktion från lokal fil',
 		default_member_permissions: '8'
+	},
+	{
+		name: 'Planera lineup',
+		type: 3
 	}
 ];
 
