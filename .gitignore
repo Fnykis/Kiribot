@@ -5,6 +5,10 @@
 config.json
 src/services/service-account.json
 
+# docs (ignore everything except superpowers subtree)
+/docs/*
+!/docs/superpowers/
+
 # local one-time script (runtime only)
 src/one-time/oneTimeFunction.js
 src/one-time/oneTimeFunction.local.js
