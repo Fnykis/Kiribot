@@ -20,7 +20,7 @@ function createConcertsRoute({ activeDir, parseEventDate, logger = () => {} }) {
                 logger(`concerts route: skipping ${file}:`, err.message);
                 continue;
             }
-            if (!data || !data.id || !data.name || !data.date) continue;
+            if (!data || !data.id || !data.name || !data.date || data.active === false) continue;
             concerts.push({ concertId: data.id, name: data.name, date: data.date });
         }
 

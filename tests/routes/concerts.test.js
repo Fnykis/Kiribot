@@ -111,6 +111,22 @@ test('skips events missing id, name, or date', () => {
     }
 });
 
+test('skips events with active === false', () => {
+    const dir = makeTmpDir();
+    try {
+        writeEvent(dir, 'inactive.json', { id: '111', name: 'Hidden', date: '08/03/26', active: false });
+        writeEvent(dir, 'active.json',   { id: '222', name: 'Visible', date: '08/03/26', active: true });
+        writeEvent(dir, 'nofield.json',  { id: '333', name: 'NoField', date: '08/03/26' });
+        const handler = createConcertsRoute({ activeDir: dir, parseEventDate });
+        const res = mockRes();
+        handler({}, res);
+        assert.strictEqual(res.body.length, 2);
+        assert.ok(res.body.every(c => c.concertId !== '111'));
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
 test('events with unparseable date sort to the end (stable)', () => {
     const dir = makeTmpDir();
     try {
