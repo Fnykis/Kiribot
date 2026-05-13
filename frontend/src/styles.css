@@ -336,3 +336,25 @@ body {
     border-radius: 4px;
     pointer-events: none;
 }
+
+#stall-upp-alla-modal:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.stua-wrap {
+    background: #222;
+    color: white;
+    padding: 16px;
+    border-radius: 8px;
+    min-width: 320px;
+    max-height: 80vh;
+    overflow: auto;
+}
+.stua-row { display: flex; justify-content: space-between; padding: 4px 0; }
+.stua-pick.selected { background: #2ecc71; color: black; }
+.stua-ok:disabled { opacity: 0.5; cursor: not-allowed; }
