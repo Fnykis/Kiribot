@@ -36,10 +36,15 @@ function createLineupStore({ activeDir = DEFAULT_ACTIVE_DIR } = {}) {
         const lockPath = `${file}.lock`;
 
         await lockAsync(lockPath, { stale: 5 * 60 * 1000, retries: 50, retryWait: 50 });
+        let parsed;
         try {
-            const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+            parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch {
+            throw new Error('event_corrupt');
+        }
+        try {
             if (!Array.isArray(parsed.lineup)) parsed.lineup = [];
-            const patched = fn(parsed) || parsed;
+            const patched = fn(parsed) ?? parsed;
             fs.writeFileSync(file, JSON.stringify(patched, null, 2));
             return patched;
         } finally {
