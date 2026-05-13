@@ -1,6 +1,7 @@
 function createTokenRoute({ oauth, logger }) {
     return async function tokenRoute(req, res) {
         const { code } = req.body || {};
+        if (logger) logger('POST /api/token received code:', code ? `${code.slice(0, 8)}... (len ${code.length})` : 'MISSING');
         if (!code || typeof code !== 'string') {
             return res.status(400).json({ error: 'missing_code' });
         }
