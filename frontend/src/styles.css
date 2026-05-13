@@ -318,4 +318,5 @@ body {
     white-space: nowrap;
     transform: translate(-50%, -50%);
 }
+/* Intentionally fades the source row while the drag ghost is visible */
 .available-row.dragging { opacity: 0.6; }
