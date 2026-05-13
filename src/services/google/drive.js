@@ -333,7 +333,7 @@ async function processPassedEvent(eventData, fileName) {
 		// Check if bot has already posted a Google Drive link message in this thread
 		const alreadyPosted = await hasExistingDriveLinkMessage(targetThread);
 		if (alreadyPosted) {
-			logActivity(`Google Drive link already posted for event '${eventData.name}' (ID: ${eventData.id}). Skipping Drive folder creation and link posting.`);
+			// logActivity(`Google Drive link already posted for event '${eventData.name}' (ID: ${eventData.id}). Skipping Drive folder creation and link posting.`);
 			return;
 		}
 
