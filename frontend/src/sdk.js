@@ -6,7 +6,11 @@ function renderStandaloneRefusal() {
     document.body.appendChild(p);
 }
 
-export async function bootSdk(DiscordSDKClass, clientId) {
+export async function bootSdk(DiscordSDKClass, clientId, patchUrlMappingsFn) {
+    if (typeof patchUrlMappingsFn === 'function') {
+        patchUrlMappingsFn([{ prefix: '/api', target: 'lineup-api.ollelindberg.se' }]);
+    }
+
     let sdk;
     try {
         sdk = new DiscordSDKClass(clientId);
