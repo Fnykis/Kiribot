@@ -11,6 +11,10 @@ import {
     clearSelectedConcert,
     getDraggingId,
     setDraggingId,
+    getDraggingPosition,
+    setDraggingPosition,
+    getDraggingSidebarUserId,
+    setDraggingSidebarUserId,
 } from './state.js';
 import { renderPicker } from './picker.js';
 import { renderAvailable } from './sidebar/available.js';
@@ -115,6 +119,8 @@ async function loadPlanner(concertId) {
         trashEl: trash,
         getEvent,
         setDraggingId,
+        setDraggingPosition,
+        setDraggingSidebarUserId,
         onPlace: async (payload) => {
             const updated = await post('/api/lineup/place', { concertId, ...payload }, _accessToken);
             setEvent(updated);
@@ -168,6 +174,8 @@ async function loadPlanner(concertId) {
         fetchState: () => get(`/api/state/${concertId}`, _accessToken),
         intervalMs: 5000,
         getDraggingId,
+        getDraggingPosition,
+        getDraggingSidebarUserId,
         onUpdate: (updated) => {
             setEvent(updated);
             renderAvailable(sidebar, updated);

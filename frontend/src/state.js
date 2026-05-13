@@ -19,3 +19,12 @@ export function clearSelectedConcert() {
     _selectedConcertId = null;
     _event = null;
 }
+
+let _draggingPosition = null;
+let _draggingSidebarUserId = null;
+
+export function getDraggingPosition() { return _draggingPosition; }
+export function setDraggingPosition(pos) { _draggingPosition = pos; }
+
+export function getDraggingSidebarUserId() { return _draggingSidebarUserId; }
+export function setDraggingSidebarUserId(id) { _draggingSidebarUserId = id; }

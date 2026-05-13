@@ -33,26 +33,56 @@ describe('startPoll', () => {
         stopPoll(handle);
     });
 
-    it('preserves dragging user position from prior event', async () => {
-        const prev = eventWith([{ userId: 'me', position: { x: 100, y: 100 } }, { userId: 'other', position: { x: 0, y: 0 } }]);
-        const next = eventWith([{ userId: 'me', position: { x: 999, y: 999 } }, { userId: 'other', position: { x: 50, y: 50 } }]);
-        const calls = [prev, next];
-        let i = 0;
-        const fetchState = vi.fn(async () => calls[Math.min(i++, calls.length - 1)]);
+    it('preserves dragging user position using live getDraggingPosition', async () => {
+        const server = eventWith([
+            { userId: 'me', position: { x: 999, y: 999 } },
+            { userId: 'other', position: { x: 50, y: 50 } }
+        ]);
+        const livePos = { x: 100, y: 100 };
         const updates = [];
         const handle = startPoll({
-            fetchState, intervalMs: 100,
+            fetchState: async () => server,
+            intervalMs: 100,
             getDraggingId: () => 'me',
+            getDraggingPosition: () => livePos,
             onUpdate: (ev) => updates.push(ev)
         });
-        await vi.advanceTimersByTimeAsync(100); // first tick → publishes prev
-        await vi.advanceTimersByTimeAsync(100); // second tick → publishes next with 'me' position preserved from prev
-        expect(updates).toHaveLength(2);
-        const me = updates[1].lineup.find(e => e.userId === 'me');
-        const other = updates[1].lineup.find(e => e.userId === 'other');
+        await vi.advanceTimersByTimeAsync(100);
+        handle.stop();
+        const me = updates[0].lineup.find(e => e.userId === 'me');
+        const other = updates[0].lineup.find(e => e.userId === 'other');
         expect(me.position).toEqual({ x: 100, y: 100 });
         expect(other.position).toEqual({ x: 50, y: 50 });
-        stopPoll(handle);
+    });
+
+    it('uses live draggingPosition instead of server position for dragging dot', async () => {
+        const server = { lineup: [{ userId: 'u1', position: { x: 100, y: 100 }, instrument: '1:a', displayName: 'A' }] };
+        let received = null;
+        const handle = startPoll({
+            fetchState: async () => server,
+            intervalMs: 10,
+            getDraggingId: () => 'u1',
+            getDraggingPosition: () => ({ x: 700, y: 500 }),
+            onUpdate: (e) => { received = e; },
+        });
+        await vi.advanceTimersByTimeAsync(10);
+        handle.stop();
+        const u1 = received.lineup.find(e => e.userId === 'u1');
+        expect(u1.position).toEqual({ x: 700, y: 500 });
+    });
+
+    it('skips onUpdate entirely when sidebar drag active', async () => {
+        let called = 0;
+        const handle = startPoll({
+            fetchState: async () => ({ lineup: [] }),
+            intervalMs: 10,
+            getDraggingId: () => null,
+            getDraggingSidebarUserId: () => 'u-sidebar',
+            onUpdate: () => { called++; },
+        });
+        await vi.advanceTimersByTimeAsync(30);
+        handle.stop();
+        expect(called).toBe(0);
     });
 
     it('calls onError when fetch rejects and continues polling', async () => {

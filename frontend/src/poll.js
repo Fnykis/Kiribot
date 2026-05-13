@@ -4,21 +4,22 @@ export function startPoll({
     fetchState,
     intervalMs = DEFAULT_INTERVAL_MS,
     getDraggingId,
+    getDraggingPosition = () => null,
+    getDraggingSidebarUserId = () => null,
     onUpdate,
     onError,
     visibilityRef = (typeof document !== 'undefined' ? document : { hidden: false })
 }) {
-    let lastEvent = null;
     let stopped = false;
 
     async function tick() {
         if (stopped) return;
         if (visibilityRef.hidden) return;
+        if (getDraggingSidebarUserId()) return;
         try {
             const next = await fetchState();
             if (stopped) return;
-            const merged = mergeDraggingPosition(lastEvent, next, getDraggingId());
-            lastEvent = merged;
+            const merged = mergeLivePosition(next, getDraggingId(), getDraggingPosition());
             onUpdate(merged);
         } catch (err) {
             if (onError) onError(err);
@@ -33,12 +34,10 @@ export function stopPoll(handle) {
     if (handle) handle.stop();
 }
 
-function mergeDraggingPosition(prev, next, draggingId) {
-    if (!draggingId || !prev || !next || !Array.isArray(next.lineup)) return next;
-    const prevEntry = (prev.lineup || []).find(e => e.userId === draggingId);
-    if (!prevEntry) return next;
+function mergeLivePosition(next, draggingId, livePos) {
+    if (!draggingId || !livePos || !next || !Array.isArray(next.lineup)) return next;
     return {
         ...next,
-        lineup: next.lineup.map(e => e.userId === draggingId ? { ...e, position: prevEntry.position } : e)
+        lineup: next.lineup.map(e => e.userId === draggingId ? { ...e, position: livePos } : e)
     };
 }
