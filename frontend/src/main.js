@@ -18,10 +18,12 @@ import {
 } from './state.js';
 import { renderPicker } from './picker.js';
 import { renderAvailable } from './sidebar/available.js';
-import { renderStage } from './canvas/stage.js';
+import { renderStage, GRID_STEP, STAGE_W, STAGE_H } from './canvas/stage.js';
 import { startPoll, stopPoll } from './poll.js';
 import { wireDrag } from './canvas/drag.js';
 import { openManualAdd } from './sidebar/manualAdd.js';
+import { openStallUppAlla } from './sidebar/stallUppAlla.js';
+import { computeAutoPositions } from './canvas/autoPlace.js';
 
 const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 
@@ -165,6 +167,31 @@ async function loadPlanner(concertId) {
                 } catch (err) {
                     showStatus('Kunde inte lägga till medlem: ' + (err.message || err), true);
                 }
+            }
+        });
+    }
+
+    const stuaBtn = document.getElementById('stall-upp-alla-btn');
+    const stuaModal = document.getElementById('stall-upp-alla-modal');
+    if (stuaBtn && stuaModal) {
+        stuaBtn.onclick = () => openStallUppAlla({
+            modalEl: stuaModal,
+            event: getEvent(),
+            onSubmit: async (selections) => {
+                const positioned = computeAutoPositions(selections, GRID_STEP, STAGE_W, STAGE_H);
+                for (const p of positioned) {
+                    try {
+                        const updated = await post('/api/lineup/place', {
+                            concertId, ...p, manuallyAdded: false
+                        }, _accessToken);
+                        setEvent(updated);
+                    } catch (err) {
+                        showStatus(`Kunde inte placera ${p.displayName}: ${err.message || err}`, true);
+                        break;
+                    }
+                }
+                renderAvailable(sidebar, getEvent());
+                renderStage(stage, getEvent());
             }
         });
     }
