@@ -1,12 +1,12 @@
-const { mergeRoster } = require('../../features/lineup');
-
 function isFiniteNumber(v) {
     return typeof v === 'number' && Number.isFinite(v);
 }
 
-function userInRoster(eventJson, savedState, userId) {
-    const roster = mergeRoster(eventJson, savedState);
-    return roster.some(p => p.userId === userId);
+function userInRoster(eventJson, _savedState, userId) {
+    const signups = eventJson?.signups ?? {};
+    return Object.values(signups).some(group =>
+        Array.isArray(group) && group.some(m => m.id === userId)
+    );
 }
 
 function createPlaceRoute({ getEventJSON, lineupStore }) {

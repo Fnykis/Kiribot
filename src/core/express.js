@@ -61,8 +61,7 @@ function buildApp({ client, config }) {
     app.get('/api/concerts', authMiddleware,
         createConcertsRoute({ activeDir: dir_EventsActive, parseEventDate, logger }));
 
-    app.get('/api/state/:concertId', authMiddleware,
-        createStateRoute({ getEventJSON, lineupStore }));
+    app.get('/api/state/:concertId', authMiddleware, createStateRoute({ lineupStore }));
 
     app.post('/api/lineup/place', authMiddleware, lineupLimiter,
         createPlaceRoute({ getEventJSON, lineupStore }));
