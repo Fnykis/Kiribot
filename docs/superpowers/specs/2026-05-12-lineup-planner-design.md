@@ -176,7 +176,7 @@ Boot sequence:
 1. `DiscordSDK.ready()`. Reject → static "open inside Discord" page; stop.
 2. `sdk.commands.authenticate()` → OAuth code.
 3. `POST /api/token` → access token (memory only, no localStorage).
-4. `GET /api/concert/pending` → concertId. 404 → "no pending concert; use 'Planera lineup' first".
+4. `GET /api/concert/pending` → concertId. 404 → "no pending concert; use 'Lineup' first".
 5. `GET /api/state/:concertId` → initial render. 403 → lockout page.
 6. Start `poll.js`.
 

@@ -12,7 +12,7 @@ const commands = [
 		default_member_permissions: '8'
 	},
 	{
-		name: 'Planera lineup',
+		name: 'Lineup',
 		type: 3
 	}
 ];

@@ -14,7 +14,7 @@ async function main() {
         console.error('  ' + authorize.toString());
         console.error('');
         console.error('Workflow:');
-        console.error('  1. In Discord, right-click an active signup post → Apps → "Planera lineup".');
+        console.error('  1. In Discord, right-click an active signup post → Apps → "Lineup".');
         console.error('  2. Confirm you see the ephemeral reply.');
         console.error('  3. Authorize via the URL above and paste the resulting code here.');
         process.exit(1);

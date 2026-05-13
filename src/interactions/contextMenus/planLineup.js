@@ -4,7 +4,7 @@ const { pendingConcerts } = require('../../features/lineup');
 const logActivity = require('../../core/logger');
 
 function matches(commandName) {
-    return commandName === 'Planera lineup';
+    return commandName === 'Lineup';
 }
 
 async function execute(interaction) {
@@ -36,7 +36,7 @@ async function execute(interaction) {
     const data = getEventJSON(eventId);
     if (!data) {
         await interaction.reply({
-            content: 'Kunde inte hitta konserten. Är den arkiverad?',
+            content: 'Kunde inte hitta spelningen. Är den arkiverad?',
             flags: MessageFlags.Ephemeral
         });
         return;
