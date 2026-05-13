@@ -13,7 +13,10 @@ export function clientToStage(rect, clientX, clientY, pointerOffset = { x: 0, y:
 }
 
 export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
+                          setDraggingPosition, setDraggingSidebarUserId,
                           onPlace, onMove, onRemove, onError }) {
+    setDraggingPosition = setDraggingPosition || (() => {});
+    setDraggingSidebarUserId = setDraggingSidebarUserId || (() => {});
     // ---- Drag a placed dot inside the stage ----
     interact('.stage-dot', { context: stageEl }).draggable({
         listeners: {
@@ -32,6 +35,13 @@ export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
                 evt.target.dataset.dragX = x;
                 evt.target.dataset.dragY = y;
                 evt.target.style.transform = `translate(${x}px, ${y}px)`;
+                const pointerOffset = {
+                    x: parseFloat(evt.target.dataset.pointerOffX) || 0,
+                    y: parseFloat(evt.target.dataset.pointerOffY) || 0,
+                };
+                const liveRect = stageEl.getBoundingClientRect();
+                const live = clientToStage(liveRect, evt.client.x, evt.client.y, pointerOffset);
+                setDraggingPosition(live);
             },
             async end(evt) {
                 const userId = evt.target.dataset.userId;
@@ -55,31 +65,38 @@ export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
                     if (onError) onError(err);
                 } finally {
                     setDraggingId(null);
+                    setDraggingPosition(null);
                 }
             }
         }
     });
 
     // ---- Drag a sidebar row onto the stage ----
+    let _sidebarGhost = null;
+
     interact('.available-row', { context: sidebarEl }).draggable({
         listeners: {
             start(evt) {
                 evt.target.classList.add('dragging');
+                setDraggingSidebarUserId(evt.target.dataset.userId);
+                _sidebarGhost = document.createElement('div');
+                _sidebarGhost.className = 'drag-ghost';
+                _sidebarGhost.textContent = evt.target.textContent.trim();
+                _sidebarGhost.style.left = `${evt.client.x}px`;
+                _sidebarGhost.style.top = `${evt.client.y}px`;
+                document.body.appendChild(_sidebarGhost);
             },
             move(evt) {
-                const x = (parseFloat(evt.target.dataset.dragX) || 0) + evt.dx;
-                const y = (parseFloat(evt.target.dataset.dragY) || 0) + evt.dy;
-                evt.target.dataset.dragX = x;
-                evt.target.dataset.dragY = y;
-                evt.target.style.transform = `translate(${x}px, ${y}px)`;
+                if (_sidebarGhost) {
+                    _sidebarGhost.style.left = `${evt.client.x}px`;
+                    _sidebarGhost.style.top = `${evt.client.y}px`;
+                }
             },
             async end(evt) {
                 evt.target.classList.remove('dragging');
-                evt.target.style.transform = '';
-                evt.target.dataset.dragX = 0;
-                evt.target.dataset.dragY = 0;
-
-                if (evt.relatedTarget !== stageEl) return; // only commit on stage drop
+                if (_sidebarGhost) { _sidebarGhost.remove(); _sidebarGhost = null; }
+                setDraggingSidebarUserId(null);
+                if (evt.relatedTarget !== stageEl) return;
                 const userId = evt.target.dataset.userId;
                 const instrument = evt.target.dataset.instrument;
                 const displayName = evt.target.textContent.trim();

@@ -305,4 +305,17 @@ body {
 }
 
 .stage-dot.dragging { z-index: 50; opacity: 0.85; }
+
+.drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(40, 40, 40, 0.85);
+    color: white;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+}
 .available-row.dragging { opacity: 0.6; }
