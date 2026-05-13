@@ -18,6 +18,8 @@ export function setSelectedConcertId(id) { _selectedConcertId = id; }
 export function clearSelectedConcert() {
     _selectedConcertId = null;
     _event = null;
+    _draggingPosition = null;
+    _draggingSidebarUserId = null;
 }
 
 let _draggingPosition = null;
