@@ -5,7 +5,7 @@
     -webkit-user-select: none;
 }
 
-input, textarea, [contenteditable="true"] {
+input, textarea, select, [contenteditable="true"] {
     user-select: text;
     -webkit-user-select: text;
 }
