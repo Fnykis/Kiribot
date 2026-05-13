@@ -13,4 +13,19 @@ describe('clientToStage', () => {
         expect(clientToStage(rect, -50, -50)).toEqual({ x: 0, y: 0 });
         expect(clientToStage(rect, 9999, 9999)).toEqual({ x: 1000, y: 600 });
     });
+
+    it('subtracts pointer offset to give grab-point-anchored coords', () => {
+        const rect = { left: 0, top: 0, width: 1000, height: 600 };
+        const { x, y } = clientToStage(rect, 540, 320, { x: 20, y: 10 });
+        // offset removed: client (540,320) - offset(20,10) = effective (520,310)
+        expect(x).toBe(520);
+        expect(y).toBe(310);
+    });
+
+    it('clamps to stage bounds with offset', () => {
+        const rect = { left: 0, top: 0, width: 1000, height: 600 };
+        const out = clientToStage(rect, 5000, 5000, { x: 0, y: 0 });
+        expect(out.x).toBe(1000); // STAGE_W
+        expect(out.y).toBe(600);  // STAGE_H
+    });
 });

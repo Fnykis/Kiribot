@@ -1,9 +1,9 @@
 import interact from 'interactjs';
 import { STAGE_W, STAGE_H } from './stage.js';
 
-export function clientToStage(rect, clientX, clientY) {
-    const offX = clientX - rect.left;
-    const offY = clientY - rect.top;
+export function clientToStage(rect, clientX, clientY, pointerOffset = { x: 0, y: 0 }) {
+    const offX = (clientX - pointerOffset.x) - rect.left;
+    const offY = (clientY - pointerOffset.y) - rect.top;
     const x = Math.round((offX / rect.width) * STAGE_W);
     const y = Math.round((offY / rect.height) * STAGE_H);
     return {
@@ -20,6 +20,9 @@ export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
             start(evt) {
                 const userId = evt.target.dataset.userId;
                 setDraggingId(userId);
+                const rect = evt.target.getBoundingClientRect();
+                evt.target.dataset.pointerOffX = evt.client.x - rect.left;
+                evt.target.dataset.pointerOffY = evt.client.y - rect.top;
                 evt.target.dataset.dragX = 0;
                 evt.target.dataset.dragY = 0;
             },
@@ -40,8 +43,12 @@ export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
                     if (droppedOnTrash) {
                         await onRemove({ userId });
                     } else {
+                        const pointerOffset = {
+                            x: parseFloat(evt.target.dataset.pointerOffX) || 0,
+                            y: parseFloat(evt.target.dataset.pointerOffY) || 0,
+                        };
                         const rect = stageEl.getBoundingClientRect();
-                        const { x, y } = clientToStage(rect, evt.client.x, evt.client.y);
+                        const { x, y } = clientToStage(rect, evt.client.x, evt.client.y, pointerOffset);
                         await onMove({ userId, x, y });
                     }
                 } catch (err) {

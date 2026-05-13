@@ -13,5 +13,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    alias: {
+      interactjs: new URL('./tests/__mocks__/interactjs.js', import.meta.url).pathname,
+    },
   },
 });
