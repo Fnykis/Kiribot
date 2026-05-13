@@ -11,6 +11,19 @@ export async function get(path, token, fetchFn = fetch) {
     return handleResponse(res);
 }
 
+export async function getWithQuery(path, params, token, fetchFn = fetch) {
+    const usp = new URLSearchParams();
+    for (const [k, v] of Object.entries(params || {})) {
+        if (v !== undefined && v !== null && v !== '') usp.set(k, String(v));
+    }
+    const qs = usp.toString();
+    const url = qs ? `${path}?${qs}` : path;
+    const res = await fetchFn(url, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    return handleResponse(res);
+}
+
 export async function post(path, body, token, fetchFn = fetch) {
     const res = await fetchFn(path, {
         method: 'POST',

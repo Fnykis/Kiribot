@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { get, post } from '../src/api.js';
+import { getWithQuery } from '../src/api.js';
 
 function mockFetch(status, body) {
     return async () => ({
@@ -57,5 +58,22 @@ describe('post', () => {
     it('throws with status 409 on conflict', async () => {
         await expect(post('/api/lineup/place', {}, 't', mockFetch(409, { error: 'conflict' })))
             .rejects.toMatchObject({ status: 409 });
+    });
+});
+
+describe('getWithQuery', () => {
+    it('encodes params as query string', async () => {
+        const fetchFn = vi.fn(async () => ({ ok: true, json: async () => [] }));
+        await getWithQuery('/api/guild/members', { q: 'Anna & co' }, 'tok', fetchFn);
+        expect(fetchFn).toHaveBeenCalledWith(
+            '/api/guild/members?q=Anna+%26+co',
+            { headers: { 'Authorization': 'Bearer tok' } }
+        );
+    });
+
+    it('omits ? when no params', async () => {
+        const fetchFn = vi.fn(async () => ({ ok: true, json: async () => [] }));
+        await getWithQuery('/api/guild/members', {}, 'tok', fetchFn);
+        expect(fetchFn.mock.calls[0][0]).toBe('/api/guild/members');
     });
 });
