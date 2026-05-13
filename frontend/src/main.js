@@ -31,7 +31,15 @@ async function boot() {
         setToken(accessToken);
         await authenticateSdk(sdk, accessToken);
     } catch (err) {
-        showStatus('Auth fail [' + (err.status || 'no-status') + ']: ' + (err.message || String(err)) + ' | code prefix: ' + (code ? code.slice(0, 12) : 'EMPTY'), true);
+        const host = window.location.host;
+        const fetchPatched = window.fetch.toString().indexOf('[native code]') === -1 ? 'PATCHED' : 'NATIVE';
+        showStatus(
+            'Auth fail [' + (err.status || 'no-status') + ']: ' + (err.message || String(err))
+            + ' | code: ' + (code ? code.slice(0, 12) : 'EMPTY')
+            + ' | host: ' + host
+            + ' | fetch: ' + fetchPatched,
+            true,
+        );
         return;
     }
 
