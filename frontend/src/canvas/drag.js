@@ -1,5 +1,12 @@
 import interact from 'interactjs';
-import { STAGE_W, STAGE_H } from './stage.js';
+import { STAGE_W, STAGE_H, GRID_STEP } from './stage.js';
+
+export function snapToGrid(x, y, step) {
+    return {
+        x: Math.round(x / step) * step,
+        y: Math.round(y / step) * step,
+    };
+}
 
 export function clientToStage(rect, clientX, clientY, pointerOffset = { x: 0, y: 0 }) {
     const offX = (clientX - pointerOffset.x) - rect.left;
@@ -58,7 +65,8 @@ export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
                             y: parseFloat(evt.target.dataset.pointerOffY) || 0,
                         };
                         const rect = stageEl.getBoundingClientRect();
-                        const { x, y } = clientToStage(rect, evt.client.x, evt.client.y, pointerOffset);
+                        const raw = clientToStage(rect, evt.client.x, evt.client.y, pointerOffset);
+                        const { x, y } = snapToGrid(raw.x, raw.y, GRID_STEP);
                         await onMove({ userId, x, y });
                     }
                 } catch (err) {
@@ -101,7 +109,8 @@ export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
                 const instrument = evt.target.dataset.instrument;
                 const displayName = evt.target.textContent.trim();
                 const rect = stageEl.getBoundingClientRect();
-                const { x, y } = clientToStage(rect, evt.client.x, evt.client.y);
+                const raw = clientToStage(rect, evt.client.x, evt.client.y);
+                const { x, y } = snapToGrid(raw.x, raw.y, GRID_STEP);
                 try {
                     await onPlace({ userId, displayName, instrument, x, y, manuallyAdded: false });
                 } catch (err) {

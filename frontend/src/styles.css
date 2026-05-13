@@ -114,6 +114,10 @@ body {
     background: #1c2940;
     border: 1px solid #334;
     border-radius: 4px;
+    --grid-step: 4.8%; /* 48/1000 ≈ 4.8% of STAGE_W */
+    background-image:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px var(--grid-step)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px var(--grid-step));
 }
 
 .stage-dot {

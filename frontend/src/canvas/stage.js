@@ -1,5 +1,7 @@
 export const STAGE_W = 1000;
 export const STAGE_H = 600;
+export const DOT_SIZE = 44; // matches .stage-dot width/height in CSS
+export const GRID_STEP = Math.round(DOT_SIZE * 1.1); // ≈48
 
 const INSTRUMENT_COLORS = {
     '1:a':        '#e74c3c',

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { clientToStage } from '../../src/canvas/drag.js';
+import { clientToStage, snapToGrid } from '../../src/canvas/drag.js';
+import { GRID_STEP } from '../../src/canvas/stage.js';
 
 describe('clientToStage', () => {
     it('converts client coords into stage logical coords', () => {
@@ -27,5 +28,15 @@ describe('clientToStage', () => {
         const out = clientToStage(rect, 5000, 5000, { x: 0, y: 0 });
         expect(out.x).toBe(1000); // STAGE_W
         expect(out.y).toBe(600);  // STAGE_H
+    });
+});
+
+describe('snapToGrid', () => {
+    it('snaps to nearest grid intersection', () => {
+        const step = GRID_STEP; // 48
+        expect(snapToGrid(0, 0, step)).toEqual({ x: 0, y: 0 });
+        expect(snapToGrid(25, 25, step)).toEqual({ x: 48, y: 48 });
+        expect(snapToGrid(23, 23, step)).toEqual({ x: 0, y: 0 });
+        expect(snapToGrid(100, 50, step)).toEqual({ x: 96, y: 48 });
     });
 });
