@@ -19,7 +19,8 @@ const {
 } = require('../routes/api/lineup');
 const createGuildMembersRoute = require('../routes/api/guildMembers');
 const { lineupStore } = require('../services/lineupStore');
-const { getEventJSON } = require('../features/signup');
+let instrumentList;
+try { instrumentList = require('../data/instrumentList.json'); } catch { instrumentList = {}; }
 
 function buildApp({ client, config }) {
     const oauth = createOAuthService({
@@ -64,11 +65,15 @@ function buildApp({ client, config }) {
     app.get('/api/state/:concertId', authMiddleware, createStateRoute({ lineupStore }));
 
     app.post('/api/lineup/place', authMiddleware, lineupLimiter,
-        createPlaceRoute({ getEventJSON, lineupStore }));
+        createPlaceRoute({
+            lineupStore,
+            instrumentList,
+            isGuildMember: (userId) => guildMember.getMember(userId).then(m => m.found)
+        }));
     app.post('/api/lineup/move', authMiddleware, lineupLimiter,
-        createMoveRoute({ getEventJSON, lineupStore }));
+        createMoveRoute({ lineupStore }));
     app.post('/api/lineup/remove', authMiddleware, lineupLimiter,
-        createRemoveRoute({ getEventJSON, lineupStore }));
+        createRemoveRoute({ lineupStore }));
 
     app.get('/api/guild/members', authMiddleware,
         createGuildMembersRoute({ client, guildId: config.guildId }));

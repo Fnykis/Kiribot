@@ -6,6 +6,8 @@ const {
     createRemoveRoute
 } = require('../../src/routes/api/lineup');
 
+const INSTRUMENT_LIST = { '1:a': [], '2:a': [], 'tarol': [] };
+
 function mockRes() {
     return {
         statusCode: 200,
@@ -15,142 +17,219 @@ function mockRes() {
     };
 }
 
-const eventJson = {
-    name: 'Demo',
-    id: 'c1',
-    signups: {
-        '1:a': [{ name: 'A', id: 'u1', response: 'ja', note: '' }]
-    }
-};
-
-function makeStore(initial = {}) {
-    let state = { concertId: 'c1', participants: { ...initial }, updatedAt: null };
+function makeStore(event) {
+    let current = JSON.parse(JSON.stringify(event));
     return {
-        async loadState() { return JSON.parse(JSON.stringify(state)); },
-        async mutate(_id, fn) {
-            const next = JSON.parse(JSON.stringify(state));
-            const out = fn(next) || next;
-            out.updatedAt = '2026-05-13T00:00:00Z';
-            state = out;
+        async loadEvent() { return JSON.parse(JSON.stringify(current)); },
+        async mutateEvent(_id, fn) {
+            const next = JSON.parse(JSON.stringify(current));
+            const out = fn(next) ?? next;
+            current = out;
             return out;
         },
-        peek() { return state; }
+        peek() { return current; }
     };
 }
 
-// place
-test('place: 200 on valid place', async () => {
-    const store = makeStore();
-    const handler = createPlaceRoute({
-        getEventJSON: () => eventJson,
-        lineupStore: store
-    });
+const baseEvent = {
+    id: 'c1', name: 'Demo', date: '08/03/26',
+    signups: {
+        '1:a': [{ name: 'A', id: 'u1', response: 'ja', note: '' }],
+        '2:a': [{ name: 'B', id: 'u2', response: 'nej', note: '' }]
+    },
+    lineup: []
+};
 
-    const req = { body: { concertId: 'c1', userId: 'u1', x: 10, y: 20 } };
+// ---------- PLACE ----------
+
+test('place: 200 + appends entry with placedAt', async () => {
+    const store = makeStore(baseEvent);
+    const handler = createPlaceRoute({
+        lineupStore: store,
+        instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true,
+        now: () => '2026-05-13T12:00:00.000Z'
+    });
+    const req = { user: { id: 'me' }, body: {
+        concertId: 'c1', userId: 'u1', displayName: 'A', instrument: '1:a', x: 100, y: 200
+    } };
     const res = mockRes();
     await handler(req, res);
-
     assert.strictEqual(res.statusCode, 200);
-    assert.deepStrictEqual(res.body, { ok: true });
-    assert.deepStrictEqual(store.peek().participants['u1'], { placed: true, x: 10, y: 20 });
+    assert.deepStrictEqual(res.body.lineup, [{
+        userId: 'u1', displayName: 'A', instrument: '1:a',
+        position: { x: 100, y: 200 }, manuallyAdded: false,
+        placedAt: '2026-05-13T12:00:00.000Z'
+    }]);
 });
 
-test('place: 400 invalid_body when x is not a number', async () => {
+test('place: clamps coords to 0..1000 / 0..600', async () => {
+    const store = makeStore(baseEvent);
     const handler = createPlaceRoute({
-        getEventJSON: () => eventJson,
-        lineupStore: makeStore()
+        lineupStore: store, instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true, now: () => 't'
     });
-    const req = { body: { concertId: 'c1', userId: 'u1', x: 'abc', y: 20 } };
+    const req = { user: { id: 'me' }, body: {
+        concertId: 'c1', userId: 'u1', displayName: 'A', instrument: '1:a', x: 5000, y: -50
+    } };
     const res = mockRes();
     await handler(req, res);
+    assert.strictEqual(res.body.lineup[0].position.x, 1000);
+    assert.strictEqual(res.body.lineup[0].position.y, 0);
+});
+
+test('place: 400 invalid_body when x not number', async () => {
+    const handler = createPlaceRoute({
+        lineupStore: makeStore(baseEvent), instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true, now: () => 't'
+    });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: {
+        concertId: 'c1', userId: 'u1', displayName: 'A', instrument: '1:a', x: 'no', y: 0
+    } }, res);
     assert.strictEqual(res.statusCode, 400);
-    assert.deepStrictEqual(res.body, { error: 'invalid_body' });
 });
 
-test('place: 404 event_not_found when concert is archived', async () => {
+test('place: 400 unknown instrument', async () => {
     const handler = createPlaceRoute({
-        getEventJSON: () => null,
-        lineupStore: makeStore()
+        lineupStore: makeStore(baseEvent), instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true, now: () => 't'
     });
-    const req = { body: { concertId: 'gone', userId: 'u1', x: 1, y: 2 } };
     const res = mockRes();
-    await handler(req, res);
+    await handler({ user: { id: 'me' }, body: {
+        concertId: 'c1', userId: 'u1', displayName: 'A', instrument: 'bogus', x: 1, y: 1
+    } }, res);
+    assert.strictEqual(res.statusCode, 400);
+    assert.deepStrictEqual(res.body, { error: 'invalid_instrument' });
+});
+
+test('place: 404 event_not_found', async () => {
+    const store = { async loadEvent() { return null; }, async mutateEvent() { throw new Error('event_not_found'); } };
+    const handler = createPlaceRoute({
+        lineupStore: store, instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true, now: () => 't'
+    });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: {
+        concertId: 'gone', userId: 'u1', displayName: 'A', instrument: '1:a', x: 0, y: 0
+    } }, res);
     assert.strictEqual(res.statusCode, 404);
     assert.deepStrictEqual(res.body, { error: 'event_not_found' });
 });
 
-test('place: 404 user_not_in_roster for unknown user', async () => {
+test('place: 404 user_not_in_signups for non-manual', async () => {
     const handler = createPlaceRoute({
-        getEventJSON: () => eventJson,
-        lineupStore: makeStore()
+        lineupStore: makeStore(baseEvent), instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true, now: () => 't'
     });
-    const req = { body: { concertId: 'c1', userId: 'nobody', x: 1, y: 2 } };
     const res = mockRes();
-    await handler(req, res);
+    await handler({ user: { id: 'me' }, body: {
+        concertId: 'c1', userId: 'u2', displayName: 'B', instrument: '2:a', x: 0, y: 0
+    } }, res);
+    // u2 is signed up for 2:a but with response 'nej'
     assert.strictEqual(res.statusCode, 404);
-    assert.deepStrictEqual(res.body, { error: 'user_not_in_roster' });
+    assert.deepStrictEqual(res.body, { error: 'user_not_in_signups' });
 });
 
-// move
-test('move: 200 on valid move of placed user', async () => {
-    const store = makeStore({ u1: { placed: true, x: 1, y: 2 } });
-    const handler = createMoveRoute({
-        getEventJSON: () => eventJson,
-        lineupStore: store
+test('place: manual-add succeeds even when not in signups', async () => {
+    const store = makeStore(baseEvent);
+    const handler = createPlaceRoute({
+        lineupStore: store, instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true, now: () => 't'
     });
-    const req = { body: { concertId: 'c1', userId: 'u1', x: 99, y: 100 } };
     const res = mockRes();
-    await handler(req, res);
+    await handler({ user: { id: 'me' }, body: {
+        concertId: 'c1', userId: 'guest1', displayName: 'Gäst', instrument: 'tarol',
+        x: 50, y: 50, manuallyAdded: true
+    } }, res);
     assert.strictEqual(res.statusCode, 200);
-    assert.deepStrictEqual(store.peek().participants['u1'], { placed: true, x: 99, y: 100 });
+    assert.strictEqual(res.body.lineup[0].manuallyAdded, true);
 });
 
-test('move: 404 user_not_placed when user has no placement yet', async () => {
-    const handler = createMoveRoute({
-        getEventJSON: () => eventJson,
-        lineupStore: makeStore()
+test('place: manual-add 400 user_not_in_guild', async () => {
+    const handler = createPlaceRoute({
+        lineupStore: makeStore(baseEvent), instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => false, now: () => 't'
     });
-    const req = { body: { concertId: 'c1', userId: 'u1', x: 1, y: 2 } };
     const res = mockRes();
-    await handler(req, res);
+    await handler({ user: { id: 'me' }, body: {
+        concertId: 'c1', userId: 'ghost', displayName: 'G', instrument: '1:a',
+        x: 0, y: 0, manuallyAdded: true
+    } }, res);
+    assert.strictEqual(res.statusCode, 400);
+    assert.deepStrictEqual(res.body, { error: 'user_not_in_guild' });
+});
+
+test('place: 409 when user already in lineup', async () => {
+    const pre = { ...baseEvent, lineup: [{
+        userId: 'u1', displayName: 'A', instrument: '1:a',
+        position: { x: 0, y: 0 }, manuallyAdded: false, placedAt: 't0'
+    }]};
+    const handler = createPlaceRoute({
+        lineupStore: makeStore(pre), instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true, now: () => 't'
+    });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: {
+        concertId: 'c1', userId: 'u1', displayName: 'A', instrument: '1:a', x: 10, y: 10
+    } }, res);
+    assert.strictEqual(res.statusCode, 409);
+    assert.deepStrictEqual(res.body, { error: 'already_placed' });
+});
+
+// ---------- MOVE ----------
+
+test('move: 200 updates position + clamps', async () => {
+    const pre = { ...baseEvent, lineup: [{
+        userId: 'u1', displayName: 'A', instrument: '1:a',
+        position: { x: 0, y: 0 }, manuallyAdded: false, placedAt: 't0'
+    }]};
+    const store = makeStore(pre);
+    const handler = createMoveRoute({ lineupStore: store });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', x: 9999, y: 999 } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(res.body.lineup[0].position, { x: 1000, y: 600 });
+});
+
+test('move: 400 invalid_body', async () => {
+    const handler = createMoveRoute({ lineupStore: makeStore(baseEvent) });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', x: 'no', y: 0 } }, res);
+    assert.strictEqual(res.statusCode, 400);
+});
+
+test('move: 404 user_not_placed', async () => {
+    const handler = createMoveRoute({ lineupStore: makeStore(baseEvent) });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', x: 5, y: 5 } }, res);
     assert.strictEqual(res.statusCode, 404);
     assert.deepStrictEqual(res.body, { error: 'user_not_placed' });
 });
 
-// remove
-test('remove: 200 clears placement', async () => {
-    const store = makeStore({ u1: { placed: true, x: 1, y: 2 } });
-    const handler = createRemoveRoute({
-        getEventJSON: () => eventJson,
-        lineupStore: store
-    });
-    const req = { body: { concertId: 'c1', userId: 'u1' } };
+// ---------- REMOVE ----------
+
+test('remove: 200 drops entry; idempotent for missing user', async () => {
+    const pre = { ...baseEvent, lineup: [{
+        userId: 'u1', displayName: 'A', instrument: '1:a',
+        position: { x: 0, y: 0 }, manuallyAdded: false, placedAt: 't0'
+    }]};
+    const store = makeStore(pre);
+    const handler = createRemoveRoute({ lineupStore: store });
     const res = mockRes();
-    await handler(req, res);
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1' } }, res);
     assert.strictEqual(res.statusCode, 200);
-    assert.deepStrictEqual(store.peek().participants['u1'], { placed: false, x: null, y: null });
+    assert.strictEqual(res.body.lineup.length, 0);
+
+    const res2 = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1' } }, res2);
+    assert.strictEqual(res2.statusCode, 200);
+    assert.strictEqual(res2.body.lineup.length, 0);
 });
 
-test('remove: 400 invalid_body when userId missing', async () => {
-    const handler = createRemoveRoute({
-        getEventJSON: () => eventJson,
-        lineupStore: makeStore()
-    });
-    const req = { body: { concertId: 'c1' } };
+test('remove: 400 invalid_body when missing userId', async () => {
+    const handler = createRemoveRoute({ lineupStore: makeStore(baseEvent) });
     const res = mockRes();
-    await handler(req, res);
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1' } }, res);
     assert.strictEqual(res.statusCode, 400);
-    assert.deepStrictEqual(res.body, { error: 'invalid_body' });
-});
-
-test('remove: 404 event_not_found for archived concert', async () => {
-    const handler = createRemoveRoute({
-        getEventJSON: () => null,
-        lineupStore: makeStore()
-    });
-    const req = { body: { concertId: 'gone', userId: 'u1' } };
-    const res = mockRes();
-    await handler(req, res);
-    assert.strictEqual(res.statusCode, 404);
-    assert.deepStrictEqual(res.body, { error: 'event_not_found' });
 });
