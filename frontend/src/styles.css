@@ -88,6 +88,7 @@ body {
 .available-row:hover { background: #274070; }
 
 #stage-container {
+    position: relative;
     flex: 1;
     display: flex;
     align-items: center;
@@ -203,3 +204,95 @@ body {
     margin-top: 4rem;
     font-size: 1rem;
 }
+
+#trash {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #2a1a1a;
+    border: 2px dashed #c0392b;
+    color: #e74c3c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    user-select: none;
+}
+
+.manual-add-btn {
+    margin-left: auto;
+    background: #1e3050;
+    color: #eee;
+    border: 1px solid #334;
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.manual-add-btn:hover { background: #274070; }
+
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+.manual-box {
+    background: #16213e;
+    color: #eee;
+    padding: 1rem;
+    border-radius: 8px;
+    width: min(90vw, 360px);
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+.manual-close {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    background: transparent;
+    border: 0;
+    color: #aab;
+    font-size: 1.4rem;
+    cursor: pointer;
+}
+.manual-search {
+    width: 100%;
+    padding: 0.5rem;
+    background: #0f3460;
+    color: #eee;
+    border: 1px solid #334;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+}
+.manual-results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+.manual-result, .manual-instrument {
+    background: #1e3050;
+    color: #eee;
+    border: 1px solid #334;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+}
+.manual-result:hover, .manual-instrument:hover { background: #274070; }
+.manual-empty, .manual-instrument-heading {
+    color: #aab;
+    font-size: 0.85rem;
+    margin: 0.25rem 0;
+}
+
+.stage-dot.dragging { z-index: 50; opacity: 0.85; }
+.available-row.dragging { opacity: 0.6; }
