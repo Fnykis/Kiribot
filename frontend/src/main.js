@@ -1,4 +1,4 @@
-import { DiscordSDK } from '@discord/embedded-app-sdk';
+import { DiscordSDK, patchUrlMappings } from '@discord/embedded-app-sdk';
 import { bootSdk, authenticateSdk } from './sdk.js';
 import { exchangeCode, setToken } from './auth.js';
 import { get } from './api.js';
@@ -19,7 +19,7 @@ function showStatus(message, isError = false) {
 async function boot() {
     let sdk, code;
     try {
-        ({ sdk, code } = await bootSdk(DiscordSDK, CLIENT_ID));
+        ({ sdk, code } = await bootSdk(DiscordSDK, CLIENT_ID, patchUrlMappings));
     } catch {
         return; // sdk.js already rendered standalone refusal
     }
