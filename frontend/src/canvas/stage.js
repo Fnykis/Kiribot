@@ -33,6 +33,8 @@ export function renderStage(stageEl, event) {
         const dot = document.createElement('div');
         dot.className = 'stage-dot';
         dot.dataset.userId = entry.userId;
+        dot.dataset.instrument = entry.instrument;
+        dot.dataset.displayName = entry.displayName;
         dot.style.left = `${(entry.position.x / STAGE_W) * 100}%`;
         dot.style.top = `${(entry.position.y / STAGE_H) * 100}%`;
         dot.style.backgroundColor = instrumentColor(entry.instrument);
