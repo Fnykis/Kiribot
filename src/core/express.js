@@ -8,15 +8,16 @@ const createGuildMemberService = require('../services/guildMember');
 const createAuthMiddleware = require('../middleware/auth');
 const createTokenRoute = require('../routes/api/token');
 const createMeRoute = require('../routes/api/me');
-const createConcertPendingRoute = require('../routes/api/concert');
+const createConcertsRoute = require('../routes/api/concerts');
 const createStateRoute = require('../routes/api/state');
+const { dir_EventsActive } = require('./constants');
+const { parseEventDate } = require('../utils/dateUtils');
 const {
     createPlaceRoute,
     createMoveRoute,
     createRemoveRoute
 } = require('../routes/api/lineup');
 const createGuildMembersRoute = require('../routes/api/guildMembers');
-const { pendingConcerts } = require('../features/lineup');
 const { lineupStore } = require('../services/lineupStore');
 const { getEventJSON } = require('../features/signup');
 
@@ -57,7 +58,8 @@ function buildApp({ client, config }) {
 
     app.post('/api/token', createTokenRoute({ oauth, logger }));
     app.get('/api/me', authMiddleware, createMeRoute());
-    app.get('/api/concert/pending', authMiddleware, createConcertPendingRoute({ pendingConcerts }));
+    app.get('/api/concerts', authMiddleware,
+        createConcertsRoute({ activeDir: dir_EventsActive, parseEventDate, logger }));
 
     app.get('/api/state/:concertId', authMiddleware,
         createStateRoute({ getEventJSON, lineupStore }));
