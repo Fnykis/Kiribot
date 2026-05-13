@@ -1,4 +1,4 @@
-function createOAuthService({ fetch, clientId, clientSecret, redirectUri, verifyCache }) {
+function createOAuthService({ fetch, clientId, clientSecret, redirectUri, verifyCache, logger }) {
     async function exchangeCode(code) {
         const body = new URLSearchParams({
             client_id: clientId,
@@ -8,6 +8,7 @@ function createOAuthService({ fetch, clientId, clientSecret, redirectUri, verify
             redirect_uri: redirectUri
         }).toString();
 
+        if (logger) logger('token exchange payload:', { client_id: clientId, redirect_uri: redirectUri, code });
         const res = await fetch('https://discord.com/api/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

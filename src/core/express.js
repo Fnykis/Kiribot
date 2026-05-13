@@ -26,7 +26,8 @@ function buildApp({ client, config }) {
         clientId: config.clientId,
         clientSecret: config.discordClientSecret,
         redirectUri: config.oauthRedirectUri,
-        verifyCache: createTtlCache({ ttlMs: 60_000 })
+        verifyCache: createTtlCache({ ttlMs: 60_000 }),
+        logger
     });
 
     const guildMember = createGuildMemberService({

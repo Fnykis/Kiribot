@@ -12,7 +12,7 @@ function createTokenRoute({ oauth, logger }) {
             });
         } catch (err) {
             if (logger) logger('POST /api/token failed:', err.message);
-            return res.status(400).json({ error: 'exchange_failed' });
+            return res.status(400).json({ error: 'exchange_failed', detail: err.message });
         }
     };
 }
