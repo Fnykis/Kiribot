@@ -24,9 +24,6 @@ function createPlaceRoute({ lineupStore, instrumentList, isGuildMember, now = ()
         const event = await lineupStore.loadEvent(concertId);
         if (!event) return res.status(404).json({ error: 'event_not_found' });
 
-        if (event.lineup.some(e => e.userId === userId)) {
-            return res.status(409).json({ error: 'already_placed' });
-        }
         if (manuallyAdded) {
             const ok = await isGuildMember(userId);
             if (!ok) return res.status(400).json({ error: 'user_not_in_guild' });
@@ -45,10 +42,18 @@ function createPlaceRoute({ lineupStore, instrumentList, isGuildMember, now = ()
             placedAt: now()
         };
 
-        const updated = await lineupStore.mutateEvent(concertId, ev => {
-            ev.lineup.push(entry);
-            return ev;
-        });
+        let updated;
+        try {
+            updated = await lineupStore.mutateEvent(concertId, ev => {
+                if (ev.lineup.some(e => e.userId === userId)) throw new Error('already_placed');
+                ev.lineup.push(entry);
+                return ev;
+            });
+        } catch (err) {
+            if (err.message === 'already_placed') return res.status(409).json({ error: 'already_placed' });
+            if (err.message === 'event_not_found') return res.status(404).json({ error: 'event_not_found' });
+            throw err;
+        }
         return res.json(updated);
     };
 }
@@ -61,18 +66,20 @@ function createMoveRoute({ lineupStore }) {
         }
         const event = await lineupStore.loadEvent(concertId);
         if (!event) return res.status(404).json({ error: 'event_not_found' });
-        if (!event.lineup.some(e => e.userId === userId)) {
-            return res.status(404).json({ error: 'user_not_placed' });
+
+        let updated;
+        try {
+            updated = await lineupStore.mutateEvent(concertId, ev => {
+                const entry = ev.lineup.find(e => e.userId === userId);
+                if (!entry) throw new Error('user_not_placed');
+                entry.position = { x: clamp(x, 0, STAGE_W), y: clamp(y, 0, STAGE_H) };
+                return ev;
+            });
+        } catch (err) {
+            if (err.message === 'user_not_placed') return res.status(404).json({ error: 'user_not_placed' });
+            if (err.message === 'event_not_found') return res.status(404).json({ error: 'event_not_found' });
+            throw err;
         }
-        const updated = await lineupStore.mutateEvent(concertId, ev => {
-            for (const entry of ev.lineup) {
-                if (entry.userId === userId) {
-                    entry.position = { x: clamp(x, 0, STAGE_W), y: clamp(y, 0, STAGE_H) };
-                    break;
-                }
-            }
-            return ev;
-        });
         return res.json(updated);
     };
 }

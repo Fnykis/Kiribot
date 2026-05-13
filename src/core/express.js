@@ -22,6 +22,8 @@ const { lineupStore } = require('../services/lineupStore');
 let instrumentList;
 try { instrumentList = require('../data/instrumentList.json'); } catch { instrumentList = {}; }
 
+const asyncRoute = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 function buildApp({ client, config }) {
     const oauth = createOAuthService({
         fetch: globalThis.fetch,
@@ -57,26 +59,27 @@ function buildApp({ client, config }) {
     }));
     app.use(express.json({ limit: '64kb' }));
 
-    app.post('/api/token', createTokenRoute({ oauth, logger }));
+    app.post('/api/token', asyncRoute(createTokenRoute({ oauth, logger })));
     app.get('/api/me', authMiddleware, createMeRoute());
     app.get('/api/concerts', authMiddleware,
         createConcertsRoute({ activeDir: dir_EventsActive, parseEventDate, logger }));
 
-    app.get('/api/state/:concertId', authMiddleware, createStateRoute({ lineupStore }));
+    app.get('/api/state/:concertId', authMiddleware,
+        asyncRoute(createStateRoute({ lineupStore })));
 
     app.post('/api/lineup/place', authMiddleware, lineupLimiter,
-        createPlaceRoute({
+        asyncRoute(createPlaceRoute({
             lineupStore,
             instrumentList,
             isGuildMember: (userId) => guildMember.getMember(userId).then(m => m.found)
-        }));
+        })));
     app.post('/api/lineup/move', authMiddleware, lineupLimiter,
-        createMoveRoute({ lineupStore }));
+        asyncRoute(createMoveRoute({ lineupStore })));
     app.post('/api/lineup/remove', authMiddleware, lineupLimiter,
-        createRemoveRoute({ lineupStore }));
+        asyncRoute(createRemoveRoute({ lineupStore })));
 
     app.get('/api/guild/members', authMiddleware,
-        createGuildMembersRoute({ client, guildId: config.guildId }));
+        asyncRoute(createGuildMembersRoute({ client, guildId: config.guildId })));
 
     app.use((err, req, res, _next) => {
         logger('express unhandled error:', err);
