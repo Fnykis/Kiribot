@@ -1,25 +1,31 @@
-function createGuildMembersRoute({ client, guildId, ttlMs = 60_000, now = Date.now }) {
+function createGuildMembersRoute({ client, guildId, harmonianRoleId, ttlMs = 60_000, now = Date.now }) {
     let cache = null;
 
-    return async function guildMembersRoute(_req, res) {
-        if (cache && now() - cache.at < ttlMs) {
-            return res.json({ members: cache.members });
-        }
+    async function loadAll() {
+        if (cache && now() - cache.at < ttlMs) return cache.members;
+        const guild = client.guilds.cache.get(guildId);
+        const collection = await guild.members.fetch();
+        const members = Array.from(collection.values()).map(m => ({
+            id: m.id,
+            displayName: m.displayName,
+            hasHarmonian: m.roles.cache.has(harmonianRoleId)
+        }));
+        cache = { at: now(), members };
+        return members;
+    }
 
+    return async function guildMembersRoute(req, res) {
         let members;
         try {
-            const guild = client.guilds.cache.get(guildId);
-            const collection = await guild.members.fetch();
-            members = Array.from(collection.values()).map(m => ({
-                id: m.id,
-                displayName: m.displayName
-            }));
-        } catch (_err) {
+            members = await loadAll();
+        } catch {
             return res.status(500).json({ error: 'guild_fetch_failed' });
         }
-
-        cache = { at: now(), members };
-        return res.json({ members });
+        const q = String(req.query?.q ?? '').trim().toLowerCase();
+        const filtered = q
+            ? members.filter(m => m.displayName.toLowerCase().includes(q))
+            : members;
+        return res.json(filtered.slice(0, 25));
     };
 }
 

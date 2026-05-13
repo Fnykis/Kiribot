@@ -79,7 +79,11 @@ function buildApp({ client, config }) {
         asyncRoute(createRemoveRoute({ lineupStore })));
 
     app.get('/api/guild/members', authMiddleware,
-        asyncRoute(createGuildMembersRoute({ client, guildId: config.guildId })));
+        asyncRoute(createGuildMembersRoute({
+            client,
+            guildId: config.guildId,
+            harmonianRoleId: config.harmonianRoleId
+        })));
 
     app.use((err, req, res, _next) => {
         logger('express unhandled error:', err);

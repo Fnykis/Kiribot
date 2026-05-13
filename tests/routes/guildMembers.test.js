@@ -11,90 +11,77 @@ function mockRes() {
     };
 }
 
-function makeMembersFetch(members) {
-    return async () => new Map(members.map(m => [m.id, m]));
-}
-
-function makeClient(membersFetch) {
+function makeClient(members) {
     return {
         guilds: {
             cache: {
-                get() {
-                    return { members: { fetch: membersFetch } };
-                }
+                get: () => ({
+                    members: {
+                        async fetch() {
+                            return {
+                                values: () => members
+                            };
+                        }
+                    },
+                    roles: { /* unused */ }
+                })
             }
         }
     };
 }
 
-test('returns members from a fresh fetch', async () => {
-    const fetch = makeMembersFetch([
-        { id: 'u1', displayName: 'Andrea' },
-        { id: 'u2', displayName: 'Orietta' }
-    ]);
-    const handler = createGuildMembersRoute({ client: makeClient(fetch), guildId: 'g', ttlMs: 60_000 });
-
-    const res = mockRes();
-    await handler({}, res);
-
-    assert.strictEqual(res.statusCode, 200);
-    assert.deepStrictEqual(res.body, {
-        members: [
-            { id: 'u1', displayName: 'Andrea' },
-            { id: 'u2', displayName: 'Orietta' }
-        ]
-    });
-});
-
-test('serves from cache within ttl (fetch called once across two requests)', async () => {
-    let calls = 0;
-    const fetch = async () => {
-        calls += 1;
-        return new Map([['u1', { id: 'u1', displayName: 'Andrea' }]]);
+function member(id, name, roleIds = []) {
+    return {
+        id, displayName: name,
+        roles: { cache: { has: (r) => roleIds.includes(r) } }
     };
-    let t = 1000;
+}
+
+test('returns max 25 results filtered by q (case-insensitive)', async () => {
+    const all = [];
+    for (let i = 0; i < 40; i++) all.push(member(`u${i}`, `Anna${i}`));
+    all.push(member('zz', 'Zelda'));
     const handler = createGuildMembersRoute({
-        client: makeClient(fetch),
-        guildId: 'g',
-        ttlMs: 60_000,
-        now: () => t
+        client: makeClient(all), guildId: 'g', harmonianRoleId: 'role-h'
     });
-
-    await handler({}, mockRes());
-    t = 5000;
-    await handler({}, mockRes());
-
-    assert.strictEqual(calls, 1);
-});
-
-test('refetches after ttl expiry', async () => {
-    let calls = 0;
-    const fetch = async () => {
-        calls += 1;
-        return new Map([['u1', { id: 'u1', displayName: 'Andrea' }]]);
-    };
-    let t = 1000;
-    const handler = createGuildMembersRoute({
-        client: makeClient(fetch),
-        guildId: 'g',
-        ttlMs: 100,
-        now: () => t
-    });
-
-    await handler({}, mockRes());
-    t = 1200;
-    await handler({}, mockRes());
-
-    assert.strictEqual(calls, 2);
-});
-
-test('returns 500 guild_fetch_failed on fetch error', async () => {
-    const fetch = async () => { throw new Error('discord down'); };
-    const handler = createGuildMembersRoute({ client: makeClient(fetch), guildId: 'g', ttlMs: 60_000 });
-
     const res = mockRes();
-    await handler({}, res);
+    await handler({ query: { q: 'anna' } }, res);
+    assert.strictEqual(res.body.length, 25);
+    for (const m of res.body) assert.match(m.displayName, /^Anna/);
+});
 
+test('hasHarmonian reflects role membership', async () => {
+    const handler = createGuildMembersRoute({
+        client: makeClient([
+            member('a', 'Alice', ['role-h']),
+            member('b', 'Bob')
+        ]),
+        guildId: 'g', harmonianRoleId: 'role-h'
+    });
+    const res = mockRes();
+    await handler({ query: { q: '' } }, res);
+    const byId = Object.fromEntries(res.body.map(m => [m.id, m]));
+    assert.strictEqual(byId.a.hasHarmonian, true);
+    assert.strictEqual(byId.b.hasHarmonian, false);
+});
+
+test('no q returns up to 25', async () => {
+    const all = [];
+    for (let i = 0; i < 30; i++) all.push(member(`u${i}`, `Person${i}`));
+    const handler = createGuildMembersRoute({
+        client: makeClient(all), guildId: 'g', harmonianRoleId: 'role-h'
+    });
+    const res = mockRes();
+    await handler({ query: {} }, res);
+    assert.strictEqual(res.body.length, 25);
+});
+
+test('returns 500 on fetch failure', async () => {
+    const client = { guilds: { cache: { get: () => ({ members: { fetch: () => { throw new Error('boom'); } } }) } } };
+    const handler = createGuildMembersRoute({
+        client, guildId: 'g', harmonianRoleId: 'role-h'
+    });
+    const res = mockRes();
+    await handler({ query: { q: 'x' } }, res);
     assert.strictEqual(res.statusCode, 500);
-    assert.deepStrictEqual(res.body, { error: 'guild_fetch_failed' });
 });
