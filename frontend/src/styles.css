@@ -324,3 +324,15 @@ body {
 }
 /* Intentionally fades the source row while the drag ghost is visible */
 .available-row.dragging { opacity: 0.6; }
+
+.stage-dot .dot-instrument {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    font-size: 0.65rem;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    padding: 0 3px;
+    border-radius: 4px;
+    pointer-events: none;
+}
