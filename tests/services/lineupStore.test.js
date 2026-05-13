@@ -1,60 +1,97 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
+const os = require('os');
+
 const { createLineupStore } = require('../../src/services/lineupStore');
 
-function tmpDir() {
-    return fs.mkdtempSync(path.join(os.tmpdir(), 'lineup-store-'));
+function makeTmpDir() {
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'lineupstore-test-'));
 }
 
-test('loadState returns empty state when file is missing', async () => {
-    const baseDir = tmpDir();
-    const store = createLineupStore({ baseDir });
-    const state = await store.loadState('c1');
-    assert.deepStrictEqual(state, { concertId: 'c1', participants: {}, updatedAt: null });
+function writeEvent(dir, fileName, payload) {
+    fs.writeFileSync(path.join(dir, fileName), JSON.stringify(payload, null, 2));
+    return path.join(dir, fileName);
+}
+
+function findFile(dir, concertId) {
+    return path.join(dir, fs.readdirSync(dir).find(f => f.endsWith(`_${concertId}.json`)));
+}
+
+test('loadEvent returns parsed event JSON', async () => {
+    const dir = makeTmpDir();
+    try {
+        writeEvent(dir, 'a_111.json', { id: '111', name: 'X', date: '08/03/26', signups: {} });
+        const store = createLineupStore({ activeDir: dir });
+        const ev = await store.loadEvent('111');
+        assert.strictEqual(ev.id, '111');
+        assert.strictEqual(ev.name, 'X');
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 });
 
-test('mutate writes file then loadState round-trips it', async () => {
-    const baseDir = tmpDir();
-    const store = createLineupStore({ baseDir });
-
-    await store.mutate('c1', state => {
-        state.participants['u1'] = { placed: true, x: 10, y: 20 };
-        return state;
-    });
-
-    const reloaded = await store.loadState('c1');
-    assert.strictEqual(reloaded.concertId, 'c1');
-    assert.deepStrictEqual(reloaded.participants['u1'], { placed: true, x: 10, y: 20 });
-    assert.ok(reloaded.updatedAt, 'updatedAt should be set');
+test('loadEvent returns null when event not found', async () => {
+    const dir = makeTmpDir();
+    try {
+        const store = createLineupStore({ activeDir: dir });
+        assert.strictEqual(await store.loadEvent('missing'), null);
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 });
 
-test('mutate stamps a fresh updatedAt on every write', async () => {
-    const baseDir = tmpDir();
-    const store = createLineupStore({ baseDir });
-
-    const first = await store.mutate('c1', s => { s.participants['u1'] = { placed: true, x: 1, y: 2 }; return s; });
-    await new Promise(r => setTimeout(r, 5));
-    const second = await store.mutate('c1', s => { s.participants['u1'].x = 99; return s; });
-
-    assert.notStrictEqual(first.updatedAt, second.updatedAt);
+test('mutateEvent lazy-creates lineup array on first call', async () => {
+    const dir = makeTmpDir();
+    try {
+        writeEvent(dir, 'a_111.json', { id: '111', name: 'X', date: '08/03/26', signups: {} });
+        const store = createLineupStore({ activeDir: dir });
+        const result = await store.mutateEvent('111', ev => {
+            assert.ok(Array.isArray(ev.lineup));
+            assert.strictEqual(ev.lineup.length, 0);
+            ev.lineup.push({ userId: 'u1', displayName: 'A', instrument: '1:a',
+                position: { x: 10, y: 20 }, manuallyAdded: false, placedAt: 'now' });
+            return ev;
+        });
+        assert.strictEqual(result.lineup.length, 1);
+        const onDisk = JSON.parse(fs.readFileSync(findFile(dir, '111'), 'utf8'));
+        assert.strictEqual(onDisk.lineup.length, 1);
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 });
 
-test('mutate releases lock when fn throws', async () => {
-    const baseDir = tmpDir();
-    const store = createLineupStore({ baseDir });
-
-    await assert.rejects(() => store.mutate('c1', () => { throw new Error('boom'); }), /boom/);
-
-    // A subsequent mutate must succeed (lock was released).
-    const state = await store.mutate('c1', s => { s.participants['u1'] = { placed: false, x: null, y: null }; return s; });
-    assert.deepStrictEqual(state.participants['u1'], { placed: false, x: null, y: null });
+test('mutateEvent serializes concurrent writers (no lost updates)', async () => {
+    const dir = makeTmpDir();
+    try {
+        writeEvent(dir, 'a_111.json', { id: '111', name: 'X', date: '08/03/26', signups: {} });
+        const store = createLineupStore({ activeDir: dir });
+        const pushes = [];
+        for (let i = 0; i < 5; i++) {
+            pushes.push(store.mutateEvent('111', ev => {
+                ev.lineup.push({ userId: `u${i}`, displayName: `U${i}`, instrument: '1:a',
+                    position: { x: i, y: i }, manuallyAdded: false, placedAt: 'now' });
+                return ev;
+            }));
+        }
+        await Promise.all(pushes);
+        const onDisk = JSON.parse(fs.readFileSync(findFile(dir, '111'), 'utf8'));
+        assert.strictEqual(onDisk.lineup.length, 5);
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 });
 
-test('default baseDir resolves under src/data/lineups (smoke)', () => {
-    const { lineupStore } = require('../../src/services/lineupStore');
-    assert.strictEqual(typeof lineupStore.loadState, 'function');
-    assert.strictEqual(typeof lineupStore.mutate, 'function');
+test('mutateEvent rejects when event not found', async () => {
+    const dir = makeTmpDir();
+    try {
+        const store = createLineupStore({ activeDir: dir });
+        await assert.rejects(
+            () => store.mutateEvent('missing', ev => ev),
+            /event_not_found/
+        );
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 });
