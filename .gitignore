@@ -7,6 +7,7 @@ config.json
 config.yml
 src/services/service-account.json
 tunnel-credentials.json
+frontend/.env.development
 
 # docs (ignore everything except superpowers subtree)
 /docs/*
