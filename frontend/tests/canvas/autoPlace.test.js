@@ -37,6 +37,16 @@ describe('computeAutoPositions', () => {
         }
     });
 
+    it('does not stack members when group overflows right edge', () => {
+        const members = Array.from({ length: 20 }, (_, i) => ({
+            userId: `u${i}`, displayName: `U${i}`, instrument: 'repenique' // center column
+        }));
+        const placed = computeAutoPositions(members, GRID_STEP, STAGE_W, STAGE_H);
+        const xs = placed.map(p => p.x).sort((a, b) => a - b);
+        const unique = new Set(xs);
+        expect(unique.size).toBe(xs.length); // no two members share x in same row
+    });
+
     it('preserves userId/displayName/instrument on output', () => {
         const members = [{ userId: 'a', displayName: 'A', instrument: '1:a' }];
         const [p] = computeAutoPositions(members, GRID_STEP, STAGE_W, STAGE_H);

@@ -50,9 +50,11 @@ export function computeAutoPositions(members, gridStep, stageW, stageH) {
         const y = Math.round(rawY / gridStep) * gridStep;
         const centerX = stageW * COLUMN_FRACTIONS[col];
         const totalWidth = (list.length - 1) * gridStep;
-        const startX = Math.max(gridStep, Math.round((centerX - totalWidth / 2) / gridStep) * gridStep);
+        const rawStartX = Math.round((centerX - totalWidth / 2) / gridStep) * gridStep;
+        const maxStartX = stageW - gridStep - (list.length - 1) * gridStep;
+        const startX = Math.max(gridStep, Math.min(rawStartX, maxStartX));
         list.forEach((m, i) => {
-            const x = Math.min(stageW - gridStep, startX + i * gridStep);
+            const x = startX + i * gridStep; // startX already ensures the full group fits
             result.push({
                 userId: m.userId,
                 displayName: m.displayName,
