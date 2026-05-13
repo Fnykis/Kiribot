@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const { rateLimit } = require('express-rate-limit');
 const logger = require('./logger');
 const createTtlCache = require('../utils/ttlCache');
@@ -47,6 +48,10 @@ function buildApp({ client, config }) {
     });
 
     const app = express();
+    app.use(cors({
+        origin: /\.discordsays\.com$/,
+        methods: ['GET', 'POST'],
+    }));
     app.use(express.json({ limit: '64kb' }));
 
     app.post('/api/token', createTokenRoute({ oauth, logger }));
