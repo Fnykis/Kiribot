@@ -56,4 +56,22 @@ describe('openStallUppAlla', () => {
             { userId: 'u2', displayName: 'Bob', instrument: 'tarol' },
         ]);
     });
+
+    it('skips members already placed in lineup', () => {
+        const event = makeEvent();
+        event.lineup = [{ userId: 'u1', position: {x:0,y:0}, instrument: '1:a', displayName: 'Alice' }];
+        openStallUppAlla({ modalEl, event, onSubmit: () => {} });
+        const rows = modalEl.querySelectorAll('.stua-row');
+        expect(rows.length).toBe(2); // only Bob (×2 instruments)
+    });
+
+    it('shows empty state when nobody left to place', () => {
+        const event = makeEvent();
+        event.lineup = [
+            { userId: 'u1', position: {x:0,y:0}, instrument: '1:a', displayName: 'Alice' },
+            { userId: 'u2', position: {x:0,y:0}, instrument: 'tarol', displayName: 'Bob' },
+        ];
+        openStallUppAlla({ modalEl, event, onSubmit: () => {} });
+        expect(modalEl.textContent).toContain('redan utställda');
+    });
 });

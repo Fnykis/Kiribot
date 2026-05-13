@@ -5,16 +5,16 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
     modalEl.replaceChildren();
 
     // Build userId → { name, Set<instrument> } from signups
+    const placed = new Set((event.lineup || []).map(e => e.userId));
     const userInstruments = new Map();
     for (const [instrument, entries] of Object.entries(event.signups || {})) {
         for (const e of entries) {
             if (!VALID.has(e.response)) continue;
+            if (placed.has(e.id)) continue;
             if (!userInstruments.has(e.id)) userInstruments.set(e.id, { name: e.name, instruments: new Set() });
             userInstruments.get(e.id).instruments.add(instrument);
         }
     }
-
-    const selections = new Map(); // userId → { instrument, displayName }
 
     const wrap = document.createElement('div');
     wrap.className = 'stua-wrap';
@@ -22,6 +22,21 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
     const title = document.createElement('h2');
     title.textContent = 'Ställ upp alla';
     wrap.appendChild(title);
+
+    if (userInstruments.size === 0) {
+        const empty = document.createElement('p');
+        empty.textContent = 'Alla anmälda är redan utställda.';
+        wrap.appendChild(empty);
+        const cancelOnly = document.createElement('button');
+        cancelOnly.type = 'button';
+        cancelOnly.textContent = 'Stäng';
+        cancelOnly.addEventListener('click', () => { modalEl.hidden = true; modalEl.replaceChildren(); });
+        wrap.appendChild(cancelOnly);
+        modalEl.appendChild(wrap);
+        return;
+    }
+
+    const selections = new Map(); // userId → { instrument, displayName }
 
     const list = document.createElement('div');
     list.className = 'stua-list';

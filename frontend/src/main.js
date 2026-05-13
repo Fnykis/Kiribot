@@ -178,6 +178,7 @@ async function loadPlanner(concertId) {
             modalEl: stuaModal,
             event: getEvent(),
             onSubmit: async (selections) => {
+                if (_pollHandle) { stopPoll(_pollHandle); _pollHandle = null; }
                 const positioned = computeAutoPositions(selections, GRID_STEP, STAGE_W, STAGE_H);
                 for (const p of positioned) {
                     try {
@@ -192,6 +193,15 @@ async function loadPlanner(concertId) {
                 }
                 renderAvailable(sidebar, getEvent());
                 renderStage(stage, getEvent());
+                _pollHandle = startPoll({
+                    fetchState: () => get(`/api/state/${concertId}`, _accessToken),
+                    intervalMs: 5000,
+                    getDraggingId,
+                    getDraggingPosition,
+                    getDraggingSidebarUserId,
+                    onUpdate: (u) => { setEvent(u); renderAvailable(sidebar, u); renderStage(stage, u); },
+                    onError: (err) => { console.warn('poll', err); }
+                });
             }
         });
     }
