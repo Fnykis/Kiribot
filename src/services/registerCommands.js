@@ -10,10 +10,6 @@ const commands = [
 		name: 'one-time',
 		description: 'Kör en tillfällig engångsfunktion från lokal fil',
 		default_member_permissions: '8'
-	},
-	{
-		name: 'Lineup',
-		type: 3
 	}
 ];
 
