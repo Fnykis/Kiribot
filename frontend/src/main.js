@@ -30,8 +30,8 @@ async function boot() {
         accessToken = result.access_token;
         setToken(accessToken);
         await authenticateSdk(sdk, accessToken);
-    } catch {
-        showStatus('Autentisering misslyckades. Ladda om sidan.', true);
+    } catch (err) {
+        showStatus('Auth fail [' + (err.status || 'no-status') + ']: ' + (err.message || String(err)) + ' | code prefix: ' + (code ? code.slice(0, 12) : 'EMPTY'), true);
         return;
     }
 
