@@ -19,7 +19,41 @@ body {
 
 #app {
     display: flex;
+    flex-direction: column;
     height: 100vh;
+}
+
+#planner-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    flex-shrink: 0;
+}
+
+#planner-title {
+    font-size: 0.95rem;
+    color: #ddd;
+}
+
+.back-btn {
+    background: #1e3050;
+    color: #eee;
+    border: 1px solid #334;
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.back-btn:hover { background: #274070; }
+
+#planner-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
 }
 
 #sidebar {
@@ -121,3 +155,51 @@ body {
 }
 
 .status-message.error { color: #e74c3c; }
+
+#picker {
+    padding: 1.5rem;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.picker-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.picker-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 1rem;
+    background: #1e3050;
+    color: #eee;
+    border: 1px solid #334;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+}
+
+.picker-card:hover { background: #274070; }
+
+.picker-name {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.picker-date {
+    font-size: 0.85rem;
+    color: #aab;
+}
+
+.picker-empty {
+    text-align: center;
+    color: #aab;
+    margin-top: 4rem;
+    font-size: 1rem;
+}
