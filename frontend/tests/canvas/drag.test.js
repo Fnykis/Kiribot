@@ -59,10 +59,10 @@ describe('clientToStage', () => {
 
 describe('snapToGrid', () => {
     it('snaps to nearest grid intersection', () => {
-        const step = GRID_STEP; // 48
+        const step = GRID_STEP; // 24
         expect(snapToGrid(0, 0, step)).toEqual({ x: 0, y: 0 });
-        expect(snapToGrid(25, 25, step)).toEqual({ x: 48, y: 48 });
-        expect(snapToGrid(23, 23, step)).toEqual({ x: 0, y: 0 });
+        expect(snapToGrid(25, 25, step)).toEqual({ x: 24, y: 24 });
+        expect(snapToGrid(23, 23, step)).toEqual({ x: 24, y: 24 });
         expect(snapToGrid(100, 50, step)).toEqual({ x: 96, y: 48 });
     });
 });

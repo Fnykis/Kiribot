@@ -1,7 +1,7 @@
 export const STAGE_W = 1000;
 export const STAGE_H = 600;
 export const DOT_SIZE = 44; // matches .stage-dot width/height in CSS
-export const GRID_STEP = Math.round(DOT_SIZE * 1.1); // ≈48
+export const GRID_STEP = 24;
 
 const INSTRUMENT_ABBREV = {
     '1:a': '1', '2:a': '2', '3:a': '3', '4:a': '4',
