@@ -22,6 +22,9 @@ function makeSingleEvent() {
             '1:a': [
                 { id: 'u1', name: 'Alice', response: 'ja' },
             ],
+            'tarol': [
+                { id: 'u3', name: 'Carol', response: 'ja' },
+            ],
         },
         lineup: [],
     };
@@ -117,9 +120,14 @@ describe('openStallUppAlla', () => {
         openStallUppAlla({ modalEl, event: makeSingleEvent(), onSubmit });
         // Modal should never have been opened
         expect(modalEl.hidden).toBe(true);
-        // onSubmit called immediately with Alice's auto-selection
-        expect(onSubmit).toHaveBeenCalledWith([
-            { userId: 'u1', displayName: 'Alice', instrument: '1:a' },
-        ]);
+        // onSubmit called immediately with Alice and Carol auto-selections
+        const payload = onSubmit.mock.calls[0][0];
+        expect(payload).toEqual(
+            expect.arrayContaining([
+                { userId: 'u1', displayName: 'Alice', instrument: '1:a' },
+                { userId: 'u3', displayName: 'Carol', instrument: 'tarol' },
+            ])
+        );
+        expect(payload).toHaveLength(2);
     });
 });

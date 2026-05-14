@@ -29,6 +29,8 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
     }
 
     // No-multi shortcut: skip modal entirely
+    // multi.size === 0 check only fires when there are members (userInstruments.size > 0);
+    // the size === 0 empty-state is handled below after modalEl opens
     if (multi.size === 0 && userInstruments.size > 0) {
         const payload = [];
         for (const [userId, { instrument, displayName }] of selections) {

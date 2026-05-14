@@ -11,6 +11,7 @@ A private Discord Activity for the Kiriaka music group that lets Harmonian-role 
 | Topic | Decision |
 | :--- | :--- |
 | Plan scope | Decompose into 7 milestones (M0–M6). Each = standalone PR. |
+| Concert selection | Activity boots to picker listing all events in `src/events/active/` sorted by date ascending (soonest first). User clicks a concert to enter planner. "Back to concerts" button returns to picker. No Discord context menu, no pre-selection, no pending-concert map. |
 | Domain | Register new domain for `lineup-api.<domain>` tunnel. M0 prereq. |
 | Discord apps | Two Application records in portal: prod Kiribot + new dev app. URL mappings isolated per app. Same bot codebase. |
 | Hosting | Bot + Express + cloudflared run together on Cybrancee via PM2 (per Cybrancee support). **Sidecar setup unverified.** M0 gate. Fallback: Cloudflare Workers + Durable Objects (heavy rewrite). |
@@ -113,7 +114,7 @@ Middleware order (one function chain):
 | Method | Path | Body / Query | Returns |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/token` | `{ code }` | `{ access_token, expires_in }` (server-side exchange with `discordClientSecret`) |
-| `GET` | `/api/concert/pending` | — | `{ concertId }` for caller, or `404` |
+| `GET` | `/api/concerts` | — | `[{ concertId, name, date }]` — every file in `src/events/active/`, sorted by `date` asc. Empty array if none. |
 | `GET` | `/api/state/:concertId` | — | full event JSON |
 | `POST` | `/api/lineup/place` | `{ concertId, userId, instrument, x, y, manuallyAdded? }` | updated `lineup` |
 | `POST` | `/api/lineup/move` | `{ concertId, userId, x, y }` | updated entry |
@@ -136,9 +137,8 @@ Rate limits (`express-rate-limit`, keyed by `req.user.id`):
 - State poll: 6/min (above the 5s client cadence, accommodates focus-refresh).
 - Token exchange: 5/min.
 
-Pending-concert map:
-- In-memory `Map<userId, { concertId, expiresAt }>`. TTL 10 min. Cleared on first successful read.
-- Lost on bot restart — acceptable; user reruns context menu.
+Concerts list:
+- Backend reads `src/events/active/` directory on each request (cheap; small dir). Parses `name`, `id`, `date` from each JSON. Sorts by `date` asc using existing date util (`dd/mm/yy` parse). No caching v1.
 
 Archived events:
 - Mutations on a file in `src/events/archived/` return `404`. Reads return `200` (historical view).
@@ -163,6 +163,7 @@ frontend/
     ├── api.js            # fetch wrappers, auth header, error mapping
     ├── poll.js           # 5s poll loop, visibility-aware
     ├── state.js          # client store + diff/merge from polled JSON
+    ├── picker.js         # concerts list view, sort soonest-first, click to enter planner
     ├── canvas/
     │   ├── stage.js      # render placed dots, name labels, badges
     │   └── drag.js       # interact.js: list→canvas, canvas→canvas, canvas→trash
@@ -176,12 +177,14 @@ Boot sequence:
 1. `DiscordSDK.ready()`. Reject → static "open inside Discord" page; stop.
 2. `sdk.commands.authenticate()` → OAuth code.
 3. `POST /api/token` → access token (memory only, no localStorage).
-4. `GET /api/concert/pending` → concertId. 404 → "no pending concert; use 'Lineup' first".
-5. `GET /api/state/:concertId` → initial render. 403 → lockout page.
-6. Start `poll.js`.
+4. `GET /api/concerts` → render picker (`picker.js`). 403 → lockout page. Empty list → "Inga kommande konserter".
+5. User clicks a concert → `GET /api/state/:concertId` → planner view. Start `poll.js` for that concertId.
+6. "Tillbaka till konserter" button in planner header → stop poll, clear `selectedConcertId`, re-fetch `/api/concerts`, return to step 4.
 
 State store:
-- `state.event` = last full event JSON.
+- `state.concerts` = last `/api/concerts` result (for picker + back nav).
+- `state.selectedConcertId` = current planner target. `null` while in picker.
+- `state.event` = last full event JSON for `selectedConcertId`.
 - `state.draggingId` = currently dragged userId; this entry is excluded from poll-merge to avoid clobbering local motion.
 
 Drag handling:
@@ -223,9 +226,9 @@ Mobile:
 | :- | :-- | :--- | :--- |
 | **M0** | Prereqs (no code) | Register domain. Create dev Discord app. Open Cybrancee ticket: confirm PM2 + cloudflared sidecar works. Set up Cloudflare account + empty Pages project. | Dev domain resolves via cloudflared to `localhost:3000` returning `200 OK` end-to-end. |
 | **M1** | Bot Express + OAuth + role gate | `core/express.js`, `POST /api/token`, auth middleware (token verify + Harmonian role check), trivial `GET /api/me`. | Local script with a valid OAuth code identifies user and returns role gate result. |
-| **M2** | Context menu + concert resolution | `interactions/contextMenus/planLineup.js`, `features/lineup.js` (concert ID resolve via `getEventJSON`), pendingConcerts map, `GET /api/concert/pending`, ephemeral reply with launch instructions. | Right-click signup message → ephemeral reply; `/api/concert/pending` returns the concertId. |
-| **M3** | Lineup state CRUD | `services/lineupStore.js` (read/merge/write event JSON via `lockUtils`). Endpoints `GET /api/state/:concertId`, `POST /api/lineup/{place,move,remove}`, `GET /api/guild/members`. Add lazy `"lineup": []` write. | curl creates, places, moves, removes; JSON file matches; locks observed under load. |
-| **M4** | Frontend scaffold + SDK handshake | `frontend/` Vite project. Embedded SDK boot, OAuth via `/api/token`, role gate, static render (sidebar + canvas, no drag). Cloudflare Pages deploy from `main` with root = `frontend`. | Activity launched from voice channel shelf renders the lists for a real concert. |
+| **M2** | Concerts list endpoint | `services/lineupStore.js` skeleton + `GET /api/concerts` reading `src/events/active/`, parsing `{ name, id, date }`, sorting by `date` asc using existing date util. | curl returns the active events sorted soonest-first. |
+| **M3** | Lineup state CRUD | Extend `services/lineupStore.js` (read/merge/write event JSON via `lockUtils`). Endpoints `GET /api/state/:concertId`, `POST /api/lineup/{place,move,remove}`, `GET /api/guild/members`. Add lazy `"lineup": []` write. | curl creates, places, moves, removes; JSON file matches; locks observed under load. |
+| **M4** | Frontend scaffold + picker + SDK handshake | `frontend/` Vite project. Embedded SDK boot, OAuth via `/api/token`, role gate, picker view (`picker.js`) listing concerts from `/api/concerts`, click-through to static planner render (sidebar + canvas, no drag), "Back to concerts" button. Cloudflare Pages deploy from `main` with root = `frontend`. | Activity launched from voice channel shelf shows picker; clicking a concert renders its lists; back button returns to picker. |
 | **M5** | Drag-drop + place + poll | `interact.js` bindings. Drag-end commits to API. 5s polling loop with visibility-pause. Stale-badge calculation. Manual-add modal. | Two devices each see the other's changes within ~5s. Manual-add a guest works. Stale badges appear on signup flip. |
 | **M6** | Mobile + polish + prod cutover | Mobile pointer-event verification (iOS/Android). Tap-target sizing. Switch URL mappings to prod Kiribot app + prod cloudflared tunnel. Verify with 2-3 Harmonians. | Announced to group. |
 
@@ -250,7 +253,7 @@ Rough estimate: ~1 working week solo. Riskiest day is M0 sidecar verification + 
 | Cybrancee PM2 + cloudflared sidecar not actually supported | M0 verify with Cybrancee before any frontend work. Fallback: relocate Express to Cloudflare Workers + Durable Objects (heavy rewrite, splits monorepo benefit). |
 | Discord Activities mobile reliability | Test mobile end-to-end early in M4. Known historical: iOS Safari + Activities OAuth quirks. |
 | 5s polling cadence too slow under multi-user editing | Drop to 2s if real-world tested as laggy; only add WebSocket if still bad. |
-| Bot restart drops pending-concert map | User reruns the context menu. Logged via `core/logger`. |
+| Many active events make picker noisy | Acceptable v1 (active dir is small in practice). v2: collapse past-date entries or filter via `date >= today - 7d`. |
 | OAuth token expires mid-session | Frontend catches 401 and re-runs SDK auth + `/api/token` transparently. |
 | Multi-instrument person placed under wrong instrument | User removes and replaces from the correct instrument row. No undo v1. |
 | Stage 1000×600 cramped for big lineups | Acceptable v1; per-concert `lineupStage` is v2 candidate. |
