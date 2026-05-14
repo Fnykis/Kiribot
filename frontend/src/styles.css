@@ -36,16 +36,29 @@ body {
 #planner-header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
     padding: 0.5rem 0.75rem;
     background: #16213e;
     border-bottom: 1px solid #0f3460;
     flex-shrink: 0;
 }
 
+.header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.header-right {
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
 #planner-title {
     font-size: 0.95rem;
     color: #ddd;
+    white-space: nowrap;
+    text-align: center;
 }
 
 .back-btn {
@@ -60,6 +73,25 @@ body {
 
 .back-btn:hover { background: #274070; }
 
+.sidebar-toggle-btn {
+    background: #1e3050;
+    color: #eee;
+    border: 1px solid #334;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1;
+}
+.sidebar-toggle-btn:hover { background: #274070; }
+
+#sidebar.collapsed {
+    width: 0;
+    padding: 0;
+    overflow: hidden;
+    border-right: none;
+}
+
 #planner-body {
     display: flex;
     flex: 1;
@@ -67,22 +99,61 @@ body {
 }
 
 #sidebar {
+    position: relative;
     width: 220px;
     flex-shrink: 0;
     background: #16213e;
+    border-right: 1px solid #0f3460;
+}
+
+#sidebar-inner {
+    height: 100%;
     overflow-y: auto;
     padding: 0.75rem;
-    border-right: 1px solid #0f3460;
+}
+
+#sidebar.dot-drag-active::after {
+    content: 'Släpp här för att ta bort';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.85rem;
+    color: #e74c3c;
+    border: 1px dashed rgba(192, 57, 43, 0.4);
+    border-radius: 4px;
+    background: rgba(15, 15, 30, 0.55);
+    pointer-events: none;
 }
 
 .available-section { margin-bottom: 1rem; }
 
-.available-section h3 {
+.available-section summary {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #8899aa;
     margin-bottom: 0.4rem;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    user-select: none;
+}
+
+.available-section summary::before {
+    content: '▾';
+    font-size: 0.7rem;
+    transition: transform 0.15s;
+    display: inline-block;
+}
+
+.available-section:not([open]) summary::before {
+    transform: rotate(-90deg);
 }
 
 .available-row {
@@ -96,6 +167,7 @@ body {
 }
 
 .available-row:hover { background: #274070; }
+#sidebar.dot-drag-active .available-row:hover { background: #1e3050; }
 
 #stage-container {
     position: relative;
@@ -114,10 +186,10 @@ body {
     background: #1c2940;
     border: 1px solid #334;
     border-radius: 4px;
-    --grid-step-x: 2.4%; /* 24/1000 */
-    --grid-step-y: 4%;   /* 24/600  */
+    --grid-step-x: 3.6%; /* 36/1000 */
+    --grid-step-y: 6%;   /* 36/600  */
     background-image:
-        repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px var(--grid-step-y)),
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.05) 0 1px, transparent 1px var(--grid-step-y)),
         repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px var(--grid-step-x));
 }
 
@@ -132,6 +204,10 @@ body {
     align-items: center;
     justify-content: center;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.stage-dot.ghost {
+    opacity: 40%;
 }
 
 .dot-label {
@@ -220,25 +296,8 @@ body {
     font-size: 1rem;
 }
 
-#trash {
-    position: absolute;
-    right: 1rem;
-    bottom: 1rem;
-    width: 96px;
-    height: 96px;
-    border-radius: 50%;
-    background: #2a1a1a;
-    border: 2px dashed #c0392b;
-    color: #e74c3c;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    user-select: none;
-}
 
 .manual-add-btn {
-    margin-left: auto;
     background: #1e3050;
     color: #eee;
     border: 1px solid #334;
@@ -310,6 +369,88 @@ body {
 }
 
 .stage-dot.dragging { z-index: 50; opacity: 0.85; }
+
+.stage-dot.selected {
+    box-shadow: 0 0 0 3px rgba(100, 160, 255, 0.85), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.radial-menu {
+    position: fixed;
+    transform: translate(-50%, calc(-100% - 12px));
+    display: flex;
+    gap: 4px;
+    background: rgba(25, 25, 35, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    padding: 4px;
+    z-index: 2000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.radial-btn {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+}
+
+.radial-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.radial-btn.active {
+    color: #64a0ff;
+    background: rgba(100, 160, 255, 0.15);
+}
+
+.mestre-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.mestre-line {
+    stroke: rgba(255, 255, 255, 0.2);
+    stroke-dasharray: 0.8 0.5;
+    stroke-width: 0.2;
+    stroke-linecap: round;
+}
+
+.mestre-ghost {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    opacity: 0.35;
+    border: 2px dashed rgba(255, 255, 255, 0.6);
+    z-index: 2;
+}
+
+.mestre-ghost:active {
+    cursor: grabbing;
+}
+
+.selection-rect {
+    position: absolute;
+    border: 1px dashed rgba(100, 160, 255, 0.8);
+    background: rgba(100, 160, 255, 0.08);
+    pointer-events: none;
+    z-index: 10;
+}
 
 .drag-ghost {
     position: fixed;

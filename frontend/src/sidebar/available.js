@@ -16,10 +16,11 @@ export function renderAvailable(container, event) {
     container.replaceChildren();
     const available = computeAvailable(event);
     for (const [instrument, entries] of Object.entries(available)) {
-        const section = document.createElement('div');
+        const section = document.createElement('details');
         section.className = 'available-section';
+        section.open = true;
 
-        const header = document.createElement('h3');
+        const header = document.createElement('summary');
         header.textContent = instrument;
         section.appendChild(header);
 

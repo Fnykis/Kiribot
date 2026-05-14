@@ -13,16 +13,21 @@
   <div id="picker" style="display:none;"></div>
   <div id="app" style="display:none;">
     <header id="planner-header">
-      <button id="back-btn" type="button" class="back-btn">← Tillbaka till konserter</button>
+      <div class="header-left">
+        <button id="back-btn" type="button" class="back-btn">←</button>
+        <button id="sidebar-toggle-btn" type="button" class="sidebar-toggle-btn" title="Visa/dölj sidopanel">☰</button>
+      </div>
       <span id="planner-title"></span>
-      <button id="stall-upp-alla-btn" type="button" class="manual-add-btn">Ställ upp alla</button>
-      <button id="manual-add-btn" type="button" class="manual-add-btn">+ Lägg till annan medlem</button>
+      <div class="header-right">
+        <button id="stall-upp-alla-btn" type="button" class="manual-add-btn">Placera alla</button>
+        <button id="manual-add-btn" type="button" class="manual-add-btn">+ Medlem</button>
+      </div>
     </header>
     <div id="planner-body">
-      <aside id="sidebar"></aside>
+      <aside id="sidebar"><div id="sidebar-inner"></div></aside>
       <main id="stage-container">
         <div id="stage"></div>
-        <div id="trash" title="Släpp här för att ta bort">🗑</div>
+
       </main>
     </div>
   </div>

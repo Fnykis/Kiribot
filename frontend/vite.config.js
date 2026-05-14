@@ -9,6 +9,10 @@ export default defineConfig({
     proxy: {
       '/api': 'http://127.0.0.1:3000',
     },
+    // dev mode imports JSON from ../src — allow serving outside the frontend root
+    fs: {
+      allow: ['..'],
+    },
   },
   test: {
     environment: 'jsdom',

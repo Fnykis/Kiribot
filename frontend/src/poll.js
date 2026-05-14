@@ -6,6 +6,7 @@ export function startPoll({
     getDraggingId,
     getDraggingPosition = () => null,
     getDraggingSidebarUserId = () => null,
+    getIsSelecting = () => false,
     onUpdate,
     onError,
     visibilityRef = (typeof document !== 'undefined' ? document : { hidden: false })
@@ -16,9 +17,14 @@ export function startPoll({
         if (stopped) return;
         if (visibilityRef.hidden) return;
         if (getDraggingSidebarUserId()) return;
+        if (getDraggingId()) return;
+        if (getIsSelecting()) return;
         try {
             const next = await fetchState();
             if (stopped) return;
+            if (getDraggingSidebarUserId()) return;
+            if (getDraggingId()) return;
+            if (getIsSelecting()) return;
             const merged = mergeLivePosition(next, getDraggingId(), getDraggingPosition());
             onUpdate(merged);
         } catch (err) {

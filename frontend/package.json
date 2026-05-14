@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^1.7.0",
-    "interactjs": "^1.10.27"
+    "interactjs": "^1.10.27",
+    "lucide": "^1.16.0"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.0",

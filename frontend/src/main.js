@@ -1,7 +1,15 @@
 import { DiscordSDK, patchUrlMappings } from '@discord/embedded-app-sdk';
 import { bootSdk, authenticateSdk } from './sdk.js';
 import { exchangeCode, setToken } from './auth.js';
-import { get, getWithQuery, post } from './api.js';
+import {
+    isDevMode,
+    fetchConcerts,
+    fetchState,
+    fetchMembers,
+    placeMember,
+    moveMember,
+    removeMember,
+} from './dataSource.js';
 import {
     setEvent,
     getEvent,
@@ -15,6 +23,9 @@ import {
     setDraggingPosition,
     getDraggingSidebarUserId,
     setDraggingSidebarUserId,
+    getIsSelecting,
+    toggleMestre,
+    setMestrePos,
 } from './state.js';
 import { renderPicker } from './picker.js';
 import { renderAvailable } from './sidebar/available.js';
@@ -50,7 +61,7 @@ function showEl(id, display = 'block') {
 async function fetchAndShowPicker() {
     let concerts;
     try {
-        concerts = await get('/api/concerts', _accessToken);
+        concerts = await fetchConcerts(_accessToken);
     } catch (err) {
         if (err.status === 403) {
             showStatus('Åtkomst nekad. Harmonian-rollen krävs.', true);
@@ -72,11 +83,11 @@ async function fetchAndShowPicker() {
     );
 }
 
-async function refreshState(concertId, sidebar, stage) {
+async function refreshState(concertId, sidebarInner, stage) {
     try {
-        const fresh = await get(`/api/state/${concertId}`, _accessToken);
+        const fresh = await fetchState(concertId, _accessToken);
         setEvent(fresh);
-        renderAvailable(sidebar, fresh);
+        renderAvailable(sidebarInner, fresh);
         renderStage(stage, fresh);
     } catch (err) {
         console.warn('refresh failed', err);
@@ -86,7 +97,7 @@ async function refreshState(concertId, sidebar, stage) {
 async function loadPlanner(concertId) {
     let event;
     try {
-        event = await get(`/api/state/${concertId}`, _accessToken);
+        event = await fetchState(concertId, _accessToken);
     } catch (err) {
         if (err.status === 403) {
             showStatus('Åtkomst nekad. Harmonian-rollen krävs.', true);
@@ -109,40 +120,59 @@ async function loadPlanner(concertId) {
     showEl('app', 'flex');
 
     const sidebar = document.getElementById('sidebar');
+    const sidebarInner = document.getElementById('sidebar-inner');
     const stage = document.getElementById('stage');
-    const trash = document.getElementById('trash');
 
-    renderAvailable(sidebar, event);
+    renderAvailable(sidebarInner, event);
     renderStage(stage, event);
 
     wireDrag({
         stageEl: stage,
         sidebarEl: sidebar,
-        trashEl: trash,
+        sidebarContentEl: sidebarInner,
         getEvent,
         setDraggingId,
         setDraggingPosition,
         setDraggingSidebarUserId,
         onPlace: async (payload) => {
-            const updated = await post('/api/lineup/place', { concertId, ...payload }, _accessToken);
+            const updated = await placeMember({ concertId, ...payload }, _accessToken);
             setEvent(updated);
-            renderAvailable(sidebar, updated);
+            renderAvailable(sidebarInner, updated);
             renderStage(stage, updated);
         },
         onMove: async ({ userId, x, y }) => {
-            const updated = await post('/api/lineup/move', { concertId, userId, x, y }, _accessToken);
+            const updated = await moveMember({ concertId, userId, x, y }, _accessToken);
             setEvent(updated);
             renderStage(stage, updated);
         },
+        onMoveMany: async (moves) => {
+            let updated;
+            for (const { userId, x, y } of moves) {
+                updated = await moveMember({ concertId, userId, x, y }, _accessToken);
+                setEvent(updated);
+            }
+            if (updated) renderStage(stage, updated);
+        },
+        onMestre: ({ userId }) => {
+            const entry = (getEvent().lineup || []).find(e => String(e.userId) === String(userId));
+            if (!entry) return;
+            const initX = entry.position.x;
+            const initY = Math.min(STAGE_H - GRID_STEP, entry.position.y + GRID_STEP * 3);
+            toggleMestre(userId, { x: initX, y: initY });
+            renderStage(stage, getEvent());
+        },
+        onMestreMove: ({ userId, x, y }) => {
+            setMestrePos(userId, { x, y });
+        },
         onRemove: async ({ userId }) => {
-            const updated = await post('/api/lineup/remove', { concertId, userId }, _accessToken);
+            const updated = await removeMember({ concertId, userId }, _accessToken);
             setEvent(updated);
-            renderAvailable(sidebar, updated);
+            renderAvailable(sidebarInner, updated);
             renderStage(stage, updated);
         },
         onError: (err) => {
             if (err.status === 409) {
-                refreshState(concertId, sidebar, stage);
+                refreshState(concertId, sidebarInner, stage);
             } else {
                 showStatus('Något gick fel: ' + (err.message || err), true);
             }
@@ -154,15 +184,15 @@ async function loadPlanner(concertId) {
     if (manualBtn && modalEl) {
         manualBtn.onclick = () => openManualAdd({
             modalEl,
-            fetchMembers: (q) => getWithQuery('/api/guild/members', { q }, _accessToken),
+            fetchMembers: (q) => fetchMembers(q, _accessToken),
             instruments: Object.keys(event.signups || {}),
             onSubmit: async ({ userId, displayName, instrument }) => {
                 try {
-                    const updated = await post('/api/lineup/place',
+                    const updated = await placeMember(
                         { concertId, userId, displayName, instrument, x: 500, y: 300, manuallyAdded: true },
                         _accessToken);
                     setEvent(updated);
-                    renderAvailable(sidebar, updated);
+                    renderAvailable(sidebarInner, updated);
                     renderStage(stage, updated);
                 } catch (err) {
                     showStatus('Kunde inte lägga till medlem: ' + (err.message || err), true);
@@ -182,7 +212,7 @@ async function loadPlanner(concertId) {
                 const positioned = computeAutoPositions(selections, GRID_STEP, STAGE_W, STAGE_H);
                 for (const p of positioned) {
                     try {
-                        const updated = await post('/api/lineup/place', {
+                        const updated = await placeMember({
                             concertId, ...p, manuallyAdded: false
                         }, _accessToken);
                         setEvent(updated);
@@ -191,15 +221,16 @@ async function loadPlanner(concertId) {
                         break;
                     }
                 }
-                renderAvailable(sidebar, getEvent());
+                renderAvailable(sidebarInner, getEvent());
                 renderStage(stage, getEvent());
                 _pollHandle = startPoll({
-                    fetchState: () => get(`/api/state/${concertId}`, _accessToken),
+                    fetchState: () => fetchState(concertId, _accessToken),
                     intervalMs: 5000,
                     getDraggingId,
                     getDraggingPosition,
                     getDraggingSidebarUserId,
-                    onUpdate: (u) => { setEvent(u); renderAvailable(sidebar, u); renderStage(stage, u); },
+                    getIsSelecting,
+                    onUpdate: (u) => { setEvent(u); renderAvailable(sidebarInner, u); renderStage(stage, u); },
                     onError: (err) => { console.warn('poll', err); }
                 });
             }
@@ -208,14 +239,14 @@ async function loadPlanner(concertId) {
 
     if (_pollHandle) stopPoll(_pollHandle);
     _pollHandle = startPoll({
-        fetchState: () => get(`/api/state/${concertId}`, _accessToken),
+        fetchState: () => fetchState(concertId, _accessToken),
         intervalMs: 5000,
         getDraggingId,
         getDraggingPosition,
         getDraggingSidebarUserId,
         onUpdate: (updated) => {
             setEvent(updated);
-            renderAvailable(sidebar, updated);
+            renderAvailable(sidebarInner, updated);
             renderStage(stage, updated);
         },
         onError: (err) => { console.warn('poll', err); }
@@ -229,33 +260,46 @@ function backToPicker() {
 }
 
 async function boot() {
-    let sdk, code;
-    try {
-        ({ sdk, code } = await bootSdk(DiscordSDK, CLIENT_ID, patchUrlMappings));
-    } catch {
-        return; // sdk.js already rendered standalone refusal
-    }
-
-    try {
-        const result = await exchangeCode(code);
-        _accessToken = result.access_token;
+    if (isDevMode) {
+        _accessToken = 'dev';
         setToken(_accessToken);
-        await authenticateSdk(sdk, _accessToken);
-    } catch (err) {
-        const host = window.location.host;
-        const fetchPatched = window.fetch.toString().indexOf('[native code]') === -1 ? 'PATCHED' : 'NATIVE';
-        showStatus(
-            'Auth fail [' + (err.status || 'no-status') + ']: ' + (err.message || String(err))
-            + ' | code: ' + (code ? code.slice(0, 12) : 'EMPTY')
-            + ' | host: ' + host
-            + ' | fetch: ' + fetchPatched,
-            true,
-        );
-        return;
+    } else {
+        let sdk, code;
+        try {
+            ({ sdk, code } = await bootSdk(DiscordSDK, CLIENT_ID, patchUrlMappings));
+        } catch {
+            return; // sdk.js already rendered standalone refusal
+        }
+
+        try {
+            const result = await exchangeCode(code);
+            _accessToken = result.access_token;
+            setToken(_accessToken);
+            await authenticateSdk(sdk, _accessToken);
+        } catch (err) {
+            const host = window.location.host;
+            const fetchPatched = window.fetch.toString().indexOf('[native code]') === -1 ? 'PATCHED' : 'NATIVE';
+            showStatus(
+                'Auth fail [' + (err.status || 'no-status') + ']: ' + (err.message || String(err))
+                + ' | code: ' + (code ? code.slice(0, 12) : 'EMPTY')
+                + ' | host: ' + host
+                + ' | fetch: ' + fetchPatched,
+                true,
+            );
+            return;
+        }
     }
 
     const backBtn = document.getElementById('back-btn');
     if (backBtn) backBtn.addEventListener('click', backToPicker);
+
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    const sidebarEl = document.getElementById('sidebar');
+    if (sidebarToggleBtn && sidebarEl) {
+        sidebarToggleBtn.addEventListener('click', () => {
+            sidebarEl.classList.toggle('collapsed');
+        });
+    }
 
     await fetchAndShowPicker();
 }
