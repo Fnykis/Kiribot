@@ -104,12 +104,14 @@ export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
                 evt.target.classList.remove('dragging');
                 if (_sidebarGhost) { _sidebarGhost.remove(); _sidebarGhost = null; }
                 setDraggingSidebarUserId(null);
-                if (evt.relatedTarget !== stageEl) return;
+                const stageRect = stageEl.getBoundingClientRect();
+                const insideStage = evt.client.x >= stageRect.left && evt.client.x <= stageRect.right &&
+                                    evt.client.y >= stageRect.top  && evt.client.y <= stageRect.bottom;
+                if (!insideStage) return;
                 const userId = evt.target.dataset.userId;
                 const instrument = evt.target.dataset.instrument;
                 const displayName = evt.target.textContent.trim();
-                const rect = stageEl.getBoundingClientRect();
-                const raw = clientToStage(rect, evt.client.x, evt.client.y);
+                const raw = clientToStage(stageRect, evt.client.x, evt.client.y);
                 const { x, y } = snapToGrid(raw.x, raw.y, GRID_STEP);
                 try {
                     await onPlace({ userId, displayName, instrument, x, y, manuallyAdded: false });
