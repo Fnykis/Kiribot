@@ -1,9 +1,6 @@
 const VALID = new Set(['ja', 'kanske']);
 
 export function openStallUppAlla({ modalEl, event, onSubmit }) {
-    modalEl.hidden = false;
-    modalEl.replaceChildren();
-
     // Build userId → { name, Set<instrument> } from signups
     const placed = new Set((event.lineup || []).map(e => e.userId));
     const userInstruments = new Map();
@@ -15,6 +12,34 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
             userInstruments.get(e.id).instruments.add(instrument);
         }
     }
+
+    // Split into single- and multi-instrument groups
+    const single = new Map();
+    const multi = new Map();
+    for (const [userId, data] of userInstruments) {
+        if (data.instruments.size === 1) single.set(userId, data);
+        else multi.set(userId, data);
+    }
+
+    // Pre-fill selections for single-instrument members
+    const selections = new Map(); // userId → { instrument, displayName }
+    for (const [userId, { name, instruments }] of single) {
+        const [instrument] = instruments;
+        selections.set(userId, { instrument, displayName: name });
+    }
+
+    // No-multi shortcut: skip modal entirely
+    if (multi.size === 0 && userInstruments.size > 0) {
+        const payload = [];
+        for (const [userId, { instrument, displayName }] of selections) {
+            payload.push({ userId, displayName, instrument });
+        }
+        onSubmit(payload);
+        return;
+    }
+
+    modalEl.hidden = false;
+    modalEl.replaceChildren();
 
     const wrap = document.createElement('div');
     wrap.className = 'stua-wrap';
@@ -36,21 +61,20 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
         return;
     }
 
-    const selections = new Map(); // userId → { instrument, displayName }
-
     const list = document.createElement('div');
     list.className = 'stua-list';
 
-    for (const [userId, { name, instruments }] of userInstruments) {
+    // Render only multi-instrument members — one row per user
+    for (const [userId, { name, instruments }] of multi) {
+        const row = document.createElement('div');
+        row.className = 'stua-row';
+        row.dataset.user = userId;
+
+        const label = document.createElement('span');
+        label.textContent = name;
+        row.appendChild(label);
+
         for (const instrument of instruments) {
-            const row = document.createElement('div');
-            row.className = 'stua-row';
-            row.dataset.user = userId;
-
-            const label = document.createElement('span');
-            label.textContent = `${name} — ${instrument}`;
-            row.appendChild(label);
-
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.textContent = instrument;
@@ -65,8 +89,9 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
                 updateOkState();
             });
             row.appendChild(btn);
-            list.appendChild(row);
         }
+
+        list.appendChild(row);
     }
     wrap.appendChild(list);
 
@@ -95,7 +120,7 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
     modalEl.appendChild(wrap);
 
     function updateOkState() {
-        ok.disabled = selections.size !== userInstruments.size;
+        ok.disabled = selections.size !== single.size + multi.size;
     }
     function closeModal() {
         modalEl.hidden = true;
