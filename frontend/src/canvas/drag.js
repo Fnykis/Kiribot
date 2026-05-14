@@ -105,8 +105,8 @@ export function wireDrag({ stageEl, sidebarEl, trashEl, getEvent, setDraggingId,
                 if (_sidebarGhost) { _sidebarGhost.remove(); _sidebarGhost = null; }
                 setDraggingSidebarUserId(null);
                 const stageRect = stageEl.getBoundingClientRect();
-                const insideStage = evt.client.x >= stageRect.left && evt.client.x <= stageRect.right &&
-                                    evt.client.y >= stageRect.top  && evt.client.y <= stageRect.bottom;
+                const insideStage = evt.client.x >= stageRect.left && evt.client.x < stageRect.right &&
+                                    evt.client.y >= stageRect.top  && evt.client.y < stageRect.bottom;
                 if (!insideStage) return;
                 const userId = evt.target.dataset.userId;
                 const instrument = evt.target.dataset.instrument;

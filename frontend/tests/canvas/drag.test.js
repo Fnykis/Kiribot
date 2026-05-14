@@ -12,8 +12,10 @@ vi.mock('interactjs', () => {
 
     const interact = vi.fn((selectorOrEl, _opts) => ({
         draggable({ listeners } = {}) {
-            // The second interact() call with '.available-row' context carries listeners
-            if (listeners && listeners.end) {
+            // Only capture the end listener for the sidebar-row draggable.
+            // Keying on the selector (not call order) makes the mock robust
+            // if wireDrag ever reorders its interact() calls.
+            if (selectorOrEl === '.available-row' && listeners && listeners.end) {
                 _sidebarEndListener = listeners.end;
             }
             return { draggable: () => {} };
@@ -139,6 +141,19 @@ describe('sidebar-row drop — pointer-in-stage-rect guard', () => {
         const evt = {
             target,
             client: { x: 50, y: 200 },
+            relatedTarget: null,
+        };
+        await endListener(evt);
+        expect(onPlace).not.toHaveBeenCalled();
+    });
+
+    it('does NOT call onPlace when pointer is outside stage rect (y > bottom)', async () => {
+        expect(endListener).toBeTruthy();
+        const target = makeTarget('u3', 'Tuba');
+        // Pointer at (300, 400) — y=400 >= bottom=350, outside stage
+        const evt = {
+            target,
+            client: { x: 300, y: 400 },
             relatedTarget: null,
         };
         await endListener(evt);
