@@ -5,6 +5,7 @@ const {
     MessageFlags
 } = require('discord.js');
 const createActivityInviteService = require('../../services/activityInvite');
+const { scheduleRevoke } = require('../../services/lineupAccess');
 const { ch_LineupVoice, activity_Lineup } = require('../../core/constants');
 const { harmonianRoleId } = require('../../../config.json');
 const logActivity = require('../../core/logger');
@@ -33,6 +34,7 @@ async function execute(interaction) {
                 ViewChannel: true,
                 Connect: true,
             });
+            scheduleRevoke(member.user.id, voiceChannel);
         }
     } catch (err) {
         logActivity(`btn_lineup_invite: failed to grant channel perms for ${member.user.id}: ${err.message}`);

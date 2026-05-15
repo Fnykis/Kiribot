@@ -1,6 +1,7 @@
 const { Events } = require('discord.js');
 const { ch_LineupVoice } = require('../core/constants');
 const logActivity = require('../core/logger');
+const { cancelRevoke } = require('../services/lineupAccess');
 
 const WATCHED_CHANNELS = new Set(['1139442250913419284', '1141127436818456597']);
 const DELAY_MS = 15 * 60 * 1000;
@@ -13,6 +14,7 @@ module.exports = {
 		const leftLineup = oldState.channelId === ch_LineupVoice && newState.channelId !== ch_LineupVoice;
 
 		if (joinedLineup) {
+			cancelRevoke(newState.id);
 			try {
 				await newState.setMute(true, 'lineup-activity entry');
 			} catch (err) {
@@ -21,6 +23,7 @@ module.exports = {
 		}
 
 		if (leftLineup) {
+			cancelRevoke(oldState.id);
 			try {
 				await oldState.setMute(false, 'lineup-activity exit');
 			} catch (err) {
