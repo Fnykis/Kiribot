@@ -43,7 +43,7 @@ async function execute(interaction) {
     const urlBtn = new ButtonBuilder()
         .setLabel('Öppna lineup')
         .setStyle(ButtonStyle.Link)
-        .setURL(invite.url);
+        .setURL(`https://discord.gg/${invite.code}`);
 
     logActivity(`btn_lineup_invite: ${interaction.member?.displayName || interaction.user.username} generated lineup invite`);
     return interaction.reply({

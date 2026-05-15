@@ -6,7 +6,7 @@ test('createActivityInvite: posts target_type=2 invite to correct channel', asyn
     const calls = [];
     const restPost = async (route, body) => {
         calls.push({ route, body });
-        return { code: 'abc123', url: 'https://discord.gg/abc123' };
+        return { code: 'abc123' };
     };
     const svc = createActivityInviteService({
         restPost,
@@ -22,7 +22,7 @@ test('createActivityInvite: posts target_type=2 invite to correct channel', asyn
         target_type: 2,
         target_application_id: 'APP'
     });
-    assert.equal(result.url, 'https://discord.gg/abc123');
+    assert.equal(result.code, 'abc123');
 });
 
 test('createActivityInvite: propagates rest errors', async () => {
