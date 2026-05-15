@@ -21,6 +21,7 @@ export function clearSelectedConcert() {
     _draggingPosition = null;
     _draggingSidebarUserId = null;
     _selectedIds = new Set();
+    _selectedGhostIds = new Set();
     _mestres = new Map();
 }
 
@@ -41,6 +42,11 @@ export function clearSelectedIds() { _selectedIds = new Set(); }
 let _isSelecting = false;
 export function getIsSelecting() { return _isSelecting; }
 export function setIsSelecting(v) { _isSelecting = v; }
+
+let _selectedGhostIds = new Set();
+export function getSelectedGhostIds() { return _selectedGhostIds; }
+export function setSelectedGhostIds(ids) { _selectedGhostIds = new Set(ids); }
+export function clearSelectedGhostIds() { _selectedGhostIds = new Set(); }
 
 let _mestres = new Map(); // userId → {x, y}
 export function getMestres() { return _mestres; }

@@ -31,7 +31,7 @@ import { renderPicker } from './picker.js';
 import { renderAvailable } from './sidebar/available.js';
 import { renderStage, GRID_STEP, STAGE_W, STAGE_H } from './canvas/stage.js';
 import { startPoll, stopPoll } from './poll.js';
-import { wireDrag } from './canvas/drag.js';
+import { wireDrag, applySelectionVisual } from './canvas/drag.js';
 import { openManualAdd } from './sidebar/manualAdd.js';
 import { openStallUppAlla } from './sidebar/stallUppAlla.js';
 import { computeAutoPositions } from './canvas/autoPlace.js';
@@ -89,6 +89,7 @@ async function refreshState(concertId, sidebarInner, stage) {
         setEvent(fresh);
         renderAvailable(sidebarInner, fresh);
         renderStage(stage, fresh);
+        applySelectionVisual(stage);
     } catch (err) {
         console.warn('refresh failed', err);
     }
@@ -230,7 +231,7 @@ async function loadPlanner(concertId) {
                     getDraggingPosition,
                     getDraggingSidebarUserId,
                     getIsSelecting,
-                    onUpdate: (u) => { setEvent(u); renderAvailable(sidebarInner, u); renderStage(stage, u); },
+                    onUpdate: (u) => { setEvent(u); renderAvailable(sidebarInner, u); renderStage(stage, u); applySelectionVisual(stage); },
                     onError: (err) => { console.warn('poll', err); }
                 });
             }
@@ -248,6 +249,7 @@ async function loadPlanner(concertId) {
             setEvent(updated);
             renderAvailable(sidebarInner, updated);
             renderStage(stage, updated);
+            applySelectionVisual(stage);
         },
         onError: (err) => { console.warn('poll', err); }
     });

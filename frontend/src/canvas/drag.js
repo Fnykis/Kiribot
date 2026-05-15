@@ -1,7 +1,8 @@
 import interact from 'interactjs';
 import { Hand } from 'lucide';
 import { STAGE_W, STAGE_H, GRID_STEP, instrumentColor, abbreviateInstrument, edgeEndpoints } from './stage.js';
-import { getSelectedIds, setSelectedIds, clearSelectedIds, setIsSelecting, getMestres } from '../state.js';
+import { getSelectedIds, setSelectedIds, clearSelectedIds, setIsSelecting, getMestres,
+         getSelectedGhostIds, setSelectedGhostIds, clearSelectedGhostIds } from '../state.js';
 
 function createLucideIcon(iconData, size = 18) {
     const ns = 'http://www.w3.org/2000/svg';
@@ -40,10 +41,14 @@ export function clientToStage(rect, clientX, clientY, pointerOffset = { x: 0, y:
     };
 }
 
-function applySelectionVisual(stageEl) {
+export function applySelectionVisual(stageEl) {
     const ids = getSelectedIds();
     stageEl.querySelectorAll('.stage-dot').forEach(dot => {
         dot.classList.toggle('selected', ids.has(dot.dataset.userId));
+    });
+    const gIds = getSelectedGhostIds();
+    stageEl.querySelectorAll('.mestre-ghost').forEach(g => {
+        g.classList.toggle('selected', gIds.has(g.getAttribute('data-mestre-user-id')));
     });
 }
 
@@ -114,6 +119,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
     }
 
     let _groupDrag = false;
+    let _ghostGroupDrag = false;
 
     // ---- Drag a placed dot inside the stage ----
     interact('.stage-dot', { context: stageEl }).draggable({
@@ -284,53 +290,84 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
     interact('.mestre-ghost', { context: stageEl }).draggable({
         listeners: {
             start(evt) {
+                const userId = evt.target.getAttribute('data-mestre-user-id');
+                const selGhosts = getSelectedGhostIds();
+                _ghostGroupDrag = selGhosts.size > 1 && selGhosts.has(userId);
                 evt.target.dataset.dragX = 0;
                 evt.target.dataset.dragY = 0;
-                setDraggingId(evt.target.getAttribute('data-mestre-user-id'));
+                if (_ghostGroupDrag) {
+                    stageEl.querySelectorAll('.mestre-ghost').forEach(g => {
+                        if (selGhosts.has(g.getAttribute('data-mestre-user-id'))) {
+                            g.dataset.ghostStartLeft = g.style.left;
+                            g.dataset.ghostStartTop  = g.style.top;
+                        }
+                    });
+                }
+                setDraggingId(userId);
             },
             move(evt) {
                 const x = (parseFloat(evt.target.dataset.dragX) || 0) + evt.dx;
                 const y = (parseFloat(evt.target.dataset.dragY) || 0) + evt.dy;
                 evt.target.dataset.dragX = x;
                 evt.target.dataset.dragY = y;
-                evt.target.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
-                const userId = evt.target.getAttribute('data-mestre-user-id');
-                const svgLine = stageEl.querySelector(`.mestre-line[data-mestre-user-id="${userId}"]`);
-                if (svgLine) {
-                    const r = stageEl.getBoundingClientRect();
-                    const cx2 = parseFloat(evt.target.style.left) + (x / r.width) * 100;
-                    const cy2 = parseFloat(evt.target.style.top)  + (y / r.height) * 100;
-                    const cx1 = parseFloat(svgLine.getAttribute('data-cx1'));
-                    const cy1 = parseFloat(svgLine.getAttribute('data-cy1'));
-                    setMestreLine(svgLine, cx1, cy1, cx2, cy2, r);
-                }
+                const r = stageEl.getBoundingClientRect();
+                const selGhosts = getSelectedGhostIds();
+                stageEl.querySelectorAll('.mestre-ghost').forEach(g => {
+                    const gId = g.getAttribute('data-mestre-user-id');
+                    if (!_ghostGroupDrag && g !== evt.target) return;
+                    if (_ghostGroupDrag && !selGhosts.has(gId)) return;
+                    g.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                    const svgLine = stageEl.querySelector(`.mestre-line[data-mestre-user-id="${gId}"]`);
+                    if (svgLine) {
+                        const cx2 = parseFloat(g.style.left) + (x / r.width) * 100;
+                        const cy2 = parseFloat(g.style.top)  + (y / r.height) * 100;
+                        setMestreLine(svgLine,
+                            parseFloat(svgLine.getAttribute('data-cx1')),
+                            parseFloat(svgLine.getAttribute('data-cy1')),
+                            cx2, cy2, r);
+                    }
+                });
             },
             async end(evt) {
-                const userId = evt.target.getAttribute('data-mestre-user-id');
+                const totalDx = parseFloat(evt.target.dataset.dragX) || 0;
+                const totalDy = parseFloat(evt.target.dataset.dragY) || 0;
                 evt.target.dataset.dragX = 0;
                 evt.target.dataset.dragY = 0;
-                evt.target.style.transform = '';
                 const stageRect = stageEl.getBoundingClientRect();
-                const raw = clientToStage(stageRect, evt.client.x, evt.client.y);
-                const { x, y } = snapToGrid(raw.x, raw.y, GRID_STEP);
-                evt.target.style.left = `${(x / STAGE_W) * 100}%`;
-                evt.target.style.top  = `${(y / STAGE_H) * 100}%`;
-                const svgLine = stageEl.querySelector(`.mestre-line[data-mestre-user-id="${userId}"]`);
-                if (svgLine) {
-                    const cx2 = (x / STAGE_W) * 100;
-                    const cy2 = (y / STAGE_H) * 100;
-                    const cx1 = parseFloat(svgLine.getAttribute('data-cx1'));
-                    const cy1 = parseFloat(svgLine.getAttribute('data-cy1'));
-                    const r = stageEl.getBoundingClientRect();
-                    setMestreLine(svgLine, cx1, cy1, cx2, cy2, r);
-                    svgLine.setAttribute('data-cx2', String(cx2));
-                    svgLine.setAttribute('data-cy2', String(cy2));
-                }
+                const selGhosts = getSelectedGhostIds();
+                const ghosts = _ghostGroupDrag
+                    ? [...stageEl.querySelectorAll('.mestre-ghost')].filter(g => selGhosts.has(g.getAttribute('data-mestre-user-id')))
+                    : [evt.target];
                 try {
-                    if (onMestreMove) await onMestreMove({ userId, x, y });
+                    for (const g of ghosts) {
+                        const gId = g.getAttribute('data-mestre-user-id');
+                        g.style.transform = '';
+                        let x, y;
+                        if (_ghostGroupDrag) {
+                            const sx = parseFloat(g.dataset.ghostStartLeft) / 100 * STAGE_W;
+                            const sy = parseFloat(g.dataset.ghostStartTop)  / 100 * STAGE_H;
+                            ({ x, y } = snapToGrid(sx + (totalDx / stageRect.width) * STAGE_W,
+                                                    sy + (totalDy / stageRect.height) * STAGE_H, GRID_STEP));
+                        } else {
+                            const raw = clientToStage(stageRect, evt.client.x, evt.client.y);
+                            ({ x, y } = snapToGrid(raw.x, raw.y, GRID_STEP));
+                        }
+                        g.style.left = `${(x / STAGE_W) * 100}%`;
+                        g.style.top  = `${(y / STAGE_H) * 100}%`;
+                        const svgLine = stageEl.querySelector(`.mestre-line[data-mestre-user-id="${gId}"]`);
+                        if (svgLine) {
+                            const cx2 = (x / STAGE_W) * 100, cy2 = (y / STAGE_H) * 100;
+                            setMestreLine(svgLine, parseFloat(svgLine.getAttribute('data-cx1')),
+                                parseFloat(svgLine.getAttribute('data-cy1')), cx2, cy2, stageRect);
+                            svgLine.setAttribute('data-cx2', String(cx2));
+                            svgLine.setAttribute('data-cy2', String(cy2));
+                        }
+                        if (onMestreMove) await onMestreMove({ userId: gId, x, y });
+                    }
                 } catch (err) {
                     if (onError) onError(err);
                 } finally {
+                    _ghostGroupDrag = false;
                     setDraggingId(null);
                 }
             }
@@ -338,7 +375,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
     });
 
     function selectAndMenu(userId) {
-        clearSelectedIds();
+        clearSelectedIds(); clearSelectedGhostIds();
         setSelectedIds(new Set([userId]));
         applySelectionVisual(stageEl);
         const el = stageEl.querySelector(`.stage-dot[data-user-id="${userId}"]`);
@@ -401,7 +438,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
         if (_selRect) { _selRect.remove(); _selRect = null; }
         setIsSelecting(false);
         if (!_selMoved) {
-            clearSelectedIds();
+            clearSelectedIds(); clearSelectedGhostIds();
             applySelectionVisual(stageEl);
         } else {
             const selLeft   = Math.min(_selStart.x, evt.clientX);
@@ -416,9 +453,18 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                     newIds.add(dot.dataset.userId);
                 }
             });
+            const newGhostIds = new Set();
+            stageEl.querySelectorAll('.mestre-ghost').forEach(g => {
+                const dr = g.getBoundingClientRect();
+                if (dr.right >= selLeft && dr.left <= selRight &&
+                    dr.bottom >= selTop  && dr.top  <= selBottom) {
+                    newGhostIds.add(g.getAttribute('data-mestre-user-id'));
+                }
+            });
             setSelectedIds(newIds);
+            setSelectedGhostIds(newGhostIds);
             applySelectionVisual(stageEl);
-            if (newIds.size === 1) selectAndMenu([...newIds][0]);
+            if (newIds.size === 1 && newGhostIds.size === 0) selectAndMenu([...newIds][0]);
         }
         _selStart = null;
         _selMoved = false;
