@@ -19,6 +19,7 @@ const {
 } = require('../routes/api/lineup');
 const createGuildMembersRoute = require('../routes/api/guildMembers');
 const createVoiceMuteRoute = require('../routes/api/voiceMute');
+const createVoiceLeaveRoute = require('../routes/api/voiceLeave');
 const { lineupStore } = require('../services/lineupStore');
 const { ch_LineupVoice } = require('./constants');
 let instrumentList;
@@ -89,12 +90,21 @@ function buildApp({ client, config }) {
         message: { error: 'rate_limited' }
     });
 
+    const getVoiceMember = async (userId) => {
+        const guild = await client.guilds.fetch(config.guildId);
+        return guild.members.fetch(userId);
+    };
+
     app.post('/api/voice/mute', authMiddleware, voiceMuteLimiter,
         asyncRoute(createVoiceMuteRoute({
-            getMember: async (userId) => {
-                const guild = await client.guilds.fetch(config.guildId);
-                return guild.members.fetch(userId);
-            },
+            getMember: getVoiceMember,
+            lineupChannelId: ch_LineupVoice,
+            logger
+        })));
+
+    app.post('/api/voice/leave', authMiddleware, voiceMuteLimiter,
+        asyncRoute(createVoiceLeaveRoute({
+            getMember: getVoiceMember,
             lineupChannelId: ch_LineupVoice,
             logger
         })));

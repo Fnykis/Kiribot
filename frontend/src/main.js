@@ -10,8 +10,9 @@ import {
     moveMember,
     removeMember,
     setMute,
+    leaveVoice,
 } from './dataSource.js';
-import { createMuteToggle } from './muteToggle.js';
+import { createVoiceControls } from './voiceControls.js';
 import {
     setEvent,
     getEvent,
@@ -77,6 +78,26 @@ const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 
 let _accessToken = null;
 let _pollHandle = null;
+let _sdk = null;
+let _userId = null;
+const _activeVoiceControls = new Set();
+
+function mountVoiceControls(root) {
+    if (!root || !_sdk || !_userId) return null;
+    for (const h of [..._activeVoiceControls]) h.destroy();
+    const handle = createVoiceControls({
+        root,
+        sdk: _sdk,
+        userId: _userId,
+        setMute,
+        leaveVoice,
+        getToken,
+    });
+    _activeVoiceControls.add(handle);
+    const origDestroy = handle.destroy;
+    handle.destroy = () => { origDestroy(); _activeVoiceControls.delete(handle); };
+    return handle;
+}
 
 function showStatus(message, isError = false) {
     document.body.replaceChildren();
@@ -145,6 +166,7 @@ async function fetchAndShowPicker() {
         concerts,
         (concertId) => loadPlanner(concertId),
     );
+    mountVoiceControls(document.getElementById('picker-voice-slot'));
 }
 
 async function refreshState(concertId, sidebarInner, stage) {
@@ -190,6 +212,12 @@ async function loadPlanner(concertId) {
 
     renderAvailable(sidebarInner, event);
     renderStage(stage, event);
+
+    const voiceSlot = document.getElementById('sidebar-voice-slot');
+    if (voiceSlot) {
+        voiceSlot.replaceChildren();
+        mountVoiceControls(voiceSlot);
+    }
 
     wireDrag({
         stageEl: stage,
@@ -388,13 +416,8 @@ async function boot() {
     if (isDevMode) {
         _accessToken = 'dev';
         setToken(_accessToken);
-        createMuteToggle({
-            root: document.body,
-            sdk: { subscribe: () => {} },
-            userId: 'dev',
-            setMute,
-            getToken,
-        });
+        _sdk = { subscribe: () => () => {} };
+        _userId = 'dev';
     } else {
         let sdk, code;
         try {
@@ -408,13 +431,8 @@ async function boot() {
             _accessToken = result.access_token;
             setToken(_accessToken);
             const authResult = await authenticateSdk(sdk, _accessToken);
-            createMuteToggle({
-                root: document.body,
-                sdk,
-                userId: authResult.user.id,
-                setMute,
-                getToken,
-            });
+            _sdk = sdk;
+            _userId = authResult.user.id;
         } catch (err) {
             const host = window.location.host;
             const fetchPatched = window.fetch.toString().indexOf('[native code]') === -1 ? 'PATCHED' : 'NATIVE';

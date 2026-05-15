@@ -38,4 +38,8 @@ export function renderPicker(container, concerts, onSelect) {
     }
 
     container.appendChild(list);
+
+    const voiceSlot = document.createElement('div');
+    voiceSlot.id = 'picker-voice-slot';
+    container.appendChild(voiceSlot);
 }

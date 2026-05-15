@@ -42,3 +42,7 @@ export async function removeMember(body, token) {
 export async function setMute(muted, token) {
     return isDevMode ? dev().setMute(muted) : post('/api/voice/mute', { muted }, token);
 }
+
+export async function leaveVoice(token) {
+    return isDevMode ? dev().leaveVoice() : post('/api/voice/leave', {}, token);
+}

@@ -126,5 +126,10 @@ export function createDevData(rawEvents) {
         return { muted };
     }
 
-    return { getConcerts, getState, getMembers, place, move, remove, setMute };
+    function leaveVoice() {
+        console.log('[dev] leaveVoice');
+        return { ok: true };
+    }
+
+    return { getConcerts, getState, getMembers, place, move, remove, setMute, leaveVoice };
 }
