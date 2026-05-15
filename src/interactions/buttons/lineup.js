@@ -23,6 +23,8 @@ async function execute(interaction) {
         });
     }
 
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     const svc = createActivityInviteService({
         restPost: (route, body) => interaction.client.rest.post(route, { body }),
         channelId: ch_LineupVoice,
@@ -34,10 +36,7 @@ async function execute(interaction) {
         invite = await svc.create();
     } catch (err) {
         logActivity(`btn_lineup_invite: invite generation failed: ${err.message}`);
-        return interaction.reply({
-            content: 'Kunde inte skapa lineup-länk. Försök igen.',
-            flags: MessageFlags.Ephemeral
-        });
+        return interaction.editReply({ content: 'Kunde inte skapa lineup-länk. Försök igen.' });
     }
 
     const urlBtn = new ButtonBuilder()
@@ -46,10 +45,9 @@ async function execute(interaction) {
         .setURL(`https://discord.gg/${invite.code}`);
 
     logActivity(`btn_lineup_invite: ${interaction.member?.displayName || interaction.user.username} generated lineup invite`);
-    return interaction.reply({
+    return interaction.editReply({
         content: 'Klicka för att starta lineup-aktiviteten:',
         components: [new ActionRowBuilder().addComponents(urlBtn)],
-        flags: MessageFlags.Ephemeral
     });
 }
 
