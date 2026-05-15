@@ -26,6 +26,24 @@ const INSTRUMENT_COLORS = {
 };
 const DEFAULT_COLOR = '#95a5a6';
 
+const INSTRUMENT_GLOW = {
+    '1:a':        'rgba(231, 76, 60, 0.55)',
+    '2:a':        'rgba(230, 126, 34, 0.55)',
+    '3:a':        'rgba(241, 196, 15, 0.55)',
+    '4:a':        'rgba(46, 204, 113, 0.55)',
+    'repenique':  'rgba(52, 152, 219, 0.55)',
+    'skak/agogo': 'rgba(155, 89, 182, 0.55)',
+    'tarol':      'rgba(26, 188, 156, 0.55)',
+    'timbal':     'rgba(233, 30, 99, 0.55)',
+};
+const DEFAULT_GLOW = 'rgba(149, 165, 166, 0.45)';
+
+function instrumentGlow(instrument) {
+    return INSTRUMENT_GLOW[instrument] ?? DEFAULT_GLOW;
+}
+
+const _prevUserIds = new Set();
+
 export function instrumentColor(instrument) {
     return INSTRUMENT_COLORS[instrument] ?? DEFAULT_COLOR;
 }
@@ -62,6 +80,8 @@ export function renderStage(stageEl, event) {
     const mestres = getMestres();
     const lineup = event.lineup || [];
     stageEl.replaceChildren();
+    const currentIds = new Set(lineup.map(e => String(e.userId)));
+    const newlyPlaced = new Set([...currentIds].filter(id => !_prevUserIds.has(id)));
 
     // SVG overlay for mestre lines (rendered first = behind everything)
     const svgNS = 'http://www.w3.org/2000/svg';
@@ -112,9 +132,14 @@ export function renderStage(stageEl, event) {
         dot.dataset.userId = entry.userId;
         dot.dataset.instrument = entry.instrument;
         dot.dataset.displayName = entry.displayName;
+        if (newlyPlaced.has(String(entry.userId))) {
+            dot.classList.add('newly-placed');
+        }
         dot.style.left = `${(entry.position.x / STAGE_W) * 100}%`;
         dot.style.top = `${(entry.position.y / STAGE_H) * 100}%`;
         dot.style.backgroundColor = instrumentColor(entry.instrument);
+        dot.style.backgroundImage = 'radial-gradient(circle at 35% 32%, rgba(255,255,255,0.32), rgba(0,0,0,0.18))';
+        dot.style.setProperty('--dot-glow', instrumentGlow(entry.instrument));
 
         const label = document.createElement('span');
         label.className = 'dot-label';
@@ -135,4 +160,6 @@ export function renderStage(stageEl, event) {
 
         stageEl.appendChild(dot);
     }
+    _prevUserIds.clear();
+    for (const id of currentIds) _prevUserIds.add(id);
 }
