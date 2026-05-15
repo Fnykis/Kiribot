@@ -1,4 +1,6 @@
 const { Events } = require('discord.js');
+const { ch_LineupVoice } = require('../core/constants');
+const logActivity = require('../core/logger');
 
 const WATCHED_CHANNELS = new Set(['1139442250913419284', '1141127436818456597']);
 const DELAY_MS = 15 * 60 * 1000;
@@ -7,6 +9,25 @@ const pendingClears = new Map();
 module.exports = {
 	name: Events.VoiceStateUpdate,
 	async execute(oldState, newState) {
+		const joinedLineup = newState.channelId === ch_LineupVoice && oldState.channelId !== ch_LineupVoice;
+		const leftLineup = oldState.channelId === ch_LineupVoice && newState.channelId !== ch_LineupVoice;
+
+		if (joinedLineup) {
+			try {
+				await newState.setMute(true, 'lineup-activity entry');
+			} catch (err) {
+				logActivity(`voiceStateUpdate: failed to mute ${newState.id}: ${err.message}`);
+			}
+		}
+
+		if (leftLineup) {
+			try {
+				await oldState.setMute(false, 'lineup-activity exit');
+			} catch (err) {
+				logActivity(`voiceStateUpdate: failed to unmute ${oldState.id}: ${err.message}`);
+			}
+		}
+
 		const leftChannel = oldState.channel;
 		const joinedChannel = newState.channel;
 
