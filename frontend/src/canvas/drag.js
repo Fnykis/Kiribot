@@ -94,7 +94,8 @@ function showRadialMenu(userId, cx, cy, stageEl, onMestre) {
 
 export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDraggingId,
                           setDraggingPosition, setDraggingSidebarUserId,
-                          onPlace, onMove, onMoveMany, onRemove, onMestre, onMestreMove, onError }) {
+                          onPlace, onMove, onMoveMany, onRemove, onMestre, onMestreMove, onError,
+                          renderLocal }) {
     setDraggingPosition = setDraggingPosition || (() => {});
     setDraggingSidebarUserId = setDraggingSidebarUserId || (() => {});
 
@@ -627,14 +628,40 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
         }
     });
 
-    // ---- Keyboard arrow-move ----
+    // ---- Keyboard arrow-move (optimistic local + debounced flush) ----
     const ARROW_DELTA = {
         ArrowUp:    { dx: 0, dy: -GRID_STEP },
         ArrowDown:  { dx: 0, dy:  GRID_STEP },
         ArrowLeft:  { dx: -GRID_STEP, dy: 0 },
         ArrowRight: { dx:  GRID_STEP, dy: 0 },
     };
-    document.addEventListener('keydown', async (evt) => {
+    const ARROW_DEBOUNCE_MS = 400;
+    const ARROW_MAX_WAIT_MS = 1500;
+    const _pendingArrowMoves = new Map();
+    let _arrowFlushTimer = null;
+    let _arrowFirstPressAt = 0;
+    let _arrowFlushing = false;
+
+    async function flushArrowMoves() {
+        if (_arrowFlushTimer) { clearTimeout(_arrowFlushTimer); _arrowFlushTimer = null; }
+        if (_pendingArrowMoves.size === 0 || _arrowFlushing) return;
+        const moves = Array.from(_pendingArrowMoves.values());
+        _pendingArrowMoves.clear();
+        _arrowFirstPressAt = 0;
+        _arrowFlushing = true;
+        try { await onMoveMany(moves); }
+        catch (err) { if (onError) onError(err); }
+        finally { _arrowFlushing = false; }
+    }
+
+    function scheduleArrowFlush() {
+        if (_arrowFlushTimer) clearTimeout(_arrowFlushTimer);
+        const elapsed = Date.now() - _arrowFirstPressAt;
+        const wait = Math.min(ARROW_DEBOUNCE_MS, Math.max(0, ARROW_MAX_WAIT_MS - elapsed));
+        _arrowFlushTimer = setTimeout(flushArrowMoves, wait);
+    }
+
+    document.addEventListener('keydown', (evt) => {
         const delta = ARROW_DELTA[evt.key];
         if (!delta) return;
         if (evt.target.matches('input, textarea, select, [contenteditable]')) return;
@@ -643,19 +670,30 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
         evt.preventDefault();
         const event = getEvent();
         if (!event) return;
-        const moves = [];
+        let mutated = false;
         for (const entry of event.lineup || []) {
             const uid = String(entry.userId);
             if (!ids.has(uid)) continue;
-            const x = Math.max(0, Math.min(STAGE_W, entry.position.x + delta.dx));
-            const y = Math.max(0, Math.min(STAGE_H, entry.position.y + delta.dy));
-            if (x === entry.position.x && y === entry.position.y) continue;
-            moves.push({ userId: uid, x, y });
+            const nx = Math.max(0, Math.min(STAGE_W, entry.position.x + delta.dx));
+            const ny = Math.max(0, Math.min(STAGE_H, entry.position.y + delta.dy));
+            if (nx === entry.position.x && ny === entry.position.y) continue;
+            entry.position.x = nx;
+            entry.position.y = ny;
+            _pendingArrowMoves.set(uid, { userId: uid, x: nx, y: ny });
+            mutated = true;
         }
-        if (moves.length === 0) return;
+        if (!mutated) return;
         dismissRadialMenu();
-        try { await onMoveMany(moves); } catch (err) { if (onError) onError(err); }
+        if (renderLocal) renderLocal();
+        if (!_arrowFirstPressAt) _arrowFirstPressAt = Date.now();
+        scheduleArrowFlush();
     });
+
+    window.addEventListener('blur', () => { flushArrowMoves(); });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushArrowMoves();
+    });
+    window.addEventListener('beforeunload', () => { flushArrowMoves(); });
 
     // ---- Dropzones ----
     interact(stageEl).dropzone({ accept: '.stage-dot, .available-row', overlap: 0.05 });

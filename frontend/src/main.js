@@ -246,6 +246,7 @@ async function loadPlanner(concertId) {
             }
             if (updated) renderStage(stage, updated);
         },
+        renderLocal: () => renderStage(stage, getEvent()),
         onMestre: ({ userId }) => {
             const entry = (getEvent().lineup || []).find(e => String(e.userId) === String(userId));
             if (!entry) return;
