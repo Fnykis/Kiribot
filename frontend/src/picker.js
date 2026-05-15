@@ -1,6 +1,11 @@
 export function renderPicker(container, concerts, onSelect) {
     container.replaceChildren();
 
+    const heading = document.createElement('h1');
+    heading.className = 'picker-heading';
+    heading.textContent = 'Välj konsert';
+    container.appendChild(heading);
+
     if (!concerts || concerts.length === 0) {
         const msg = document.createElement('p');
         msg.className = 'picker-empty';
