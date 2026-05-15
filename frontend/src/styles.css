@@ -1,3 +1,32 @@
+:root {
+    /* ── Carnivalesco colour tokens ── */
+    --bg-base:        #140b00;
+    --bg-raised:      #1f1100;
+    --bg-surface:     #2a1800;
+    --bg-hover:       #3a2200;
+    --bg-stage:       #1c1000;
+    --bg-canvas:      #2c1a08;
+    --bg-modal-scrim: rgba(0, 0, 0, 0.65);
+    --bg-modal-box:   #211300;
+
+    --border:         rgba(255, 160, 60, 0.12);
+    --border-strong:  rgba(255, 160, 60, 0.28);
+
+    --text-primary:   #f5e6c8;
+    --text-secondary: #c4a86e;
+    --text-muted:     #7a6040;
+
+    --accent:         #f97316;
+    --accent-dim:     rgba(249, 115, 22, 0.14);
+    --accent-glow:    rgba(249, 115, 22, 0.3);
+    --accent-text:    #ffb27a;
+
+    --selection-ring: rgba(249, 115, 22, 0.85);
+
+    --font-heading: 'Righteous', sans-serif;
+    --font-body:    'Poppins', sans-serif;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 * {
