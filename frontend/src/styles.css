@@ -133,8 +133,8 @@ body {
     position: relative;
     width: 220px;
     flex-shrink: 0;
-    background: #16213e;
-    border-right: 1px solid #0f3460;
+    background: var(--bg-raised);
+    border-right: 1px solid var(--border-strong);
 }
 
 #sidebar-inner {
@@ -154,19 +154,20 @@ body {
     padding: 1rem;
     font-size: 0.85rem;
     color: #e74c3c;
-    border: 1px dashed rgba(192, 57, 43, 0.4);
+    border: 1px dashed rgba(231, 76, 60, 0.4);
     border-radius: 4px;
-    background: rgba(15, 15, 30, 0.55);
+    background: rgba(20, 11, 0, 0.7);
     pointer-events: none;
 }
 
 .available-section { margin-bottom: 1rem; }
 
 .available-section summary {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #8899aa;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 600;
     margin-bottom: 0.4rem;
     cursor: pointer;
     list-style: none;
@@ -191,14 +192,17 @@ body {
     padding: 0.5rem 0.6rem;
     border-radius: 6px;
     cursor: grab;
-    font-size: 0.9rem;
-    background: #1e3050;
+    font-size: 0.875rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
     margin-bottom: 0.25rem;
     user-select: none;
+    color: var(--text-primary);
+    transition: background 0.15s, border-color 0.15s;
 }
 
-.available-row:hover { background: #274070; }
-#sidebar.dot-drag-active .available-row:hover { background: #1e3050; }
+.available-row:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+#sidebar.dot-drag-active .available-row:hover { background: var(--bg-surface); border-color: var(--border); }
 
 #stage-container {
     position: relative;
