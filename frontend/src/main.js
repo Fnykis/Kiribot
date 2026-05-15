@@ -13,6 +13,8 @@ import {
 import {
     setEvent,
     getEvent,
+    clearSelectedIds,
+    clearSelectedGhostIds,
     setConcerts,
     getConcerts,
     setSelectedConcertId,
@@ -27,6 +29,39 @@ import {
     toggleMestre,
     setMestrePos,
 } from './state.js';
+import { toBlob } from 'html-to-image';
+
+let _cachedFontCSS = null;
+async function buildFontEmbedCSS() {
+    if (_cachedFontCSS !== null) return _cachedFontCSS;
+    const links = [...document.querySelectorAll('link[rel="stylesheet"]')]
+        .filter(l => /fonts\.googleapis\.com/.test(l.href));
+    const urlToDataUrl = async (url) => {
+        const blob = await fetch(url, { credentials: 'omit' }).then(r => r.blob());
+        return await new Promise(res => {
+            const fr = new FileReader();
+            fr.onload = () => res(fr.result);
+            fr.readAsDataURL(blob);
+        });
+    };
+    let combined = '';
+    for (const link of links) {
+        try {
+            const css = await fetch(link.href, { credentials: 'omit' }).then(r => r.text());
+            const urls = [...new Set([...css.matchAll(/url\((https:\/\/[^)]+)\)/g)].map(m => m[1]))];
+            let inlined = css;
+            for (const url of urls) {
+                try {
+                    const dataUrl = await urlToDataUrl(url);
+                    inlined = inlined.split(url).join(dataUrl);
+                } catch (e) { console.warn('font url fetch failed', url, e); }
+            }
+            combined += inlined + '\n';
+        } catch (e) { console.warn('font css fetch failed', link.href, e); }
+    }
+    _cachedFontCSS = combined;
+    return combined;
+}
 import { renderPicker } from './picker.js';
 import { renderAvailable } from './sidebar/available.js';
 import { renderStage, GRID_STEP, STAGE_W, STAGE_H } from './canvas/stage.js';
@@ -47,6 +82,33 @@ function showStatus(message, isError = false) {
     p.className = isError ? 'status-message error' : 'status-message';
     p.textContent = message;
     document.body.appendChild(p);
+}
+
+function openConfirm(modalEl, { message, confirmLabel = 'Bekräfta', cancelLabel = 'Avbryt', onConfirm }) {
+    modalEl.replaceChildren();
+    modalEl.style.display = 'flex';
+    const box = document.createElement('div');
+    box.className = 'confirm-box';
+    const msg = document.createElement('p');
+    msg.className = 'confirm-msg';
+    msg.textContent = message;
+    const actions = document.createElement('div');
+    actions.className = 'confirm-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'confirm-btn';
+    cancel.textContent = cancelLabel;
+    const confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.className = 'confirm-btn danger';
+    confirm.textContent = confirmLabel;
+    const close = () => { modalEl.style.display = 'none'; modalEl.replaceChildren(); };
+    cancel.onclick = close;
+    confirm.onclick = async () => { close(); if (onConfirm) await onConfirm(); };
+    modalEl.onclick = (e) => { if (e.target === modalEl) close(); };
+    actions.append(cancel, confirm);
+    box.append(msg, actions);
+    modalEl.appendChild(box);
 }
 
 function hideEl(id) {
@@ -236,6 +298,65 @@ async function loadPlanner(concertId) {
                 });
             }
         });
+    }
+
+    const rensaBtn = document.getElementById('rensa-btn');
+    const rensaModal = document.getElementById('rensa-modal');
+    if (rensaBtn && rensaModal) {
+        rensaBtn.onclick = () => openConfirm(rensaModal, {
+            message: 'Är du säker? Detta kommer rensa hela uppställningen.',
+            confirmLabel: 'Rensa',
+            onConfirm: async () => {
+                const lineup = (getEvent().lineup || []).slice();
+                for (const entry of lineup) {
+                    try {
+                        const updated = await removeMember({ concertId, userId: entry.userId }, _accessToken);
+                        setEvent(updated);
+                    } catch (err) {
+                        showStatus('Kunde inte rensa: ' + (err.message || err), true);
+                        return;
+                    }
+                }
+                renderAvailable(sidebarInner, getEvent());
+                renderStage(stage, getEvent());
+            }
+        });
+    }
+
+    const cameraBtn = document.getElementById('camera-btn');
+    if (cameraBtn) {
+        cameraBtn.onclick = async () => {
+            clearSelectedIds();
+            clearSelectedGhostIds();
+            renderStage(stage, getEvent());
+            stage.classList.add('no-grid');
+            const titleEl = document.getElementById('planner-title');
+            const watermark = document.createElement('div');
+            watermark.className = 'stage-watermark';
+            watermark.textContent = titleEl ? titleEl.textContent : '';
+            stage.appendChild(watermark);
+            try {
+                if (document.fonts && document.fonts.ready) await document.fonts.ready;
+                const fontEmbedCSS = await buildFontEmbedCSS();
+                const blob = await toBlob(stage, { pixelRatio: 2, cacheBust: true, fontEmbedCSS, skipFonts: true });
+                if (!blob) throw new Error('Tom bild');
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                cameraBtn.classList.add('flash');
+                setTimeout(() => cameraBtn.classList.remove('flash'), 400);
+                const toast = document.getElementById('camera-toast');
+                if (toast) {
+                    toast.classList.add('show');
+                    clearTimeout(toast._hideTimer);
+                    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+                }
+            } catch (err) {
+                console.warn('clipboard copy failed', err);
+                cameraBtn.title = 'Kunde inte kopiera: ' + (err.message || err);
+            } finally {
+                stage.classList.remove('no-grid');
+                watermark.remove();
+            }
+        };
     }
 
     if (_pollHandle) stopPoll(_pollHandle);

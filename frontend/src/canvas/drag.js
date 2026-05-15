@@ -1,6 +1,8 @@
 import interact from 'interactjs';
 import { Hand } from 'lucide';
 import { STAGE_W, STAGE_H, GRID_STEP, instrumentColor, abbreviateInstrument, edgeEndpoints } from './stage.js';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 import { getSelectedIds, setSelectedIds, clearSelectedIds, setIsSelecting, getMestres,
          getSelectedGhostIds, setSelectedGhostIds, clearSelectedGhostIds } from '../state.js';
 
@@ -120,6 +122,105 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
 
     let _groupDrag = false;
     let _ghostGroupDrag = false;
+    let _swapTargetId = null;
+    let _swapGhostEl = null;
+    let _swapLineEl = null;
+    let _swapOriginPos = null; // {left, top} percentages of dragging dot's origin
+
+    function clearSwapGhost() {
+        if (_swapGhostEl) { _swapGhostEl.remove(); _swapGhostEl = null; }
+        if (_swapLineEl) { _swapLineEl.remove(); _swapLineEl = null; }
+        _swapTargetId = null;
+    }
+
+    function ensureSwapMarkers() {
+        const svg = stageEl.querySelector('.mestre-svg');
+        if (!svg) return null;
+        let defs = svg.querySelector('defs.swap-defs');
+        if (defs) return svg;
+        defs = document.createElementNS(SVG_NS, 'defs');
+        defs.setAttribute('class', 'swap-defs');
+        for (const id of ['swap-arrow-start', 'swap-arrow-end']) {
+            const m = document.createElementNS(SVG_NS, 'marker');
+            m.setAttribute('id', id);
+            m.setAttribute('viewBox', '0 0 10 10');
+            m.setAttribute('refX', '5');
+            m.setAttribute('refY', '5');
+            m.setAttribute('markerWidth', '5');
+            m.setAttribute('markerHeight', '5');
+            m.setAttribute('markerUnits', 'strokeWidth');
+            m.setAttribute('orient', id === 'swap-arrow-end' ? 'auto' : 'auto-start-reverse');
+            const p = document.createElementNS(SVG_NS, 'path');
+            p.setAttribute('d', 'M0 0 L10 5 L0 10 z');
+            p.setAttribute('fill', '#c89bff');
+            m.appendChild(p);
+            defs.appendChild(m);
+        }
+        svg.insertBefore(defs, svg.firstChild);
+        return svg;
+    }
+
+    function drawSwapLine(activeDot, targetDot) {
+        const svg = ensureSwapMarkers();
+        if (!svg) return;
+        const x1Pct = parseFloat(activeDot.style.left);
+        const y1Pct = parseFloat(activeDot.style.top);
+        const x2Pct = parseFloat(targetDot.style.left);
+        const y2Pct = parseFloat(targetDot.style.top);
+        const rect = stageEl.getBoundingClientRect();
+        const ep = edgeEndpoints(x1Pct, y1Pct, x2Pct, y2Pct, rect);
+        const GAP = 1.2; // extra trim in viewBox % per end
+        const dxPct = ep.x2 - ep.x1, dyPct = ep.y2 - ep.y1;
+        const lenPct = Math.hypot(dxPct, dyPct);
+        if (lenPct > GAP * 2) {
+            const ux = dxPct / lenPct, uy = dyPct / lenPct;
+            ep.x1 += ux * GAP; ep.y1 += uy * GAP;
+            ep.x2 -= ux * GAP; ep.y2 -= uy * GAP;
+        }
+        if (!_swapLineEl) {
+            _swapLineEl = document.createElementNS(SVG_NS, 'line');
+            _swapLineEl.setAttribute('class', 'swap-line');
+            _swapLineEl.setAttribute('stroke', '#c89bff');
+            _swapLineEl.setAttribute('stroke-width', '0.3');
+            _swapLineEl.setAttribute('marker-start', 'url(#swap-arrow-start)');
+            _swapLineEl.setAttribute('marker-end', 'url(#swap-arrow-end)');
+            svg.appendChild(_swapLineEl);
+        }
+        _swapLineEl.setAttribute('x1', String(ep.x1));
+        _swapLineEl.setAttribute('y1', String(ep.y1));
+        _swapLineEl.setAttribute('x2', String(ep.x2));
+        _swapLineEl.setAttribute('y2', String(ep.y2));
+    }
+
+    function findSwapTarget(activeDot, clientX, clientY) {
+        const dots = stageEl.querySelectorAll('.stage-dot');
+        for (const dot of dots) {
+            if (dot === activeDot) continue;
+            const r = dot.getBoundingClientRect();
+            const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+            const dist = Math.hypot(clientX - cx, clientY - cy);
+            if (dist <= r.width / 2) return dot;
+        }
+        return null;
+    }
+
+    function makeSwapGhost(targetDot, leftPct, topPct) {
+        const g = document.createElement('div');
+        g.className = 'stage-dot swap-ghost';
+        g.style.left = leftPct;
+        g.style.top = topPct;
+        g.style.backgroundColor = targetDot.style.backgroundColor;
+        g.style.backgroundImage = targetDot.style.backgroundImage;
+        const label = document.createElement('span');
+        label.className = 'dot-label';
+        label.textContent = targetDot.dataset.displayName;
+        g.appendChild(label);
+        const inst = document.createElement('span');
+        inst.className = 'dot-instrument';
+        inst.textContent = abbreviateInstrument(targetDot.dataset.instrument);
+        g.appendChild(inst);
+        return g;
+    }
 
     // ---- Drag a placed dot inside the stage ----
     interact('.stage-dot', { context: stageEl }).draggable({
@@ -147,7 +248,9 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                     const rect = evt.target.getBoundingClientRect();
                     evt.target.dataset.pointerOffX = evt.client.x - rect.left;
                     evt.target.dataset.pointerOffY = evt.client.y - rect.top;
+                    _swapOriginPos = { left: evt.target.style.left, top: evt.target.style.top };
                 }
+                evt.target.classList.add('dragging');
                 evt.target.dataset.dragX = 0;
                 evt.target.dataset.dragY = 0;
                 evt.target.dataset.lastClientX = evt.client.x;
@@ -172,6 +275,17 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                 } else {
                     evt.target.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
                     updateMestreVisual(evt.target.dataset.userId, x, y, evt.target);
+                    const target = findSwapTarget(evt.target, evt.client.x, evt.client.y);
+                    const targetId = target ? target.dataset.userId : null;
+                    if (targetId !== _swapTargetId) {
+                        clearSwapGhost();
+                        if (target && _swapOriginPos) {
+                            _swapTargetId = targetId;
+                            _swapGhostEl = makeSwapGhost(target, _swapOriginPos.left, _swapOriginPos.top);
+                            stageEl.appendChild(_swapGhostEl);
+                            drawSwapLine(evt.target, target);
+                        }
+                    }
                 }
                 const liveRect = stageEl.getBoundingClientRect();
                 const live = clientToStage(liveRect, evt.client.x, evt.client.y);
@@ -217,6 +331,19 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                             }
                         });
                         await onMoveMany(moves);
+                    } else if (_swapTargetId) {
+                        evt.target.style.transform = '';
+                        const ev = getEvent();
+                        const aEntry = (ev.lineup || []).find(e => String(e.userId) === String(userId));
+                        const bEntry = (ev.lineup || []).find(e => String(e.userId) === String(_swapTargetId));
+                        if (aEntry && bEntry) {
+                            const ax = aEntry.position.x, ay = aEntry.position.y;
+                            const bx = bEntry.position.x, by = bEntry.position.y;
+                            await onMoveMany([
+                                { userId, x: bx, y: by },
+                                { userId: _swapTargetId, x: ax, y: ay },
+                            ]);
+                        }
                     } else {
                         evt.target.style.transform = '';
                         const rect = stageEl.getBoundingClientRect();
@@ -230,6 +357,9 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                     if (onError) onError(err);
                 } finally {
                     _groupDrag = false;
+                    clearSwapGhost();
+                    _swapOriginPos = null;
+                    evt.target.classList.remove('dragging');
                     setDraggingId(null);
                     setDraggingPosition(null);
                     sidebarEl.classList.remove('dot-drag-active');
@@ -495,6 +625,36 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
         for (const userId of ids) {
             try { await onRemove({ userId }); } catch (err) { if (onError) onError(err); }
         }
+    });
+
+    // ---- Keyboard arrow-move ----
+    const ARROW_DELTA = {
+        ArrowUp:    { dx: 0, dy: -GRID_STEP },
+        ArrowDown:  { dx: 0, dy:  GRID_STEP },
+        ArrowLeft:  { dx: -GRID_STEP, dy: 0 },
+        ArrowRight: { dx:  GRID_STEP, dy: 0 },
+    };
+    document.addEventListener('keydown', async (evt) => {
+        const delta = ARROW_DELTA[evt.key];
+        if (!delta) return;
+        if (evt.target.matches('input, textarea, select, [contenteditable]')) return;
+        const ids = getSelectedIds();
+        if (ids.size === 0) return;
+        evt.preventDefault();
+        const event = getEvent();
+        if (!event) return;
+        const moves = [];
+        for (const entry of event.lineup || []) {
+            const uid = String(entry.userId);
+            if (!ids.has(uid)) continue;
+            const x = Math.max(0, Math.min(STAGE_W, entry.position.x + delta.dx));
+            const y = Math.max(0, Math.min(STAGE_H, entry.position.y + delta.dy));
+            if (x === entry.position.x && y === entry.position.y) continue;
+            moves.push({ userId: uid, x, y });
+        }
+        if (moves.length === 0) return;
+        dismissRadialMenu();
+        try { await onMoveMany(moves); } catch (err) { if (onError) onError(err); }
     });
 
     // ---- Dropzones ----

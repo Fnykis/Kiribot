@@ -3,7 +3,7 @@ export function renderPicker(container, concerts, onSelect) {
 
     const heading = document.createElement('h1');
     heading.className = 'picker-heading';
-    heading.textContent = 'Välj konsert';
+    heading.textContent = 'Välj spelning';
     container.appendChild(heading);
 
     if (!concerts || concerts.length === 0) {

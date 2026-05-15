@@ -51,7 +51,7 @@ export function instrumentColor(instrument) {
 // Returns SVG viewBox (0-100) endpoints trimmed to dot edges.
 // stageRect is the stage element's getBoundingClientRect().
 export function edgeEndpoints(x1, y1, x2, y2, stageRect) {
-    const r = DOT_SIZE / 2;
+    const r = stageRect.width * 0.027; // dot is 5% of stage width → radius 2.5%
     const px1 = x1 / 100 * stageRect.width,  py1 = y1 / 100 * stageRect.height;
     const px2 = x2 / 100 * stageRect.width,  py2 = y2 / 100 * stageRect.height;
     const len = Math.hypot(px2 - px1, py2 - py1);
@@ -105,6 +105,10 @@ export function renderStage(stageEl, event) {
 
         const line = document.createElementNS(svgNS, 'line');
         line.classList.add('mestre-line');
+        line.setAttribute('stroke', 'rgba(180, 130, 255, 0.42)');
+        line.setAttribute('stroke-width', '0.2');
+        line.setAttribute('stroke-dasharray', '0.35 0.5');
+        line.setAttribute('stroke-linecap', 'square');
         line.setAttribute('data-mestre-user-id', String(entry.userId));
         line.setAttribute('data-cx1', String(xPct));
         line.setAttribute('data-cy1', String(yPct));
