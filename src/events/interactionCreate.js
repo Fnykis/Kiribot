@@ -9,6 +9,7 @@ const signupButtons = require('../interactions/buttons/signup');
 const moderatorButtons = require('../interactions/buttons/moderator');
 const nyckelButtons = require('../interactions/buttons/nyckel');
 const infoButtons = require('../interactions/buttons/info');
+const lineupButtons = require('../interactions/buttons/lineup');
 const miscButtons = require('../interactions/buttons/misc');
 const showSignupsButtons = require('../interactions/buttons/showsignups');
 
@@ -57,6 +58,7 @@ module.exports = {
 				else if (moderatorButtons.matches(customId)) await moderatorButtons.execute(interaction);
 				else if (nyckelButtons.matches(customId)) await nyckelButtons.execute(interaction);
 				else if (infoButtons.matches(customId)) await infoButtons.execute(interaction);
+				else if (lineupButtons.matches(customId)) await lineupButtons.execute(interaction);
 				else if (miscButtons.matches(customId)) await miscButtons.execute(interaction);
 
 			} else if (interaction.isModalSubmit()) {
