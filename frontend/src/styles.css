@@ -845,3 +845,25 @@ body {
 #sidebar-inner:hover::-webkit-scrollbar-thumb:hover {
     background: rgba(160, 100, 255, 0.6);
 }
+
+.mute-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.mute-toggle[data-muted="true"] {
+    background: #b04848;
+}
+.mute-toggle:hover {
+    filter: brightness(1.15);
+}
