@@ -25,6 +25,20 @@ async function execute(interaction) {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+    try {
+        const voiceChannel = interaction.client.channels.cache.get(ch_LineupVoice)
+            ?? await interaction.client.channels.fetch(ch_LineupVoice);
+        if (voiceChannel) {
+            await voiceChannel.permissionOverwrites.create(member.user.id, {
+                ViewChannel: true,
+                Connect: true,
+            });
+        }
+    } catch (err) {
+        logActivity(`btn_lineup_invite: failed to grant channel perms for ${member.user.id}: ${err.message}`);
+        return interaction.editReply({ content: 'Kunde inte ge åtkomst till lineup-kanalen. Försök igen.' });
+    }
+
     const svc = createActivityInviteService({
         restPost: (route, body) => interaction.client.rest.post(route, { body }),
         channelId: ch_LineupVoice,

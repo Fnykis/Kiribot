@@ -26,6 +26,12 @@ module.exports = {
 			} catch (err) {
 				logActivity(`voiceStateUpdate: failed to unmute ${oldState.id}: ${err.message}`);
 			}
+			try {
+				const channel = oldState.channel;
+				if (channel) await channel.permissionOverwrites.delete(oldState.member);
+			} catch (err) {
+				logActivity(`voiceStateUpdate: failed to remove channel perms for ${oldState.id}: ${err.message}`);
+			}
 		}
 
 		const leftChannel = oldState.channel;
