@@ -2,6 +2,7 @@ const { Events } = require('discord.js');
 const logActivity = require('../core/logger');
 const { cleanupOldLogs } = require('../core/logger');
 const { cleanupOldUiMetricsLogs } = require('../core/uiMetricsLogger');
+const { ch_LineupVoice, guildId } = require('../core/constants');
 const { loadPermissions } = require('../services/permissions');
 const { scheduleDailyTask, scheduleHourlyTask, scheduleTwiceDailyTask } = require('../services/scheduler');
 const { cleanupLocks } = require('../services/lockUtils');
@@ -30,6 +31,19 @@ module.exports = {
 			if (new Date().getDate() === 1) checkEmptyDriveFolders();
 		}); // Check for empty Drive folders on the 1st of each month at 9 AM
 		setTimeout(() => syncAktivMembersToSheet(), 60 * 1000);
+		try {
+			const guild = readyClient.guilds.cache.get(guildId);
+			if (guild) {
+				const members = await guild.members.fetch();
+				for (const m of members.values()) {
+					if (m.voice?.serverMute && m.voice.channelId !== ch_LineupVoice) {
+						await m.voice.setMute(false, 'lineup-activity startup sweep').catch(() => {});
+					}
+				}
+			}
+		} catch (err) {
+			console.error('ready: lineup unmute sweep failed', err);
+		}
 		logActivity(`Ready! Logged in as ${readyClient.user.tag}`);
 		// testFunction: delay updateSignupButtonMessage by 5 seconds on startup
 		setTimeout(() => {
