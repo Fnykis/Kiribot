@@ -123,9 +123,11 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
 
     // ---- Drag a placed dot inside the stage ----
     interact('.stage-dot', { context: stageEl }).draggable({
+        cursorChecker: (_action, _interactable, _element, interacting) => interacting ? 'grabbing' : 'grab',
         listeners: {
             start(evt) {
                 const userId = evt.target.dataset.userId;
+                evt.target.classList.remove('newly-placed');
                 const selected = getSelectedIds();
                 if (selected.size > 0 && !selected.has(userId)) {
                     clearSelectedIds();
@@ -148,10 +150,16 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                 }
                 evt.target.dataset.dragX = 0;
                 evt.target.dataset.dragY = 0;
+                evt.target.dataset.lastClientX = evt.client.x;
+                evt.target.dataset.lastClientY = evt.client.y;
             },
             move(evt) {
-                const x = (parseFloat(evt.target.dataset.dragX) || 0) + evt.dx;
-                const y = (parseFloat(evt.target.dataset.dragY) || 0) + evt.dy;
+                const dx = evt.client.x - parseFloat(evt.target.dataset.lastClientX);
+                const dy = evt.client.y - parseFloat(evt.target.dataset.lastClientY);
+                evt.target.dataset.lastClientX = evt.client.x;
+                evt.target.dataset.lastClientY = evt.client.y;
+                const x = (parseFloat(evt.target.dataset.dragX) || 0) + dx;
+                const y = (parseFloat(evt.target.dataset.dragY) || 0) + dy;
                 evt.target.dataset.dragX = x;
                 evt.target.dataset.dragY = y;
                 if (_groupDrag) {
@@ -234,6 +242,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
     let _sidebarGhost = null;
 
     interact('.available-row', { context: sidebarContentEl }).draggable({
+        cursorChecker: (_action, _interactable, _element, interacting) => interacting ? 'grabbing' : 'grab',
         listeners: {
             start(evt) {
                 evt.target.classList.add('dragging');
@@ -245,6 +254,9 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                 _sidebarGhost.style.position = 'fixed';
                 _sidebarGhost.style.pointerEvents = 'none';
                 _sidebarGhost.style.zIndex = '1000';
+                const dotPx = stageEl.getBoundingClientRect().width * 0.05;
+                _sidebarGhost.style.width = `${dotPx}px`;
+                _sidebarGhost.style.height = `${dotPx}px`;
                 _sidebarGhost.style.left = `${evt.client.x}px`;
                 _sidebarGhost.style.top = `${evt.client.y}px`;
                 _sidebarGhost.style.backgroundColor = instrumentColor(instrument);
@@ -288,6 +300,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
 
     // ---- Drag a mestre ghost dot ----
     interact('.mestre-ghost', { context: stageEl }).draggable({
+        cursorChecker: (_action, _interactable, _element, interacting) => interacting ? 'grabbing' : 'grab',
         listeners: {
             start(evt) {
                 const userId = evt.target.getAttribute('data-mestre-user-id');

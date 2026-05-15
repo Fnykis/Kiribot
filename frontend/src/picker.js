@@ -25,7 +25,7 @@ export function renderPicker(container, concerts, onSelect) {
 
         const name = document.createElement('span');
         name.className = 'picker-name';
-        name.textContent = c.name;
+        name.textContent = c.name.replace(/\[.*?\]\s*/g, '').replace(/^[^a-zA-ZåäöÅÄÖ0-9]+/, '').trim();
 
         const date = document.createElement('span');
         date.className = 'picker-date';

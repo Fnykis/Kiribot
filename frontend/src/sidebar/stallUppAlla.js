@@ -54,11 +54,15 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
         const empty = document.createElement('p');
         empty.textContent = 'Alla anmälda är redan utställda.';
         wrap.appendChild(empty);
+        const emptyFooter = document.createElement('div');
+        emptyFooter.className = 'stua-footer';
         const cancelOnly = document.createElement('button');
         cancelOnly.type = 'button';
+        cancelOnly.className = 'stua-cancel';
         cancelOnly.textContent = 'Stäng';
         cancelOnly.addEventListener('click', () => { modalEl.hidden = true; modalEl.replaceChildren(); });
-        wrap.appendChild(cancelOnly);
+        emptyFooter.appendChild(cancelOnly);
+        wrap.appendChild(emptyFooter);
         modalEl.appendChild(wrap);
         return;
     }
@@ -76,6 +80,8 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
         label.textContent = name;
         row.appendChild(label);
 
+        const pickGroup = document.createElement('div');
+        pickGroup.className = 'stua-pick-group';
         for (const instrument of instruments) {
             const btn = document.createElement('button');
             btn.type = 'button';
@@ -90,8 +96,9 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
                 });
                 updateOkState();
             });
-            row.appendChild(btn);
+            pickGroup.appendChild(btn);
         }
+        row.appendChild(pickGroup);
 
         list.appendChild(row);
     }
@@ -110,14 +117,17 @@ export function openStallUppAlla({ modalEl, event, onSubmit }) {
         ok.disabled = true;
         try { await onSubmit(payload); } finally { closeModal(); }
     });
-    wrap.appendChild(ok);
+    const footer = document.createElement('div');
+    footer.className = 'stua-footer';
+    footer.appendChild(ok);
 
     const cancel = document.createElement('button');
     cancel.type = 'button';
     cancel.className = 'stua-cancel';
     cancel.textContent = 'Avbryt';
     cancel.addEventListener('click', closeModal);
-    wrap.appendChild(cancel);
+    footer.appendChild(cancel);
+    wrap.appendChild(footer);
 
     modalEl.appendChild(wrap);
 

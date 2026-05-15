@@ -115,7 +115,7 @@ async function loadPlanner(concertId) {
 
     const concertMeta = (getConcerts() || []).find(c => c.concertId === concertId);
     const title = document.getElementById('planner-title');
-    if (title) title.textContent = concertMeta ? `${concertMeta.name} — ${concertMeta.date}` : '';
+    if (title) title.textContent = concertMeta ? `${concertMeta.name.replace(/\[.*?\]\s*/g, '').replace(/^[^a-zA-ZåäöÅÄÖ0-9]+/, '').trim()} — ${concertMeta.date}` : '';
 
     hideEl('picker');
     showEl('app', 'flex');

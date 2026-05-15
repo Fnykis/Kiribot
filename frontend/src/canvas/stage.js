@@ -122,6 +122,25 @@ export function renderStage(stageEl, event) {
         ghost.style.left = `${gxPct}%`;
         ghost.style.top  = `${gyPct}%`;
         ghost.style.backgroundColor = instrumentColor(entry.instrument);
+        const handSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        handSvg.setAttribute('viewBox', '0 0 24 24');
+        handSvg.setAttribute('fill', 'none');
+        handSvg.setAttribute('stroke', '#000');
+        handSvg.setAttribute('stroke-width', '2');
+        handSvg.setAttribute('stroke-linecap', 'round');
+        handSvg.setAttribute('stroke-linejoin', 'round');
+        handSvg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;width:55%;height:55%;';
+        for (const d of [
+            'M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2',
+            'M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2',
+            'M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8',
+            'M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15',
+        ]) {
+            const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            p.setAttribute('d', d);
+            handSvg.appendChild(p);
+        }
+        ghost.appendChild(handSvg);
         stageEl.appendChild(ghost);
     }
 
