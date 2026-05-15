@@ -201,8 +201,13 @@ module.exports = {
                     .setLabel('Skapa ny signup')
                     .setStyle(ButtonStyle.Primary);
 
+                const btn_lineupInvite = new ButtonBuilder()
+                    .setCustomId('btn_lineup_invite')
+                    .setLabel('Öppna lineup')
+                    .setStyle(ButtonStyle.Secondary);
+
                 const row1_buttons = new ActionRowBuilder()
-                    .addComponents(btn_newSignup);
+                    .addComponents(btn_newSignup, btn_lineupInvite);
 
                 let events = [];
                 try {
