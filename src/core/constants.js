@@ -20,6 +20,8 @@ const ch_Nyckellista = '1437452414679519387';			// The channel nyckellista
 const ch_PrivataMeddelanden = '1416019629993627750';	// The channel privata meddelanden
 const ch_GruppMedia = '1139446284965654529';			// The channel grupp media
 const ch_BotTest = '1231042885411930253';
+const ch_LineupVoice = '1504053251233021982';      // The voice channel "lineup"
+const activity_Lineup = '1503873080961794068';     // Embedded App ID for the lineup Activity
 
 const cat_Arbetsgrupper = '1139444099716489346';		// The category arbetsgrupper
 const cat_Sektioner = '1139440490211721287';			// The category sektioner
@@ -51,6 +53,8 @@ module.exports = {
 	ch_PrivataMeddelanden,
 	ch_BotTest,
 	ch_GruppMedia,
+	ch_LineupVoice,
+	activity_Lineup,
 	cat_Arbetsgrupper,
 	cat_Sektioner,
 	role_discordgruppen,
