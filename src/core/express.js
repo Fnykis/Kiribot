@@ -18,7 +18,9 @@ const {
     createRemoveRoute
 } = require('../routes/api/lineup');
 const createGuildMembersRoute = require('../routes/api/guildMembers');
+const createVoiceMuteRoute = require('../routes/api/voiceMute');
 const { lineupStore } = require('../services/lineupStore');
+const { ch_LineupVoice } = require('./constants');
 let instrumentList;
 try { instrumentList = require('../data/instrumentList.json'); } catch { instrumentList = {}; }
 
@@ -77,6 +79,25 @@ function buildApp({ client, config }) {
         asyncRoute(createMoveRoute({ lineupStore })));
     app.post('/api/lineup/remove', authMiddleware, lineupLimiter,
         asyncRoute(createRemoveRoute({ lineupStore })));
+
+    const voiceMuteLimiter = rateLimit({
+        windowMs: 1000,
+        limit: 5,
+        standardHeaders: 'draft-7',
+        legacyHeaders: false,
+        keyGenerator: req => req.user?.id || req.ip,
+        message: { error: 'rate_limited' }
+    });
+
+    app.post('/api/voice/mute', authMiddleware, voiceMuteLimiter,
+        asyncRoute(createVoiceMuteRoute({
+            getMember: async (userId) => {
+                const guild = await client.guilds.fetch(config.guildId);
+                return guild.members.fetch(userId);
+            },
+            lineupChannelId: ch_LineupVoice,
+            logger
+        })));
 
     app.get('/api/guild/members', authMiddleware,
         asyncRoute(createGuildMembersRoute({
