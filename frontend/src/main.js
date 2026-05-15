@@ -1,6 +1,6 @@
 import { DiscordSDK, patchUrlMappings } from '@discord/embedded-app-sdk';
 import { bootSdk, authenticateSdk } from './sdk.js';
-import { exchangeCode, setToken } from './auth.js';
+import { exchangeCode, setToken, getToken } from './auth.js';
 import {
     isDevMode,
     fetchConcerts,
@@ -9,7 +9,9 @@ import {
     placeMember,
     moveMember,
     removeMember,
+    setMute,
 } from './dataSource.js';
+import { createMuteToggle } from './muteToggle.js';
 import {
     setEvent,
     getEvent,
@@ -386,6 +388,13 @@ async function boot() {
     if (isDevMode) {
         _accessToken = 'dev';
         setToken(_accessToken);
+        createMuteToggle({
+            root: document.body,
+            sdk: { subscribe: () => {} },
+            userId: 'dev',
+            setMute,
+            getToken,
+        });
     } else {
         let sdk, code;
         try {
@@ -398,7 +407,14 @@ async function boot() {
             const result = await exchangeCode(code);
             _accessToken = result.access_token;
             setToken(_accessToken);
-            await authenticateSdk(sdk, _accessToken);
+            const authResult = await authenticateSdk(sdk, _accessToken);
+            createMuteToggle({
+                root: document.body,
+                sdk,
+                userId: authResult.user.id,
+                setMute,
+                getToken,
+            });
         } catch (err) {
             const host = window.location.host;
             const fetchPatched = window.fetch.toString().indexOf('[native code]') === -1 ? 'PATCHED' : 'NATIVE';
