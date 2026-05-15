@@ -38,3 +38,7 @@ export async function moveMember(body, token) {
 export async function removeMember(body, token) {
     return isDevMode ? dev().remove(body) : post('/api/lineup/remove', body, token);
 }
+
+export async function setMute(muted, token) {
+    return isDevMode ? dev().setMute(muted) : post('/api/voice/mute', { muted }, token);
+}

@@ -121,5 +121,10 @@ export function createDevData(rawEvents) {
         return event;
     }
 
-    return { getConcerts, getState, getMembers, place, move, remove };
+    function setMute(muted) {
+        console.log('[dev] setMute', muted);
+        return { muted };
+    }
+
+    return { getConcerts, getState, getMembers, place, move, remove, setMute };
 }
