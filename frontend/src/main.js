@@ -230,12 +230,14 @@ function openShareConfirm(modalEl, { message, onConfirm }) {
         modalEl.replaceChildren();
         document.removeEventListener('keydown', onKey, true);
     };
+    const confirm = async () => { close(); if (onConfirm) await onConfirm(); };
     const onKey = (e) => {
         if (e.key === 'Escape') { e.preventDefault(); close(); }
+        else if (e.key === 'Enter') { e.preventDefault(); confirm(); }
     };
 
     nej.onclick = close;
-    ja.onclick = async () => { close(); if (onConfirm) await onConfirm(); };
+    ja.onclick = confirm;
     modalEl.onclick = (e) => { if (e.target === modalEl) close(); };
     document.addEventListener('keydown', onKey, true);
 
