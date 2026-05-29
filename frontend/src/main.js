@@ -356,7 +356,7 @@ async function loadPlanner(concertId) {
 
     const cameraBtn = document.getElementById('camera-btn');
     if (cameraBtn) {
-        cameraBtn.onclick = async () => {
+        cameraBtn.onclick = () => {
             clearSelectedIds();
             clearSelectedGhostIds();
             renderStage(stage, getEvent());
@@ -366,27 +366,34 @@ async function loadPlanner(concertId) {
             watermark.className = 'stage-watermark';
             watermark.textContent = titleEl ? titleEl.textContent : '';
             stage.appendChild(watermark);
-            try {
+
+            const blobPromise = (async () => {
                 if (document.fonts && document.fonts.ready) await document.fonts.ready;
                 const fontEmbedCSS = await buildFontEmbedCSS();
                 const blob = await toBlob(stage, { pixelRatio: 2, cacheBust: true, fontEmbedCSS, skipFonts: true });
                 if (!blob) throw new Error('Tom bild');
-                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                cameraBtn.classList.add('flash');
-                setTimeout(() => cameraBtn.classList.remove('flash'), 400);
-                const toast = document.getElementById('camera-toast');
-                if (toast) {
-                    toast.classList.add('show');
-                    clearTimeout(toast._hideTimer);
-                    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
-                }
-            } catch (err) {
-                console.warn('clipboard copy failed', err);
-                cameraBtn.title = 'Kunde inte kopiera: ' + (err.message || err);
-            } finally {
-                stage.classList.remove('no-grid');
-                watermark.remove();
-            }
+                return blob;
+            })();
+
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })])
+                .then(() => {
+                    cameraBtn.classList.add('flash');
+                    setTimeout(() => cameraBtn.classList.remove('flash'), 400);
+                    const toast = document.getElementById('camera-toast');
+                    if (toast) {
+                        toast.classList.add('show');
+                        clearTimeout(toast._hideTimer);
+                        toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+                    }
+                })
+                .catch(err => {
+                    console.warn('clipboard copy failed', err && err.name, err && err.message, err);
+                    cameraBtn.title = 'Kunde inte kopiera: ' + (err.message || err);
+                })
+                .finally(() => {
+                    stage.classList.remove('no-grid');
+                    watermark.remove();
+                });
         };
     }
 
