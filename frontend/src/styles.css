@@ -135,6 +135,20 @@ body {
 }
 .rensa-btn:hover { background: rgba(231, 76, 60, 0.18); border-color: #e74c3c; color: #e74c3c; }
 
+.debug-btn {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.35rem 0.5rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.debug-btn:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+
 .confirm-box {
     background: var(--bg-modal-box);
     border: 1px solid var(--border-strong);

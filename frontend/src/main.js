@@ -1,5 +1,32 @@
 import { DiscordSDK, patchUrlMappings } from '@discord/embedded-app-sdk';
+import { Bug } from 'lucide';
+import { installDebugOverlay, toggleDebugOverlay } from './debugOverlay.js';
 import { bootSdk, authenticateSdk } from './sdk.js';
+
+installDebugOverlay();
+
+function mountDebugButton() {
+    const btn = document.getElementById('debug-btn');
+    if (!btn || btn._mounted) return;
+    btn._mounted = true;
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    for (const [tag, attrs] of Bug) {
+        const el = document.createElementNS(ns, tag);
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        svg.appendChild(el);
+    }
+    btn.appendChild(svg);
+    btn.onclick = () => toggleDebugOverlay();
+}
 import { exchangeCode, setToken, getToken } from './auth.js';
 import {
     isDevMode,
@@ -205,6 +232,7 @@ async function loadPlanner(concertId) {
 
     hideEl('picker');
     showEl('app', 'flex');
+    mountDebugButton();
 
     const sidebar = document.getElementById('sidebar');
     const sidebarInner = document.getElementById('sidebar-inner');
