@@ -403,20 +403,48 @@ async function loadPlanner(concertId) {
                 return blob;
             })();
 
-            navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })])
-                .then(() => {
-                    cameraBtn.classList.add('flash');
-                    setTimeout(() => cameraBtn.classList.remove('flash'), 400);
-                    const toast = document.getElementById('camera-toast');
-                    if (toast) {
-                        toast.classList.add('show');
-                        clearTimeout(toast._hideTimer);
-                        toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+            const showToast = () => {
+                cameraBtn.classList.add('flash');
+                setTimeout(() => cameraBtn.classList.remove('flash'), 400);
+                const toast = document.getElementById('camera-toast');
+                if (toast) {
+                    toast.classList.add('show');
+                    clearTimeout(toast._hideTimer);
+                    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+                }
+            };
+
+            const downloadFallback = async () => {
+                const blob = await blobPromise;
+                const url = URL.createObjectURL(blob);
+                const safeTitle = (titleEl ? titleEl.textContent : 'lineup').replace(/[^\wåäöÅÄÖ0-9-]+/g, '_').slice(0, 80) || 'lineup';
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${safeTitle}.png`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+                showToast();
+            };
+
+            let clipPromise;
+            try {
+                clipPromise = navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
+            } catch (syncErr) {
+                clipPromise = Promise.reject(syncErr);
+            }
+
+            clipPromise
+                .then(showToast)
+                .catch(async err => {
+                    console.warn('clipboard copy failed, downloading instead', err && err.name, err && err.message);
+                    try {
+                        await downloadFallback();
+                    } catch (dlErr) {
+                        console.warn('download fallback failed', dlErr);
+                        cameraBtn.title = 'Misslyckades: ' + (dlErr.message || dlErr);
                     }
-                })
-                .catch(err => {
-                    console.warn('clipboard copy failed', err && err.name, err && err.message, err);
-                    cameraBtn.title = 'Kunde inte kopiera: ' + (err.message || err);
                 })
                 .finally(() => {
                     stage.classList.remove('no-grid');
