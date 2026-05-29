@@ -15,6 +15,7 @@ const { parseEventDate } = require('../utils/dateUtils');
 const {
     createPlaceRoute,
     createMoveRoute,
+    createMestreRoute,
     createRemoveRoute
 } = require('../routes/api/lineup');
 const createGuildMembersRoute = require('../routes/api/guildMembers');
@@ -79,6 +80,8 @@ function buildApp({ client, config }) {
         })));
     app.post('/api/lineup/move', authMiddleware, lineupLimiter,
         asyncRoute(createMoveRoute({ lineupStore })));
+    app.post('/api/lineup/mestre', authMiddleware, lineupLimiter,
+        asyncRoute(createMestreRoute({ lineupStore })));
     app.post('/api/lineup/remove', authMiddleware, lineupLimiter,
         asyncRoute(createRemoveRoute({ lineupStore })));
 

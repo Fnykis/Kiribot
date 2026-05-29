@@ -39,6 +39,12 @@ export async function removeMember(body, token) {
     return isDevMode ? dev().remove(body) : post('/api/lineup/remove', body, token);
 }
 
+// Set the mestre ghost position for a placed member ({concertId, userId, x, y}),
+// or clear it by passing x/y as null.
+export async function setMestre(body, token) {
+    return isDevMode ? dev().setMestre(body) : post('/api/lineup/mestre', body, token);
+}
+
 export async function setMute(muted, token) {
     return isDevMode ? dev().setMute(muted) : post('/api/voice/mute', { muted }, token);
 }

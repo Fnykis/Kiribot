@@ -84,6 +84,38 @@ function createMoveRoute({ lineupStore }) {
     };
 }
 
+function createMestreRoute({ lineupStore }) {
+    return async function mestreRoute(req, res) {
+        const { concertId, userId, x, y } = req.body || {};
+        if (!concertId || !userId) {
+            return res.status(400).json({ error: 'invalid_body' });
+        }
+        // x/y both finite => set the mestre ghost position; both absent/null => clear it.
+        const setting = x != null || y != null;
+        if (setting && !(isFiniteNumber(x) && isFiniteNumber(y))) {
+            return res.status(400).json({ error: 'invalid_body' });
+        }
+        const event = await lineupStore.loadEvent(concertId);
+        if (!event) return res.status(404).json({ error: 'event_not_found' });
+
+        let updated;
+        try {
+            updated = await lineupStore.mutateEvent(concertId, ev => {
+                const entry = ev.lineup.find(e => e.userId === userId);
+                if (!entry) throw new Error('user_not_placed');
+                if (setting) entry.mestre = { x: clamp(x, 0, STAGE_W), y: clamp(y, 0, STAGE_H) };
+                else delete entry.mestre;
+                return ev;
+            });
+        } catch (err) {
+            if (err.message === 'user_not_placed') return res.status(404).json({ error: 'user_not_placed' });
+            if (err.message === 'event_not_found') return res.status(404).json({ error: 'event_not_found' });
+            throw err;
+        }
+        return res.json(updated);
+    };
+}
+
 function createRemoveRoute({ lineupStore }) {
     return async function removeRoute(req, res) {
         const { concertId, userId } = req.body || {};
@@ -100,4 +132,4 @@ function createRemoveRoute({ lineupStore }) {
     };
 }
 
-module.exports = { createPlaceRoute, createMoveRoute, createRemoveRoute };
+module.exports = { createPlaceRoute, createMoveRoute, createMestreRoute, createRemoveRoute };

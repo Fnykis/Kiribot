@@ -36,6 +36,7 @@ import {
     placeMember,
     moveMember,
     removeMember,
+    setMestre,
     setMute,
     leaveVoice,
     shareLineupImage,
@@ -59,6 +60,8 @@ import {
     getIsSelecting,
     toggleMestre,
     setMestrePos,
+    getMestres,
+    hydrateMestresFromLineup,
 } from './state.js';
 import { toCanvas } from 'html-to-image';
 
@@ -99,22 +102,29 @@ function computeDotsBBox(stageEl) {
     const dots = stageEl.querySelectorAll('.stage-dot');
     if (!dots.length) return null;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const accumulate = (r) => {
+        const left = r.left - stageRect.left;
+        const top = r.top - stageRect.top;
+        const right = r.right - stageRect.left;
+        const bottom = r.bottom - stageRect.top;
+        if (left < minX) minX = left;
+        if (top < minY) minY = top;
+        if (right > maxX) maxX = right;
+        if (bottom > maxY) maxY = bottom;
+    };
     for (const d of dots) {
-        const rects = [d.getBoundingClientRect()];
+        accumulate(d.getBoundingClientRect());
         const label = d.querySelector('.dot-label');
-        if (label) rects.push(label.getBoundingClientRect());
+        if (label) accumulate(label.getBoundingClientRect());
         const inst = d.querySelector('.dot-instrument');
-        if (inst) rects.push(inst.getBoundingClientRect());
-        for (const r of rects) {
-            const left = r.left - stageRect.left;
-            const top = r.top - stageRect.top;
-            const right = r.right - stageRect.left;
-            const bottom = r.bottom - stageRect.top;
-            if (left < minX) minX = left;
-            if (top < minY) minY = top;
-            if (right > maxX) maxX = right;
-            if (bottom > maxY) maxY = bottom;
-        }
+        if (inst) accumulate(inst.getBoundingClientRect());
+    }
+    // Mestre (hand) ghosts + their connector lines live outside .stage-dot
+    for (const ghost of stageEl.querySelectorAll('.mestre-ghost')) {
+        accumulate(ghost.getBoundingClientRect());
+    }
+    for (const line of stageEl.querySelectorAll('.mestre-line')) {
+        accumulate(line.getBoundingClientRect());
     }
     return { minX, minY, maxX, maxY, stageW: stageRect.width, stageH: stageRect.height };
 }
@@ -135,14 +145,16 @@ function wrapTextLines(ctx, text, maxWidth) {
     return lines;
 }
 
-function drawWatermark(ctx, text, w, h, pr) {
+function drawWatermark(ctx, text, w, h, pr, baseFontPx) {
     if (!text) return 0;
     const padX = 16 * pr;
     const padBottom = 14 * pr;
     const maxW = w - 2 * padX;
     const maxLines = 3;
-    let fontSize = 8 * pr;
-    const minFont = 8 * pr;
+    // Title sits a touch above the dot-label size so it reads as a heading,
+    // but scales with the dots (baseFontPx already includes pixelRatio).
+    let fontSize = baseFontPx * 1;
+    const minFont = baseFontPx;
     let lines = [];
     while (fontSize >= minFont) {
         ctx.font = `600 ${fontSize}px Poppins, system-ui, sans-serif`;
@@ -205,7 +217,12 @@ async function captureCroppedLineup(stageEl, titleText, fontEmbedCSS) {
     ctx.fillRect(0, 0, sw, sh);
     ctx.drawImage(fullCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
-    drawWatermark(ctx, titleText, sw, sh, pixelRatio);
+    // Match the dot labels: read their actual rendered size (1.2cqw resolves
+    // to px here) so the watermark scales with the dots instead of being fixed.
+    const sampleLabel = stageEl.querySelector('.dot-label');
+    const labelCssPx = sampleLabel ? parseFloat(getComputedStyle(sampleLabel).fontSize) : 12;
+    const baseFontPx = labelCssPx * pixelRatio;
+    drawWatermark(ctx, titleText, sw, sh, pixelRatio, baseFontPx);
 
     return await new Promise((resolve, reject) => {
         out.toBlob(b => b ? resolve(b) : reject(new Error('Tom bild')), 'image/png');
@@ -405,6 +422,7 @@ async function refreshState(concertId, sidebarInner, stage) {
     try {
         const fresh = await fetchState(concertId, _accessToken);
         setEvent(fresh);
+        hydrateMestresFromLineup(fresh.lineup);
         renderAvailable(sidebarInner, fresh);
         renderStage(stage, fresh);
         applySelectionVisual(stage);
@@ -430,6 +448,7 @@ async function loadPlanner(concertId) {
 
     setSelectedConcertId(concertId);
     setEvent(event);
+    hydrateMestresFromLineup(event.lineup);
 
     const concertMeta = (getConcerts() || []).find(c => c.concertId === concertId);
     const title = document.getElementById('planner-title');
@@ -480,16 +499,36 @@ async function loadPlanner(concertId) {
             if (updated) renderStage(stage, updated);
         },
         renderLocal: () => renderStage(stage, getEvent()),
-        onMestre: ({ userId }) => {
+        onMestre: async ({ userId }) => {
             const entry = (getEvent().lineup || []).find(e => String(e.userId) === String(userId));
             if (!entry) return;
+            const wasOn = getMestres().has(String(userId));
             const initX = entry.position.x;
             const initY = Math.min(STAGE_H - GRID_STEP, entry.position.y + GRID_STEP * 3);
+            // Optimistic local toggle for instant feedback, then persist (set or clear).
             toggleMestre(userId, { x: initX, y: initY });
             renderStage(stage, getEvent());
+            try {
+                const body = wasOn
+                    ? { concertId, userId, x: null, y: null }
+                    : { concertId, userId, x: initX, y: initY };
+                const updated = await setMestre(body, _accessToken);
+                setEvent(updated);
+            } catch (err) {
+                // Roll back the optimistic toggle on failure.
+                toggleMestre(userId, { x: initX, y: initY });
+                renderStage(stage, getEvent());
+                showTransientError('Kunde inte spara mestre');
+            }
         },
-        onMestreMove: ({ userId, x, y }) => {
+        onMestreMove: async ({ userId, x, y }) => {
             setMestrePos(userId, { x, y });
+            try {
+                const updated = await setMestre({ concertId, userId, x, y }, _accessToken);
+                setEvent(updated);
+            } catch (err) {
+                showTransientError('Kunde inte spara mestre-position');
+            }
         },
         onRemove: async ({ userId }) => {
             const updated = await removeMember({ concertId, userId }, _accessToken);
@@ -659,6 +698,7 @@ async function loadPlanner(concertId) {
         getDraggingSidebarUserId,
         onUpdate: (updated) => {
             setEvent(updated);
+            hydrateMestresFromLineup(updated.lineup);
             renderAvailable(sidebarInner, updated);
             renderStage(stage, updated);
             applySelectionVisual(stage);

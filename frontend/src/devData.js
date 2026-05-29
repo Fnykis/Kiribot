@@ -113,6 +113,21 @@ export function createDevData(rawEvents) {
         return event;
     }
 
+    function setMestre({ concertId, userId, x, y }) {
+        if (!concertId || !userId) throw httpError('invalid_body', 400);
+        const setting = x != null || y != null;
+        if (setting && !(isFiniteNumber(x) && isFiniteNumber(y))) {
+            throw httpError('invalid_body', 400);
+        }
+        const event = events[concertId];
+        if (!event) throw httpError('event_not_found', 404);
+        const entry = event.lineup.find(e => e.userId === userId);
+        if (!entry) throw httpError('user_not_placed', 404);
+        if (setting) entry.mestre = { x: clamp(x, 0, STAGE_W), y: clamp(y, 0, STAGE_H) };
+        else delete entry.mestre;
+        return event;
+    }
+
     function remove({ concertId, userId }) {
         if (!concertId || !userId) throw httpError('invalid_body', 400);
         const event = events[concertId];
@@ -131,5 +146,5 @@ export function createDevData(rawEvents) {
         return { ok: true };
     }
 
-    return { getConcerts, getState, getMembers, place, move, remove, setMute, leaveVoice };
+    return { getConcerts, getState, getMembers, place, move, setMestre, remove, setMute, leaveVoice };
 }

@@ -60,3 +60,12 @@ export function setMestrePos(userId, pos) {
     if (_mestres.has(s)) _mestres.set(s, pos);
 }
 export function clearMestres() { _mestres = new Map(); }
+// Rebuild the runtime mestre map from persisted lineup entries ({userId, mestre:{x,y}}).
+export function hydrateMestresFromLineup(lineup) {
+    _mestres = new Map();
+    for (const e of lineup || []) {
+        if (e && e.mestre && Number.isFinite(e.mestre.x) && Number.isFinite(e.mestre.y)) {
+            _mestres.set(String(e.userId), { x: e.mestre.x, y: e.mestre.y });
+        }
+    }
+}

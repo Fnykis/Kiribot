@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const {
     createPlaceRoute,
     createMoveRoute,
+    createMestreRoute,
     createRemoveRoute
 } = require('../../src/routes/api/lineup');
 
@@ -201,6 +202,48 @@ test('move: 400 invalid_body', async () => {
 
 test('move: 404 user_not_placed', async () => {
     const handler = createMoveRoute({ lineupStore: makeStore(baseEvent) });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', x: 5, y: 5 } }, res);
+    assert.strictEqual(res.statusCode, 404);
+    assert.deepStrictEqual(res.body, { error: 'user_not_placed' });
+});
+
+// ---------- MESTRE ----------
+
+const lineupWithU1 = () => ({ ...baseEvent, lineup: [{
+    userId: 'u1', displayName: 'A', instrument: '1:a',
+    position: { x: 0, y: 0 }, manuallyAdded: false, placedAt: 't0'
+}]});
+
+test('mestre: 200 sets mestre + clamps coords', async () => {
+    const store = makeStore(lineupWithU1());
+    const handler = createMestreRoute({ lineupStore: store });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', x: 9999, y: -10 } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(res.body.lineup[0].mestre, { x: 1000, y: 0 });
+});
+
+test('mestre: clearing (null coords) removes the field', async () => {
+    const pre = lineupWithU1();
+    pre.lineup[0].mestre = { x: 100, y: 100 };
+    const store = makeStore(pre);
+    const handler = createMestreRoute({ lineupStore: store });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', x: null, y: null } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.ok(!('mestre' in res.body.lineup[0]));
+});
+
+test('mestre: 400 invalid_body when only one coord given', async () => {
+    const handler = createMestreRoute({ lineupStore: makeStore(lineupWithU1()) });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', x: 5, y: null } }, res);
+    assert.strictEqual(res.statusCode, 400);
+});
+
+test('mestre: 404 user_not_placed', async () => {
+    const handler = createMestreRoute({ lineupStore: makeStore(baseEvent) });
     const res = mockRes();
     await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', x: 5, y: 5 } }, res);
     assert.strictEqual(res.statusCode, 404);
