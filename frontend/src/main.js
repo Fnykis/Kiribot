@@ -60,7 +60,7 @@ import {
     toggleMestre,
     setMestrePos,
 } from './state.js';
-import { toBlob } from 'html-to-image';
+import { toCanvas } from 'html-to-image';
 
 let _cachedFontCSS = null;
 async function buildFontEmbedCSS() {
@@ -93,6 +93,125 @@ async function buildFontEmbedCSS() {
     _cachedFontCSS = combined;
     return combined;
 }
+
+function computeDotsBBox(stageEl) {
+    const stageRect = stageEl.getBoundingClientRect();
+    const dots = stageEl.querySelectorAll('.stage-dot');
+    if (!dots.length) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const d of dots) {
+        const rects = [d.getBoundingClientRect()];
+        const label = d.querySelector('.dot-label');
+        if (label) rects.push(label.getBoundingClientRect());
+        const inst = d.querySelector('.dot-instrument');
+        if (inst) rects.push(inst.getBoundingClientRect());
+        for (const r of rects) {
+            const left = r.left - stageRect.left;
+            const top = r.top - stageRect.top;
+            const right = r.right - stageRect.left;
+            const bottom = r.bottom - stageRect.top;
+            if (left < minX) minX = left;
+            if (top < minY) minY = top;
+            if (right > maxX) maxX = right;
+            if (bottom > maxY) maxY = bottom;
+        }
+    }
+    return { minX, minY, maxX, maxY, stageW: stageRect.width, stageH: stageRect.height };
+}
+
+function wrapTextLines(ctx, text, maxWidth) {
+    const words = text.split(/\s+/).filter(Boolean);
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+        const trial = cur ? cur + ' ' + w : w;
+        if (ctx.measureText(trial).width <= maxWidth) cur = trial;
+        else {
+            if (cur) lines.push(cur);
+            cur = w;
+        }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+}
+
+function drawWatermark(ctx, text, w, h, pr) {
+    if (!text) return 0;
+    const padX = 24 * pr;
+    const padBottom = 24 * pr;
+    const maxW = w - 2 * padX;
+    const maxLines = 3;
+    let fontSize = 30 * pr;
+    const minFont = 14 * pr;
+    let lines = [];
+    while (fontSize >= minFont) {
+        ctx.font = `600 ${fontSize}px Poppins, system-ui, sans-serif`;
+        lines = wrapTextLines(ctx, text, maxW);
+        if (lines.length <= maxLines) break;
+        fontSize -= 2 * pr;
+    }
+    if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines);
+        const last = lines[maxLines - 1];
+        let trimmed = last;
+        while (trimmed.length > 1 && ctx.measureText(trimmed + '…').width > maxW) {
+            trimmed = trimmed.slice(0, -1);
+        }
+        lines[maxLines - 1] = trimmed + '…';
+    }
+    const lineH = fontSize * 1.2;
+    const textH = lineH * lines.length;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.textBaseline = 'bottom';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    ctx.shadowBlur = 6 * pr;
+    ctx.shadowOffsetY = 1 * pr;
+    let y = h - padBottom;
+    for (let i = lines.length - 1; i >= 0; i--) {
+        ctx.fillText(lines[i], padX, y);
+        y -= lineH;
+    }
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    return textH + padBottom;
+}
+
+async function captureCroppedLineup(stageEl, titleText, fontEmbedCSS) {
+    const pixelRatio = 2;
+    const fullCanvas = await toCanvas(stageEl, { pixelRatio, cacheBust: true, fontEmbedCSS, skipFonts: true });
+    const bbox = computeDotsBBox(stageEl);
+    if (!bbox) throw new Error('Inga prickar att exportera');
+
+    const padX = 40, padTop = 40, padBottom = 100;
+    const cssLeft = Math.max(0, bbox.minX - padX);
+    const cssTop = Math.max(0, bbox.minY - padTop);
+    const cssRight = Math.min(bbox.stageW, bbox.maxX + padX);
+    const cssBottom = Math.min(bbox.stageH, bbox.maxY + padBottom);
+    const cssW = Math.max(1, cssRight - cssLeft);
+    const cssH = Math.max(1, cssBottom - cssTop);
+
+    const sx = cssLeft * pixelRatio;
+    const sy = cssTop * pixelRatio;
+    const sw = cssW * pixelRatio;
+    const sh = cssH * pixelRatio;
+
+    const out = document.createElement('canvas');
+    out.width = sw;
+    out.height = sh;
+    const ctx = out.getContext('2d');
+    const bg = getComputedStyle(stageEl).backgroundColor;
+    ctx.fillStyle = bg && bg !== 'rgba(0, 0, 0, 0)' ? bg : '#0f0f14';
+    ctx.fillRect(0, 0, sw, sh);
+    ctx.drawImage(fullCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    drawWatermark(ctx, titleText, sw, sh, pixelRatio);
+
+    return await new Promise((resolve, reject) => {
+        out.toBlob(b => b ? resolve(b) : reject(new Error('Tom bild')), 'image/png');
+    });
+}
+
 import { renderPicker } from './picker.js';
 import { renderAvailable } from './sidebar/available.js';
 import { renderStage, GRID_STEP, STAGE_W, STAGE_H } from './canvas/stage.js';
@@ -477,26 +596,20 @@ async function loadPlanner(concertId) {
             renderStage(stage, getEvent());
             stage.classList.add('no-grid');
             const titleEl = document.getElementById('planner-title');
-            const watermark = document.createElement('div');
-            watermark.className = 'stage-watermark';
-            watermark.textContent = titleEl ? titleEl.textContent : '';
-            stage.appendChild(watermark);
+            const titleText = titleEl ? titleEl.textContent : '';
 
             let blob;
             try {
                 if (document.fonts && document.fonts.ready) await document.fonts.ready;
                 const fontEmbedCSS = await buildFontEmbedCSS();
-                blob = await toBlob(stage, { pixelRatio: 2, cacheBust: true, fontEmbedCSS, skipFonts: true });
-                if (!blob) throw new Error('Tom bild');
+                blob = await captureCroppedLineup(stage, titleText, fontEmbedCSS);
             } catch (err) {
                 console.warn('render image failed', err);
                 showTransientError('Kunde inte rendera bilden: ' + (err.message || err));
                 stage.classList.remove('no-grid');
-                watermark.remove();
                 return;
             } finally {
                 stage.classList.remove('no-grid');
-                watermark.remove();
             }
 
             openShareConfirm(shareModal, {
