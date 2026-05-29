@@ -47,11 +47,11 @@ export async function leaveVoice(token) {
     return isDevMode ? dev().leaveVoice() : post('/api/voice/leave', {}, token);
 }
 
-export async function shareLineupImage(blob, title, token) {
+export async function shareLineupImage(blob, concertId, token) {
     if (isDevMode) {
-        console.info('[devMode] shareLineupImage', { title, size: blob.size });
+        console.info('[devMode] shareLineupImage', { concertId, size: blob.size });
         return { ok: true };
     }
-    const qs = new URLSearchParams({ title: title || 'Uppställning' }).toString();
+    const qs = new URLSearchParams({ concertId }).toString();
     return postBlob(`/api/lineup/share-image?${qs}`, blob, 'image/png', token);
 }

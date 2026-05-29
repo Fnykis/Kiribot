@@ -453,12 +453,11 @@ async function loadPlanner(concertId) {
                 watermark.remove();
             }
 
-            const title = titleEl ? titleEl.textContent : 'Uppställning';
             openShareConfirm(shareModal, {
                 message: 'Vill du skicka den här uppställningen som bild till Harmonia-kanalen?',
                 onConfirm: async () => {
                     try {
-                        await shareLineupImage(blob, title, _accessToken);
+                        await shareLineupImage(blob, concertId, _accessToken);
                         cameraBtn.classList.add('flash');
                         setTimeout(() => cameraBtn.classList.remove('flash'), 400);
                         const toast = document.getElementById('camera-toast');

@@ -127,10 +127,10 @@ function buildApp({ client, config }) {
     });
 
     app.post('/api/lineup/share-image',
-        express.raw({ type: 'image/png', limit: '8mb' }),
         authMiddleware,
         shareImageLimiter,
-        asyncRoute(createShareLineupImageRoute({ client, logger })));
+        express.raw({ type: 'image/png', limit: '8mb' }),
+        asyncRoute(createShareLineupImageRoute({ client, lineupStore, logger })));
 
     app.use((err, req, res, _next) => {
         logger('express unhandled error:', err);
