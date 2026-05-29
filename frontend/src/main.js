@@ -137,12 +137,12 @@ function wrapTextLines(ctx, text, maxWidth) {
 
 function drawWatermark(ctx, text, w, h, pr) {
     if (!text) return 0;
-    const padX = 24 * pr;
-    const padBottom = 24 * pr;
+    const padX = 16 * pr;
+    const padBottom = 14 * pr;
     const maxW = w - 2 * padX;
     const maxLines = 3;
-    let fontSize = 30 * pr;
-    const minFont = 14 * pr;
+    let fontSize = 16 * pr;
+    const minFont = 10 * pr;
     let lines = [];
     while (fontSize >= minFont) {
         ctx.font = `600 ${fontSize}px Poppins, system-ui, sans-serif`;
@@ -183,7 +183,7 @@ async function captureCroppedLineup(stageEl, titleText, fontEmbedCSS) {
     const bbox = computeDotsBBox(stageEl);
     if (!bbox) throw new Error('Inga prickar att exportera');
 
-    const padX = 40, padTop = 40, padBottom = 100;
+    const padX = 40, padTop = 40, padBottom = 60;
     const cssLeft = Math.max(0, bbox.minX - padX);
     const cssTop = Math.max(0, bbox.minY - padTop);
     const cssRight = Math.min(bbox.stageW, bbox.maxX + padX);
