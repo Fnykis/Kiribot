@@ -12,6 +12,16 @@ module.exports = {
 	async execute(oldState, newState) {
 		const joinedLineup = newState.channelId === ch_LineupVoice && oldState.channelId !== ch_LineupVoice;
 		const leftLineup = oldState.channelId === ch_LineupVoice && newState.channelId !== ch_LineupVoice;
+		const joinedAnyChannel = !!newState.channelId && newState.channelId !== oldState.channelId;
+		const isBot = newState.member?.user?.bot;
+
+		if (joinedAnyChannel && newState.channelId !== ch_LineupVoice && newState.serverMute && !isBot) {
+			try {
+				await newState.setMute(false, 'auto-clear server mute on voice join');
+			} catch (err) {
+				logActivity(`voiceStateUpdate: failed to auto-unmute ${newState.id}: ${err.message}`);
+			}
+		}
 
 		if (joinedLineup) {
 			cancelRevoke(newState.id);
