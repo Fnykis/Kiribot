@@ -127,12 +127,56 @@ function mountVoiceControls(root) {
     return handle;
 }
 
-function showStatus(message, isError = false) {
+function showStatus(message, isError = false, detail) {
+    const overlay = document.getElementById('debug-overlay');
     document.body.replaceChildren();
+    if (overlay) document.body.appendChild(overlay);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'status-wrap';
+
     const p = document.createElement('p');
     p.className = isError ? 'status-message error' : 'status-message';
     p.textContent = message;
-    document.body.appendChild(p);
+    wrap.appendChild(p);
+
+    if (detail) {
+        const pre = document.createElement('pre');
+        pre.className = 'status-detail';
+        pre.textContent = typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2);
+        wrap.appendChild(pre);
+    }
+
+    const reload = document.createElement('button');
+    reload.type = 'button';
+    reload.className = 'status-btn';
+    reload.textContent = 'Tillbaka till konsertlistan';
+    reload.onclick = () => location.reload();
+    wrap.appendChild(reload);
+
+    document.body.appendChild(wrap);
+}
+
+function formatErrDetail(err) {
+    if (!err) return null;
+    const lines = [];
+    if (err.name) lines.push(`name: ${err.name}`);
+    if (err.status != null) lines.push(`status: ${err.status}`);
+    if (err.message) lines.push(`message: ${err.message}`);
+    if (err.stack) lines.push(`stack:\n${err.stack}`);
+    return lines.length ? lines.join('\n') : String(err);
+}
+
+function showTransientError(message) {
+    const existing = document.getElementById('transient-error');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.id = 'transient-error';
+    div.className = 'transient-error';
+    div.textContent = message;
+    document.body.appendChild(div);
+    setTimeout(() => { div.classList.add('fade'); }, 50);
+    setTimeout(() => { div.remove(); }, 6000);
 }
 
 function openConfirm(modalEl, { message, confirmLabel = 'Bekräfta', cancelLabel = 'Avbryt', onConfirm }) {
@@ -444,7 +488,7 @@ async function loadPlanner(concertId) {
                 if (!blob) throw new Error('Tom bild');
             } catch (err) {
                 console.warn('render image failed', err);
-                showStatus('Kunde inte rendera bilden: ' + (err.message || err), true);
+                showTransientError('Kunde inte rendera bilden: ' + (err.message || err));
                 stage.classList.remove('no-grid');
                 watermark.remove();
                 return;
@@ -467,8 +511,9 @@ async function loadPlanner(concertId) {
                             toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
                         }
                     } catch (err) {
-                        console.warn('share image failed', err);
-                        showStatus('Kunde inte skicka bilden: ' + (err.message || err), true);
+                        console.warn('share image failed', err && err.name, err && err.status, err && err.message, err && err.body, err);
+                        const detail = err && (err.status ? `${err.status} ${err.message || ''}` : (err.message || String(err)));
+                        showTransientError('Kunde inte skicka bilden: ' + detail);
                     }
                 }
             });

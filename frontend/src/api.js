@@ -1,7 +1,13 @@
 async function handleResponse(res) {
     if (res.ok) return res.json();
-    const body = await res.json().catch(() => ({}));
-    throw Object.assign(new Error(body.error || `http_${res.status}`), { status: res.status });
+    let body = null;
+    let text = '';
+    try {
+        text = await res.text();
+        try { body = JSON.parse(text); } catch { body = null; }
+    } catch { /* ignore */ }
+    const msg = (body && body.error) || text || `http_${res.status}`;
+    throw Object.assign(new Error(msg), { status: res.status, body, text, url: res.url });
 }
 
 export async function get(path, token, fetchFn = fetch) {
