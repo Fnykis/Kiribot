@@ -1,5 +1,15 @@
 import { getSelectedIds, getMestres } from '../state.js';
 
+let _staleTipDocHandler = false;
+function installStaleTipDocHandler() {
+    if (_staleTipDocHandler) return;
+    _staleTipDocHandler = true;
+    document.addEventListener('click', (ev) => {
+        if (ev.target && ev.target.closest && ev.target.closest('.stale-badge')) return;
+        document.querySelectorAll('.stale-badge.show-tip').forEach(b => b.classList.remove('show-tip'));
+    });
+}
+
 export const STAGE_W = 1000;
 export const STAGE_H = 600;
 export const DOT_SIZE = 44; // matches .stage-dot width/height in CSS
@@ -75,7 +85,29 @@ export function isStale(entry, event) {
     return true;
 }
 
+export function isKanske(entry, event) {
+    if (entry.manuallyAdded) return false;
+    const group = (event.signups || {})[entry.instrument] || [];
+    const e = group.find(s => s.id === entry.userId);
+    return !!(e && e.response === 'kanske');
+}
+
+const RESPONSE_LABEL = { ja: 'Ja', kanske: 'Kanske', nej: 'Nej' };
+
+export function currentResponseLabel(userId, event) {
+    const responses = new Set();
+    for (const entries of Object.values(event.signups || {})) {
+        for (const e of entries) {
+            if (e.id === userId && e.response) responses.add(e.response);
+        }
+    }
+    if (responses.size === 0) return 'Aktuellt svar: Inget svar';
+    const parts = [...responses].map(r => RESPONSE_LABEL[r] || r);
+    return `Aktuellt svar: ${parts.join(' / ')}`;
+}
+
 export function renderStage(stageEl, event) {
+    installStaleTipDocHandler();
     const selectedIds = getSelectedIds();
     const mestres = getMestres();
     const lineup = event.lineup || [];
@@ -174,10 +206,44 @@ export function renderStage(stageEl, event) {
         instLabel.textContent = abbreviateInstrument(entry.instrument);
         dot.appendChild(instLabel);
 
+        if (isKanske(entry, event)) {
+            const kBadge = document.createElement('span');
+            kBadge.className = 'kanske-badge';
+            kBadge.title = 'Svarade Kanske';
+            const slash = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            slash.setAttribute('viewBox', '0 0 24 24');
+            slash.setAttribute('class', 'kanske-slash');
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', '6');
+            line.setAttribute('y1', '18');
+            line.setAttribute('x2', '18');
+            line.setAttribute('y2', '6');
+            line.setAttribute('stroke', '#fff');
+            line.setAttribute('stroke-width', '3');
+            line.setAttribute('stroke-linecap', 'round');
+            slash.appendChild(line);
+            kBadge.appendChild(slash);
+            dot.appendChild(kBadge);
+        }
+
         if (isStale(entry, event)) {
             const badge = document.createElement('span');
             badge.className = 'stale-badge';
-            badge.textContent = '!';
+            const mark = document.createElement('span');
+            mark.className = 'stale-mark';
+            mark.textContent = '!';
+            const tip = document.createElement('span');
+            tip.className = 'stale-tip';
+            tip.textContent = currentResponseLabel(entry.userId, event);
+            badge.title = tip.textContent;
+            badge.appendChild(mark);
+            badge.appendChild(tip);
+            badge.addEventListener('click', ev => {
+                ev.stopPropagation();
+                const wasOpen = badge.classList.contains('show-tip');
+                stageEl.querySelectorAll('.stale-badge.show-tip').forEach(b => b.classList.remove('show-tip'));
+                if (!wasOpen) badge.classList.add('show-tip');
+            });
             dot.appendChild(badge);
         }
 
