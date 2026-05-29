@@ -1,6 +1,6 @@
 // Single data layer for the planner. In dev mode (VITE_DEV_MODE=true) it serves
 // local repo JSON via devData.js; otherwise it calls the real backend API.
-import { get, getWithQuery, post } from './api.js';
+import { get, getWithQuery, post, postBlob } from './api.js';
 import { createDevData } from './devData.js';
 
 export const isDevMode = import.meta.env.VITE_DEV_MODE === 'true';
@@ -45,4 +45,13 @@ export async function setMute(muted, token) {
 
 export async function leaveVoice(token) {
     return isDevMode ? dev().leaveVoice() : post('/api/voice/leave', {}, token);
+}
+
+export async function shareLineupImage(blob, title, token) {
+    if (isDevMode) {
+        console.info('[devMode] shareLineupImage', { title, size: blob.size });
+        return { ok: true };
+    }
+    const qs = new URLSearchParams({ title: title || 'Uppställning' }).toString();
+    return postBlob(`/api/lineup/share-image?${qs}`, blob, 'image/png', token);
 }

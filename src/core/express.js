@@ -20,6 +20,7 @@ const {
 const createGuildMembersRoute = require('../routes/api/guildMembers');
 const createVoiceMuteRoute = require('../routes/api/voiceMute');
 const createVoiceLeaveRoute = require('../routes/api/voiceLeave');
+const createShareLineupImageRoute = require('../routes/api/shareLineupImage');
 const { lineupStore } = require('../services/lineupStore');
 const { ch_LineupVoice } = require('./constants');
 let instrumentList;
@@ -115,6 +116,21 @@ function buildApp({ client, config }) {
             guildId: config.guildId,
             harmonianRoleId: config.harmonianRoleId
         })));
+
+    const shareImageLimiter = rateLimit({
+        windowMs: 60_000,
+        limit: 10,
+        standardHeaders: 'draft-7',
+        legacyHeaders: false,
+        keyGenerator: req => req.user?.id || req.ip,
+        message: { error: 'rate_limited' }
+    });
+
+    app.post('/api/lineup/share-image',
+        express.raw({ type: 'image/png', limit: '8mb' }),
+        authMiddleware,
+        shareImageLimiter,
+        asyncRoute(createShareLineupImageRoute({ client, logger })));
 
     app.use((err, req, res, _next) => {
         logger('express unhandled error:', err);

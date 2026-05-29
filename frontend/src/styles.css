@@ -178,6 +178,8 @@ body {
 .confirm-btn:hover { background: var(--bg-hover); border-color: var(--border-strong); }
 .confirm-btn.danger { background: rgba(231, 76, 60, 0.18); border-color: #e74c3c; color: #ffb3a8; }
 .confirm-btn.danger:hover { background: #e74c3c; color: #fff; }
+.confirm-btn.primary { background: rgba(88, 165, 117, 0.18); border-color: #58a575; color: #b6e3c4; }
+.confirm-btn.primary:hover { background: #58a575; color: #fff; }
 
 #sidebar.collapsed {
     width: 0;

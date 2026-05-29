@@ -35,3 +35,15 @@ export async function post(path, body, token, fetchFn = fetch) {
     });
     return handleResponse(res);
 }
+
+export async function postBlob(path, blob, contentType, token, fetchFn = fetch) {
+    const res = await fetchFn(path, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': contentType,
+        },
+        body: blob,
+    });
+    return handleResponse(res);
+}

@@ -38,6 +38,7 @@ import {
     removeMember,
     setMute,
     leaveVoice,
+    shareLineupImage,
 } from './dataSource.js';
 import { createVoiceControls } from './voiceControls.js';
 import {
@@ -159,6 +160,45 @@ function openConfirm(modalEl, { message, confirmLabel = 'Bekräfta', cancelLabel
     actions.append(cancel, confirm);
     box.append(msg, actions);
     modalEl.appendChild(box);
+}
+
+function openShareConfirm(modalEl, { message, onConfirm }) {
+    modalEl.replaceChildren();
+    modalEl.style.display = 'flex';
+    const box = document.createElement('div');
+    box.className = 'confirm-box';
+    const msg = document.createElement('p');
+    msg.className = 'confirm-msg';
+    msg.textContent = message;
+    const actions = document.createElement('div');
+    actions.className = 'confirm-actions';
+    const nej = document.createElement('button');
+    nej.type = 'button';
+    nej.className = 'confirm-btn';
+    nej.textContent = 'Nej';
+    const ja = document.createElement('button');
+    ja.type = 'button';
+    ja.className = 'confirm-btn primary';
+    ja.textContent = 'Ja';
+
+    const close = () => {
+        modalEl.style.display = 'none';
+        modalEl.replaceChildren();
+        document.removeEventListener('keydown', onKey, true);
+    };
+    const onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); close(); }
+    };
+
+    nej.onclick = close;
+    ja.onclick = async () => { close(); if (onConfirm) await onConfirm(); };
+    modalEl.onclick = (e) => { if (e.target === modalEl) close(); };
+    document.addEventListener('keydown', onKey, true);
+
+    actions.append(nej, ja);
+    box.append(msg, actions);
+    modalEl.appendChild(box);
+    ja.focus();
 }
 
 function hideEl(id) {
@@ -383,8 +423,9 @@ async function loadPlanner(concertId) {
     }
 
     const cameraBtn = document.getElementById('camera-btn');
-    if (cameraBtn) {
-        cameraBtn.onclick = () => {
+    const shareModal = document.getElementById('share-modal');
+    if (cameraBtn && shareModal) {
+        cameraBtn.onclick = async () => {
             clearSelectedIds();
             clearSelectedGhostIds();
             renderStage(stage, getEvent());
@@ -395,61 +436,43 @@ async function loadPlanner(concertId) {
             watermark.textContent = titleEl ? titleEl.textContent : '';
             stage.appendChild(watermark);
 
-            const blobPromise = (async () => {
+            let blob;
+            try {
                 if (document.fonts && document.fonts.ready) await document.fonts.ready;
                 const fontEmbedCSS = await buildFontEmbedCSS();
-                const blob = await toBlob(stage, { pixelRatio: 2, cacheBust: true, fontEmbedCSS, skipFonts: true });
+                blob = await toBlob(stage, { pixelRatio: 2, cacheBust: true, fontEmbedCSS, skipFonts: true });
                 if (!blob) throw new Error('Tom bild');
-                return blob;
-            })();
-
-            const showToast = () => {
-                cameraBtn.classList.add('flash');
-                setTimeout(() => cameraBtn.classList.remove('flash'), 400);
-                const toast = document.getElementById('camera-toast');
-                if (toast) {
-                    toast.classList.add('show');
-                    clearTimeout(toast._hideTimer);
-                    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
-                }
-            };
-
-            const downloadFallback = async () => {
-                const blob = await blobPromise;
-                const url = URL.createObjectURL(blob);
-                const safeTitle = (titleEl ? titleEl.textContent : 'lineup').replace(/[^\wåäöÅÄÖ0-9-]+/g, '_').slice(0, 80) || 'lineup';
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${safeTitle}.png`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 10000);
-                showToast();
-            };
-
-            let clipPromise;
-            try {
-                clipPromise = navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
-            } catch (syncErr) {
-                clipPromise = Promise.reject(syncErr);
+            } catch (err) {
+                console.warn('render image failed', err);
+                showStatus('Kunde inte rendera bilden: ' + (err.message || err), true);
+                stage.classList.remove('no-grid');
+                watermark.remove();
+                return;
+            } finally {
+                stage.classList.remove('no-grid');
+                watermark.remove();
             }
 
-            clipPromise
-                .then(showToast)
-                .catch(async err => {
-                    console.warn('clipboard copy failed, downloading instead', err && err.name, err && err.message);
+            const title = titleEl ? titleEl.textContent : 'Uppställning';
+            openShareConfirm(shareModal, {
+                message: 'Vill du skicka den här uppställningen som bild till Harmonia-kanalen?',
+                onConfirm: async () => {
                     try {
-                        await downloadFallback();
-                    } catch (dlErr) {
-                        console.warn('download fallback failed', dlErr);
-                        cameraBtn.title = 'Misslyckades: ' + (dlErr.message || dlErr);
+                        await shareLineupImage(blob, title, _accessToken);
+                        cameraBtn.classList.add('flash');
+                        setTimeout(() => cameraBtn.classList.remove('flash'), 400);
+                        const toast = document.getElementById('camera-toast');
+                        if (toast) {
+                            toast.classList.add('show');
+                            clearTimeout(toast._hideTimer);
+                            toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+                        }
+                    } catch (err) {
+                        console.warn('share image failed', err);
+                        showStatus('Kunde inte skicka bilden: ' + (err.message || err), true);
                     }
-                })
-                .finally(() => {
-                    stage.classList.remove('no-grid');
-                    watermark.remove();
-                });
+                }
+            });
         };
     }
 
