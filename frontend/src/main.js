@@ -141,8 +141,8 @@ function drawWatermark(ctx, text, w, h, pr) {
     const padBottom = 14 * pr;
     const maxW = w - 2 * padX;
     const maxLines = 3;
-    let fontSize = 16 * pr;
-    const minFont = 10 * pr;
+    let fontSize = 8 * pr;
+    const minFont = 8 * pr;
     let lines = [];
     while (fontSize >= minFont) {
         ctx.font = `600 ${fontSize}px Poppins, system-ui, sans-serif`;
@@ -612,19 +612,34 @@ async function loadPlanner(concertId) {
                 stage.classList.remove('no-grid');
             }
 
+            const flashAndToast = () => {
+                cameraBtn.classList.add('flash');
+                setTimeout(() => cameraBtn.classList.remove('flash'), 400);
+                const toast = document.getElementById('camera-toast');
+                if (toast) {
+                    toast.classList.add('show');
+                    clearTimeout(toast._hideTimer);
+                    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+                }
+            };
+
+            if (isDevMode) {
+                try {
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    flashAndToast();
+                } catch (err) {
+                    console.warn('dev clipboard write failed', err);
+                    showTransientError('Klippbord misslyckades: ' + (err.message || err));
+                }
+                return;
+            }
+
             openShareConfirm(shareModal, {
                 message: 'Vill du skicka den här uppställningen som bild till Harmonia-kanalen?',
                 onConfirm: async () => {
                     try {
                         await shareLineupImage(blob, concertId, _accessToken);
-                        cameraBtn.classList.add('flash');
-                        setTimeout(() => cameraBtn.classList.remove('flash'), 400);
-                        const toast = document.getElementById('camera-toast');
-                        if (toast) {
-                            toast.classList.add('show');
-                            clearTimeout(toast._hideTimer);
-                            toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
-                        }
+                        flashAndToast();
                     } catch (err) {
                         console.warn('share image failed', err && err.name, err && err.status, err && err.message, err && err.body, err);
                         const detail = err && (err.status ? `${err.status} ${err.message || ''}` : (err.message || String(err)));
