@@ -26,10 +26,13 @@
       <div class="header-right">
         <button id="stall-upp-alla-btn" type="button" class="manual-add-btn">Placera alla</button>
         <button id="manual-add-btn" type="button" class="manual-add-btn">+ Medlem</button>
+        <button id="overflow-btn" type="button" class="sidebar-toggle-btn" title="Fler åtgärder" aria-label="Fler åtgärder">⋮</button>
+        <div id="overflow-menu"></div>
       </div>
     </header>
     <div id="planner-body">
       <aside id="sidebar">
+        <div id="drawer-actions"></div>
         <div id="sidebar-inner"></div>
         <div id="sidebar-voice-slot"></div>
       </aside>
@@ -44,6 +47,7 @@
         </button>
       </main>
     </div>
+    <div id="drawer-scrim"></div>
   </div>
   <div id="rensa-modal" class="modal" style="display:none;"></div>
   <div id="share-modal" class="modal" style="display:none;"></div>
