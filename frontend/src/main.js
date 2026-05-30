@@ -781,11 +781,12 @@ async function boot() {
         });
         // Close the popover after choosing an action, or when tapping outside.
         overflowMenu.addEventListener('click', () => overflowMenu.classList.remove('open'));
-        document.addEventListener('click', (e) => {
+        const closeOverflowOnOutsideClick = (e) => {
             if (!overflowMenu.contains(e.target) && e.target !== overflowBtn) {
                 overflowMenu.classList.remove('open');
             }
-        });
+        };
+        document.addEventListener('click', closeOverflowOnOutsideClick);
     }
 
     // Place buttons for the current breakpoint, and re-place on breakpoint change.
