@@ -233,7 +233,7 @@ import { renderPicker } from './picker.js';
 import { renderAvailable } from './sidebar/available.js';
 import { renderStage, GRID_STEP, STAGE_W, STAGE_H } from './canvas/stage.js';
 import { startPoll, stopPoll } from './poll.js';
-import { wireDrag, applySelectionVisual } from './canvas/drag.js';
+import { wireDrag, wireGestures, applySelectionVisual } from './canvas/drag.js';
 import { openManualAdd } from './sidebar/manualAdd.js';
 import { openStallUppAlla } from './sidebar/stallUppAlla.js';
 import { computeAutoPositions } from './canvas/autoPlace.js';
@@ -546,6 +546,7 @@ async function loadPlanner(concertId) {
             }
         }
     });
+    wireGestures({ viewportEl: document.getElementById('stage-container'), stageEl: stage });
 
     const manualBtn = document.getElementById('manual-add-btn');
     const modalEl = document.getElementById('manual-add-modal');

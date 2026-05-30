@@ -1,6 +1,8 @@
 import interact from 'interactjs';
 import { Hand } from 'lucide';
 import { STAGE_W, STAGE_H, GRID_STEP, instrumentColor, abbreviateInstrument, edgeEndpoints } from './stage.js';
+import { getViewport, setViewport, getZoom, clampZoom, focalZoom, applyViewport, resetViewport } from './viewport.js';
+import { isMobile } from '../responsive.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 import { getSelectedIds, setSelectedIds, clearSelectedIds, setIsSelecting, getMestres,
@@ -697,4 +699,44 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
 
     // ---- Dropzones ----
     interact(stageEl).dropzone({ accept: '.stage-dot, .available-row', overlap: 0.05 });
+}
+
+// Two-finger pan + pinch-zoom on the stage viewport (mobile only).
+// viewportEl is the clipping container (#stage-container); stageEl is #stage.
+export function wireGestures({ viewportEl, stageEl }) {
+    let _startZ = 1;
+
+    function refreshPanAffordance() {
+        const v = getViewport();
+        const renderedW = stageEl.clientWidth * v.z;
+        const vw = viewportEl.clientWidth;
+        viewportEl.classList.toggle('can-pan-left', v.panX < -0.5);
+        viewportEl.classList.toggle('can-pan-right', v.panX > vw - renderedW + 0.5);
+    }
+
+    interact(viewportEl).gesturable({
+        listeners: {
+            start() {
+                if (!isMobile()) return;
+                _startZ = getZoom();
+            },
+            move(evt) {
+                if (!isMobile()) return;
+                const rect = viewportEl.getBoundingClientRect();
+                const focalX = evt.clientX - rect.left; // gesture midpoint, viewport-relative
+                const focalY = evt.clientY - rect.top;
+                const nextZ = clampZoom(_startZ * evt.scale);
+                const zoomed = focalZoom(getViewport(), focalX, focalY, nextZ);
+                // Add the midpoint translation (two-finger pan).
+                zoomed.panX += evt.dx;
+                zoomed.panY += evt.dy;
+                setViewport(zoomed);
+                applyViewport(stageEl, viewportEl);
+                refreshPanAffordance();
+            },
+        },
+    });
+
+    // Reset to fit + clear affordance when switching to desktop.
+    return { refreshPanAffordance, reset: () => { resetViewport(); refreshPanAffordance(); } };
 }
