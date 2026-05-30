@@ -31,6 +31,7 @@ export function clampPan(panX, panY, renderedW, renderedH, viewW, viewH) {
 
 // Given a new zoom, recompute pan so the focal screen point (relative to the
 // viewport top-left) stays over the same canvas point. transform-origin is 0 0.
+// prev.z must be non-zero; MIN_Z = 1 guarantees this in normal use.
 export function focalZoom(prev, focalX, focalY, nextZ) {
     const ratio = nextZ / prev.z;
     return {
@@ -48,7 +49,7 @@ export function applyViewport(stageEl, viewportEl) {
     const renderedW = stageEl.clientWidth * _state.z;
     const renderedH = stageEl.clientHeight * _state.z;
     const { panX, panY } = clampPan(_state.panX, _state.panY, renderedW, renderedH, vw, vh);
-    _state.panX = panX;
+    _state.panX = panX; // persist clamped values back to state
     _state.panY = panY;
     stageEl.style.transformOrigin = '0 0';
     stageEl.style.transform = `translate(${panX}px, ${panY}px) scale(${_state.z})`;
