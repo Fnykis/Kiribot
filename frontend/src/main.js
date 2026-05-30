@@ -233,10 +233,12 @@ import { renderPicker } from './picker.js';
 import { renderAvailable } from './sidebar/available.js';
 import { renderStage, GRID_STEP, STAGE_W, STAGE_H } from './canvas/stage.js';
 import { startPoll, stopPoll } from './poll.js';
-import { wireDrag, applySelectionVisual } from './canvas/drag.js';
+import { wireDrag, wireGestures, applySelectionVisual } from './canvas/drag.js';
 import { openManualAdd } from './sidebar/manualAdd.js';
 import { openStallUppAlla } from './sidebar/stallUppAlla.js';
 import { computeAutoPositions } from './canvas/autoPlace.js';
+import { applyResponsiveLayout, mobileMQ, isMobile } from './responsive.js';
+import { clearViewportTransform } from './canvas/viewport.js';
 
 const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 
@@ -544,6 +546,7 @@ async function loadPlanner(concertId) {
             }
         }
     });
+    wireGestures({ viewportEl: document.getElementById('stage-container'), stageEl: stage });
 
     const manualBtn = document.getElementById('manual-add-btn');
     const modalEl = document.getElementById('manual-add-modal');
@@ -753,11 +756,50 @@ async function boot() {
 
     const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
     const sidebarEl = document.getElementById('sidebar');
+    const scrim = document.getElementById('drawer-scrim');
+
+    function openDrawer()  { sidebarEl.classList.add('open');    if (scrim) scrim.classList.add('show'); }
+    function closeDrawer() { sidebarEl.classList.remove('open'); if (scrim) scrim.classList.remove('show'); }
+
     if (sidebarToggleBtn && sidebarEl) {
         sidebarToggleBtn.addEventListener('click', () => {
-            sidebarEl.classList.toggle('collapsed');
+            if (isMobile()) {
+                sidebarEl.classList.contains('open') ? closeDrawer() : openDrawer();
+            } else {
+                sidebarEl.classList.toggle('collapsed'); // desktop behavior unchanged
+            }
         });
     }
+    if (scrim) scrim.addEventListener('click', closeDrawer);
+
+    // Overflow popover (mobile only).
+    const overflowBtn = document.getElementById('overflow-btn');
+    const overflowMenu = document.getElementById('overflow-menu');
+    if (overflowBtn && overflowMenu) {
+        overflowBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            overflowMenu.classList.toggle('open');
+        });
+        // Close the popover after choosing an action, or when tapping outside.
+        overflowMenu.addEventListener('click', () => overflowMenu.classList.remove('open'));
+        const closeOverflowOnOutsideClick = (e) => {
+            if (!overflowMenu.contains(e.target) && e.target !== overflowBtn) {
+                overflowMenu.classList.remove('open');
+            }
+        };
+        document.addEventListener('click', closeOverflowOnOutsideClick);
+    }
+
+    // Place buttons for the current breakpoint, and re-place on breakpoint change.
+    applyResponsiveLayout();
+    mobileMQ.addEventListener('change', () => {
+        applyResponsiveLayout();
+        closeDrawer();
+        // Drop any stale pan/zoom transform when crossing the breakpoint
+        // (desktop must never carry a transform; mobile re-fits on next gesture).
+        const stageEl = document.getElementById('stage');
+        if (stageEl) clearViewportTransform(stageEl);
+    });
 
     await fetchAndShowPicker();
 }

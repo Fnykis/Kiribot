@@ -2,5 +2,6 @@
 const interact = () => ({
     draggable: () => ({ on: () => {} }),
     dropzone: () => ({ on: () => {} }),
+    gesturable: () => ({ on: () => {} }),
 });
 export default interact;

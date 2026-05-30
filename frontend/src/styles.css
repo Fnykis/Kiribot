@@ -28,6 +28,8 @@
 
     --font-heading: 'Righteous', sans-serif;
     --font-body:    'Poppins', sans-serif;
+
+    --header-h: 52px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1023,4 +1025,141 @@ body {
 }
 .voice-mute-btn:hover {
     filter: brightness(1.15);
+}
+
+/* The overflow button is hidden on desktop (shown only in the mobile block below). */
+#overflow-btn { display: none; }
+
+/* ===================== MOBILE (<768px) ===================== */
+@media (max-width: 767px) {
+    body, #app { height: 100vh; height: 100dvh; } /* vh fallback, dvh where supported */
+
+    /* --- Header collapses to: ☰ | title | ⋮ --- */
+    #planner-header {
+        padding: 0.4rem 0.5rem;
+        padding-top: calc(0.4rem + env(safe-area-inset-top));
+        gap: 0.25rem;
+        min-height: var(--header-h);
+        box-sizing: border-box;
+    }
+    #planner-title {
+        white-space: normal;
+        font-size: 0.82rem;
+        line-height: 1.15;
+        max-height: 2.4em;
+        overflow: hidden;
+        flex: 1 1 auto;
+    }
+    .header-left, .header-right { flex: 0 0 auto; gap: 0.25rem; }
+
+    /* Show the overflow button, hide the inline right-side action buttons. */
+    #overflow-btn { display: inline-flex; }
+    /* Overflow popover (positioned under the ⋮ button). */
+    #overflow-menu {
+        position: absolute;
+        top: calc(var(--header-h) + env(safe-area-inset-top));
+        right: 0.5rem;
+        display: none;
+        flex-direction: column;
+        gap: 0.4rem;
+        padding: 0.5rem;
+        background: var(--bg-raised);
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+        z-index: 60;
+    }
+    #overflow-menu.open { display: flex; }
+    #overflow-menu .manual-add-btn {
+        width: 100%;
+        white-space: nowrap;
+        min-height: 44px;
+    }
+
+    /* --- Drawer (was the always-on sidebar) overlays the canvas --- */
+    #planner-body { position: relative; display: block; }
+    #sidebar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: min(82vw, 320px);
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 0.22s ease;
+        padding-bottom: env(safe-area-inset-bottom);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.45);
+    }
+    #sidebar.open { transform: translateX(0); }
+    /* The desktop .collapsed width-zeroing is irrelevant on mobile (overlay), neutralize it. */
+    #sidebar.collapsed { width: min(82vw, 320px); padding: 0; }
+
+    /* Drawer action row (Back / Rensa / Debug) at the top of the drawer. */
+    #drawer-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.6rem 0.6rem 0.4rem;
+        padding-top: calc(0.6rem + env(safe-area-inset-top));
+    }
+    #drawer-actions .back-btn,
+    #drawer-actions .rensa-btn,
+    #drawer-actions .debug-btn { min-height: 40px; }
+
+    /* Backdrop scrim behind the open drawer. */
+    #drawer-scrim {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 45;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.22s ease;
+    }
+    #drawer-scrim.show { opacity: 1; pointer-events: auto; }
+
+    /* --- Stage fills viewport height; wider-than-screen -> horizontal pan --- */
+    #stage-container {
+        display: block;          /* stop flex-centering so origin 0,0 panning works */
+        width: 100%;
+        height: calc(100vh - var(--header-h) - env(safe-area-inset-top));   /* vh fallback */
+        height: calc(100dvh - var(--header-h) - env(safe-area-inset-top));
+        touch-action: none;       /* gestures handled by interact.gesturable */
+    }
+    #stage {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: auto;
+        aspect-ratio: 1000 / 600;  /* width = height * 1000/600 */
+        will-change: transform;
+    }
+
+    /* --- Sliver: drawer never fully hides during a drag --- */
+    body.dragging-active #sidebar {
+        transform: translateX(calc(-100% + 36px));
+        transition: transform 0.12s ease;
+    }
+    body.dragging-active #sidebar.expanded { transform: translateX(0); }
+    body.dragging-active #drawer-scrim { opacity: 0; pointer-events: none; }
+
+    /* --- Pan affordance: edge fades when more canvas exists that way --- */
+    #stage-container.can-pan-left::before,
+    #stage-container.can-pan-right::after {
+        content: '';
+        position: absolute;
+        top: 0; bottom: 0;
+        width: 28px;
+        pointer-events: none;
+        z-index: 10;
+    }
+    #stage-container.can-pan-left::before {
+        left: 0;
+        background: linear-gradient(90deg, rgba(13,8,20,0.55), transparent);
+    }
+    #stage-container.can-pan-right::after {
+        right: 0;
+        background: linear-gradient(270deg, rgba(13,8,20,0.55), transparent);
+    }
 }

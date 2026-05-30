@@ -1,4 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// responsive.js calls window.matchMedia() at module evaluation time;
+// jsdom doesn't implement it, so stub it before drag.js (which imports responsive.js) loads.
+vi.mock('../../src/responsive.js', () => ({
+    mobileMQ: { matches: false },
+    isMobile: () => false,
+    applyResponsiveLayout: () => {},
+}));
+
 import { clientToStage, snapToGrid } from '../../src/canvas/drag.js';
 import { GRID_STEP } from '../../src/canvas/stage.js';
 
@@ -21,6 +30,7 @@ vi.mock('interactjs', () => {
             return { draggable: () => {} };
         },
         dropzone() { return {}; },
+        gesturable() { return {}; },
     }));
 
     interact._getSidebarEndListener = () => _sidebarEndListener;

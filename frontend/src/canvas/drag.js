@@ -1,6 +1,8 @@
 import interact from 'interactjs';
 import { Hand } from 'lucide';
 import { STAGE_W, STAGE_H, GRID_STEP, instrumentColor, abbreviateInstrument, edgeEndpoints } from './stage.js';
+import { getViewport, setViewport, getZoom, clampZoom, focalZoom, applyViewport, resetViewport } from './viewport.js';
+import { isMobile } from '../responsive.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 import { getSelectedIds, setSelectedIds, clearSelectedIds, setIsSelecting, getMestres,
@@ -98,6 +100,19 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                           renderLocal }) {
     setDraggingPosition = setDraggingPosition || (() => {});
     setDraggingSidebarUserId = setDraggingSidebarUserId || (() => {});
+
+    const EXPAND_THRESHOLD = 48; // px from left edge that expands the drawer mid-drag
+    function beginDrawerDragMode() {
+        if (isMobile()) document.body.classList.add('dragging-active');
+    }
+    function updateDrawerDuringDrag(clientX) {
+        if (!isMobile()) return;
+        sidebarEl.classList.toggle('expanded', clientX < EXPAND_THRESHOLD);
+    }
+    function endDrawerDragMode() {
+        document.body.classList.remove('dragging-active');
+        sidebarEl.classList.remove('expanded');
+    }
 
     function setMestreLine(svgLine, cx1, cy1, cx2, cy2, r) {
         const ep = edgeEndpoints(cx1, cy1, cx2, cy2, r);
@@ -238,6 +253,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                 _groupDrag = getSelectedIds().size > 1 && getSelectedIds().has(userId);
                 setDraggingId(userId);
                 sidebarEl.classList.add('dot-drag-active');
+                beginDrawerDragMode();
                 if (_groupDrag) {
                     stageEl.querySelectorAll('.stage-dot').forEach(dot => {
                         if (getSelectedIds().has(dot.dataset.userId)) {
@@ -266,15 +282,16 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                 const y = (parseFloat(evt.target.dataset.dragY) || 0) + dy;
                 evt.target.dataset.dragX = x;
                 evt.target.dataset.dragY = y;
+                const z = getZoom();
                 if (_groupDrag) {
                     stageEl.querySelectorAll('.stage-dot').forEach(dot => {
                         if (getSelectedIds().has(dot.dataset.userId)) {
-                            dot.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                            dot.style.transform = `translate(calc(-50% + ${x / z}px), calc(-50% + ${y / z}px))`;
                             updateMestreVisual(dot.dataset.userId, x, y, dot);
                         }
                     });
                 } else {
-                    evt.target.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                    evt.target.style.transform = `translate(calc(-50% + ${x / z}px), calc(-50% + ${y / z}px))`;
                     updateMestreVisual(evt.target.dataset.userId, x, y, evt.target);
                     const target = findSwapTarget(evt.target, evt.client.x, evt.client.y);
                     const targetId = target ? target.dataset.userId : null;
@@ -291,6 +308,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                 const liveRect = stageEl.getBoundingClientRect();
                 const live = clientToStage(liveRect, evt.client.x, evt.client.y);
                 setDraggingPosition(live);
+                updateDrawerDuringDrag(evt.client.x);
             },
             async end(evt) {
                 const userId = evt.target.dataset.userId;
@@ -364,6 +382,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                     setDraggingId(null);
                     setDraggingPosition(null);
                     sidebarEl.classList.remove('dot-drag-active');
+                    endDrawerDragMode();
                 }
             }
         }
@@ -378,6 +397,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
             start(evt) {
                 evt.target.classList.add('dragging');
                 setDraggingSidebarUserId(evt.target.dataset.userId);
+                beginDrawerDragMode();
                 const instrument = evt.target.dataset.instrument;
                 const displayName = evt.target.textContent.trim();
                 _sidebarGhost = document.createElement('div');
@@ -406,11 +426,13 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                     _sidebarGhost.style.left = `${evt.client.x}px`;
                     _sidebarGhost.style.top = `${evt.client.y}px`;
                 }
+                updateDrawerDuringDrag(evt.client.x);
             },
             async end(evt) {
                 evt.target.classList.remove('dragging');
                 if (_sidebarGhost) { _sidebarGhost.remove(); _sidebarGhost = null; }
                 setDraggingSidebarUserId(null);
+                endDrawerDragMode();
                 const stageRect = stageEl.getBoundingClientRect();
                 const insideStage = evt.client.x >= stageRect.left && evt.client.x < stageRect.right &&
                                     evt.client.y >= stageRect.top  && evt.client.y < stageRect.bottom;
@@ -460,7 +482,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                     const gId = g.getAttribute('data-mestre-user-id');
                     if (!_ghostGroupDrag && g !== evt.target) return;
                     if (_ghostGroupDrag && !selGhosts.has(gId)) return;
-                    g.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                    g.style.transform = `translate(calc(-50% + ${x / getZoom()}px), calc(-50% + ${y / getZoom()}px))`;
                     const svgLine = stageEl.querySelector(`.mestre-line[data-mestre-user-id="${gId}"]`);
                     if (svgLine) {
                         const cx2 = parseFloat(g.style.left) + (x / r.width) * 100;
@@ -545,6 +567,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
         }
         if (evt.target.closest('.mestre-ghost')) return;
         dismissRadialMenu();
+        if (isMobile()) return; // no marquee on touch; panning is the two-finger job
         _selMoved = false;
         _selStart = { x: evt.clientX, y: evt.clientY };
         setIsSelecting(true);
@@ -697,4 +720,44 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
 
     // ---- Dropzones ----
     interact(stageEl).dropzone({ accept: '.stage-dot, .available-row', overlap: 0.05 });
+}
+
+// Two-finger pan + pinch-zoom on the stage viewport (mobile only).
+// viewportEl is the clipping container (#stage-container); stageEl is #stage.
+export function wireGestures({ viewportEl, stageEl }) {
+    let _startZ = 1;
+
+    function refreshPanAffordance() {
+        const v = getViewport();
+        const renderedW = stageEl.clientWidth * v.z;
+        const vw = viewportEl.clientWidth;
+        viewportEl.classList.toggle('can-pan-left', v.panX < -0.5);
+        viewportEl.classList.toggle('can-pan-right', v.panX > vw - renderedW + 0.5);
+    }
+
+    interact(viewportEl).gesturable({
+        listeners: {
+            start() {
+                if (!isMobile()) return;
+                _startZ = getZoom();
+            },
+            move(evt) {
+                if (!isMobile()) return;
+                const rect = viewportEl.getBoundingClientRect();
+                const focalX = evt.clientX - rect.left; // gesture midpoint, viewport-relative
+                const focalY = evt.clientY - rect.top;
+                const nextZ = clampZoom(_startZ * evt.scale);
+                const zoomed = focalZoom(getViewport(), focalX, focalY, nextZ);
+                // Add the midpoint translation (two-finger pan).
+                zoomed.panX += evt.dx;
+                zoomed.panY += evt.dy;
+                setViewport(zoomed);
+                applyViewport(stageEl, viewportEl);
+                refreshPanAffordance();
+            },
+        },
+    });
+
+    // Reset to fit + clear affordance when switching to desktop.
+    return { refreshPanAffordance, reset: () => { resetViewport(); refreshPanAffordance(); } };
 }
