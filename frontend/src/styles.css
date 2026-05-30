@@ -1027,6 +1027,9 @@ body {
     filter: brightness(1.15);
 }
 
+/* The overflow button is hidden on desktop (shown only in the mobile block below). */
+#overflow-btn { display: none; }
+
 /* ===================== MOBILE (<768px) ===================== */
 @media (max-width: 767px) {
     body, #app { height: 100vh; height: 100dvh; } /* vh fallback, dvh where supported */
@@ -1160,6 +1163,3 @@ body {
         background: linear-gradient(270deg, rgba(13,8,20,0.55), transparent);
     }
 }
-
-/* The overflow button is hidden on desktop (shown only in the mobile block). */
-#overflow-btn { display: none; }
