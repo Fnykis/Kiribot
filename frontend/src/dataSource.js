@@ -35,6 +35,14 @@ export async function moveMember(body, token) {
     return isDevMode ? dev().move(body) : post('/api/lineup/move', body, token);
 }
 
+export async function fetchInstruments(token) {
+    return isDevMode ? dev().getInstruments() : get('/api/instruments', token);
+}
+
+export async function changeInstrument(body, token) {
+    return isDevMode ? dev().changeInstrument(body) : post('/api/lineup/instrument', body, token);
+}
+
 export async function removeMember(body, token) {
     return isDevMode ? dev().remove(body) : post('/api/lineup/remove', body, token);
 }
