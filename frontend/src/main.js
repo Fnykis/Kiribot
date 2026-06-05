@@ -40,6 +40,8 @@ import {
     setMute,
     leaveVoice,
     shareLineupImage,
+    fetchInstruments,
+    changeInstrument,
 } from './dataSource.js';
 import { createVoiceControls } from './voiceControls.js';
 import {
@@ -473,11 +475,19 @@ async function loadPlanner(concertId) {
         mountVoiceControls(voiceSlot);
     }
 
+    let instruments = [];
+    try {
+        instruments = await fetchInstruments(_accessToken);
+    } catch (err) {
+        instruments = [];
+    }
+
     wireDrag({
         stageEl: stage,
         sidebarEl: sidebar,
         sidebarContentEl: sidebarInner,
         getEvent,
+        instruments,
         setDraggingId,
         setDraggingPosition,
         setDraggingSidebarUserId,
@@ -530,6 +540,22 @@ async function loadPlanner(concertId) {
                 setEvent(updated);
             } catch (err) {
                 showTransientError('Kunde inte spara mestre-position');
+            }
+        },
+        onChangeInstrument: async ({ userId, instrument }) => {
+            const entry = (getEvent().lineup || []).find(e => String(e.userId) === String(userId));
+            if (!entry || entry.instrument === instrument) return;
+            const prev = entry.instrument;
+            entry.instrument = instrument;          // optimistic
+            renderStage(stage, getEvent());
+            try {
+                const updated = await changeInstrument({ concertId, userId, instrument }, _accessToken);
+                setEvent(updated);
+                renderStage(stage, updated);
+            } catch (err) {
+                entry.instrument = prev;            // rollback
+                renderStage(stage, getEvent());
+                showTransientError('Kunde inte ändra instrument');
             }
         },
         onRemove: async ({ userId }) => {
