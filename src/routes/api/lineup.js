@@ -132,4 +132,10 @@ function createRemoveRoute({ lineupStore }) {
     };
 }
 
-module.exports = { createPlaceRoute, createMoveRoute, createMestreRoute, createRemoveRoute };
+function createInstrumentsRoute({ instrumentList }) {
+    return async function instrumentsRoute(_req, res) {
+        return res.json(Object.keys(instrumentList || {}));
+    };
+}
+
+module.exports = { createPlaceRoute, createMoveRoute, createMestreRoute, createRemoveRoute, createInstrumentsRoute };

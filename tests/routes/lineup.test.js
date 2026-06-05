@@ -4,7 +4,8 @@ const {
     createPlaceRoute,
     createMoveRoute,
     createMestreRoute,
-    createRemoveRoute
+    createRemoveRoute,
+    createInstrumentsRoute
 } = require('../../src/routes/api/lineup');
 
 const INSTRUMENT_LIST = { '1:a': [], '2:a': [], 'tarol': [] };
@@ -275,4 +276,22 @@ test('remove: 400 invalid_body when missing userId', async () => {
     const res = mockRes();
     await handler({ user: { id: 'me' }, body: { concertId: 'c1' } }, res);
     assert.strictEqual(res.statusCode, 400);
+});
+
+// ---------- INSTRUMENTS ----------
+
+test('instruments: 200 returns instrumentList keys', async () => {
+    const handler = createInstrumentsRoute({ instrumentList: INSTRUMENT_LIST });
+    const res = mockRes();
+    await handler({ user: { id: 'me' } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(res.body, ['1:a', '2:a', 'tarol']);
+});
+
+test('instruments: 200 empty array when no instrument list', async () => {
+    const handler = createInstrumentsRoute({ instrumentList: {} });
+    const res = mockRes();
+    await handler({ user: { id: 'me' } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(res.body, []);
 });
