@@ -133,7 +133,7 @@ function createRemoveRoute({ lineupStore }) {
 }
 
 function createInstrumentsRoute({ instrumentList }) {
-    return async function instrumentsRoute(_req, res) {
+    return function instrumentsRoute(_req, res) {
         return res.json(Object.keys(instrumentList || {}));
     };
 }
