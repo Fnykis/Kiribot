@@ -141,3 +141,45 @@ describe('remove', () => {
         expect(updated.lineup).toEqual([]);
     });
 });
+
+describe('getInstruments', () => {
+    it('returns the sorted union of signup keys across events', () => {
+        const dev = createDevData(sampleEvents());
+        expect(dev.getInstruments()).toEqual(['1:a', 'timbal']);
+    });
+});
+
+describe('changeInstrument', () => {
+    function placedDev() {
+        const dev = createDevData(sampleEvents());
+        dev.place({ concertId: '100', userId: 'u1', displayName: 'Anna A', instrument: '1:a', x: 5, y: 5 });
+        return dev;
+    }
+
+    it('updates the placed entry instrument and keeps position', () => {
+        const dev = placedDev();
+        const ev = dev.changeInstrument({ concertId: '100', userId: 'u1', instrument: 'timbal' });
+        const entry = ev.lineup.find(e => e.userId === 'u1');
+        expect(entry.instrument).toBe('timbal');
+        expect(entry.position).toEqual({ x: 5, y: 5 });
+    });
+
+    it('throws 400 for invalid body', () => {
+        const dev = placedDev();
+        try { dev.changeInstrument({ concertId: '100', userId: 'u1' }); }
+        catch (e) { expect(e.status).toBe(400); }
+        expect(() => dev.changeInstrument({ concertId: '100', userId: 'u1' })).toThrow();
+    });
+
+    it('throws 400 for unknown instrument', () => {
+        const dev = placedDev();
+        try { dev.changeInstrument({ concertId: '100', userId: 'u1', instrument: 'bogus' }); }
+        catch (e) { expect(e.status).toBe(400); }
+    });
+
+    it('throws 404 when user not placed', () => {
+        const dev = placedDev();
+        try { dev.changeInstrument({ concertId: '100', userId: 'ghost', instrument: 'timbal' }); }
+        catch (e) { expect(e.status).toBe(404); }
+    });
+});

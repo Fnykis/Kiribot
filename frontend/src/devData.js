@@ -146,5 +146,28 @@ export function createDevData(rawEvents) {
         return { ok: true };
     }
 
-    return { getConcerts, getState, getMembers, place, move, setMestre, remove, setMute, leaveVoice };
+    function allInstruments() {
+        const set = new Set();
+        for (const event of Object.values(events)) {
+            for (const key of Object.keys(event.signups || {})) set.add(key);
+        }
+        return Array.from(set).sort();
+    }
+
+    function getInstruments() {
+        return allInstruments();
+    }
+
+    function changeInstrument({ concertId, userId, instrument }) {
+        if (!concertId || !userId || !instrument) throw httpError('invalid_body', 400);
+        if (!allInstruments().includes(instrument)) throw httpError('invalid_instrument', 400);
+        const event = events[concertId];
+        if (!event) throw httpError('event_not_found', 404);
+        const entry = event.lineup.find(e => e.userId === userId);
+        if (!entry) throw httpError('user_not_placed', 404);
+        entry.instrument = instrument;
+        return event;
+    }
+
+    return { getConcerts, getState, getMembers, getInstruments, place, move, changeInstrument, setMestre, remove, setMute, leaveVoice };
 }
