@@ -25,10 +25,15 @@ instruments: Discord roles whose color equals the instrument role color (`hex_in
 ### 1. Backend
 
 **New endpoint — `GET /api/instruments`**
-- Filter `interaction.guild.roles.cache` by `role.hexColor === hex_instr` (`#e91e63`),
-  matching the existing pattern at `src/interactions/buttons/profile.js:144`.
-- Return sorted `[{ name, color }]` (color = role `hexColor`).
-- Lives under `src/routes/api/` following existing route conventions.
+- Returns the instrument names already materialized in `src/data/instrumentList.json`
+  (`Object.keys(instrumentList)`). That file is generated in `src/features/lists.js:13`
+  by filtering guild roles on `role.hexColor === hex_instr` (`#e91e63`) — i.e. the list is
+  *already* "fetched by role color"; the endpoint just exposes the keys.
+- Returns `string[]` (names), sorted as generated. **Not** `[{name, color}]`: every instrument
+  role shares the same `hex_instr` color, so the backend has no distinct per-instrument color.
+  Distinct dot colors live only in the frontend `INSTRUMENT_COLORS` palette.
+- Added to `src/routes/api/lineup.js` alongside the existing route factories, registered in
+  `src/core/express.js`.
 
 **New endpoint — `POST /api/lineup/instrument`**
 - Body: `{ concertId, userId, instrument }`.
@@ -46,8 +51,10 @@ instruments: Discord roles whose color equals the instrument role color (`hex_in
   `dataSource.*`, never raw `get`/`post`.
 
 **`frontend/src/devData.js`** (mirror API shapes — CLAUDE.md rule)
-- `fetchInstruments`: derive from `INSTRUMENT_COLORS` keys (name + hardcoded color).
-- `changeInstrument`: mutate the in-memory lineup entry's `instrument`.
+- `getInstruments()`: union of `Object.keys(event.signups)` across loaded events, sorted →
+  `string[]`. (Dev has no `instrumentList.json`; the signup keys are the same instrument set.)
+- `changeInstrument({ concertId, userId, instrument })`: validate against the instrument union,
+  then mutate the in-memory lineup entry's `instrument`. Mirrors the `move()` dev adapter.
 
 ### 3. Radial menu — `frontend/src/canvas/drag.js`
 
@@ -62,18 +69,18 @@ instruments: Discord roles whose color equals the instrument role color (`hex_in
   - Persists via `dataSource.changeInstrument`.
   - Updates the dot live, then closes the menu.
 
-### 4. Live dot update — `frontend/src/canvas/stage.js`
+### 4. Live dot update — no `stage.js` change
 
-- Set `dot.dataset.instrument` to the new value.
-- Recompute and apply dot color via `instrumentColor()`.
-- Recompute and apply glow via the `--dot-glow` variable.
-- Update `.dot-instrument` text via `abbreviateInstrument()`.
-- Leave `.dot-label` (person name) unchanged.
-- **Color source of truth:** dot rendering continues to use the `INSTRUMENT_COLORS` map; the
-  flyout swatch uses the same `instrumentColor()` for canvas consistency.
-- **Edge case:** an instrument role not present in `INSTRUMENT_COLORS` falls back to a default
-  color (and a default/identity abbreviation). Acceptable; the 8 current instruments are all
-  mapped.
+- `renderStage()` already derives dot color (`instrumentColor`), glow (`instrumentGlow`), and
+  the `.dot-instrument` abbreviation (`abbreviateInstrument`) from `entry.instrument`, while
+  `.dot-label` stays the person's name. So the live update is just: optimistically set
+  `entry.instrument` on the in-memory event, call `renderStage()`, then persist — the same
+  optimistic-then-persist pattern used by `onMestre` and arrow-move in `main.js`/`drag.js`.
+- **No edit to `stage.js` is required.**
+- **Color source of truth:** dot rendering uses `INSTRUMENT_COLORS`; the flyout swatch uses the
+  same exported `instrumentColor()` for canvas consistency.
+- **Edge case:** an instrument not in `INSTRUMENT_COLORS` falls back to a default color and an
+  identity/first-3-chars abbreviation. Acceptable; the 8 current instruments are all mapped.
 
 ### 5. Wiring — `frontend/src/main.js`
 
@@ -88,9 +95,9 @@ instruments: Discord roles whose color equals the instrument role color (`hex_in
 ## Data shapes
 
 ```
-GET /api/instruments  -> [ { name: "1:a", color: "#e91e63" }, ... ]
+GET /api/instruments  -> [ "1:a", "2:a", "3:a", "4:a", "repenique", "skak/agogo", "tarol", "timbal" ]
 POST /api/lineup/instrument  body: { concertId, userId, instrument }
-                              -> updated lineup entry | { ok: true }
+                              -> updated event (full, same as move/place routes)
 ```
 
 ## Testing
