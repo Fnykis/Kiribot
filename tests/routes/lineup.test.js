@@ -5,7 +5,8 @@ const {
     createMoveRoute,
     createMestreRoute,
     createRemoveRoute,
-    createInstrumentsRoute
+    createInstrumentsRoute,
+    createChangeInstrumentRoute
 } = require('../../src/routes/api/lineup');
 
 const INSTRUMENT_LIST = { '1:a': [], '2:a': [], 'tarol': [] };
@@ -294,4 +295,61 @@ test('instruments: 200 empty array when no instrument list', async () => {
     await handler({ user: { id: 'me' } }, res);
     assert.strictEqual(res.statusCode, 200);
     assert.deepStrictEqual(res.body, []);
+});
+
+// ---------- CHANGE INSTRUMENT ----------
+
+const placedEvent = {
+    id: 'c1', name: 'Demo', date: '08/03/26',
+    signups: {
+        '1:a': [{ name: 'A', id: 'u1', response: 'ja', note: '' }],
+        '2:a': [{ name: 'B', id: 'u2', response: 'ja', note: '' }]
+    },
+    lineup: [{
+        userId: 'u1', displayName: 'A', instrument: '1:a',
+        position: { x: 10, y: 20 }, manuallyAdded: false, placedAt: 't'
+    }]
+};
+
+test('changeInstrument: 200 updates the entry instrument', async () => {
+    const store = makeStore(placedEvent);
+    const handler = createChangeInstrumentRoute({ lineupStore: store, instrumentList: INSTRUMENT_LIST });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', instrument: 'tarol' } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.lineup[0].instrument, 'tarol');
+    assert.strictEqual(res.body.lineup[0].position.x, 10); // position untouched
+});
+
+test('changeInstrument: 400 invalid_body when instrument missing', async () => {
+    const handler = createChangeInstrumentRoute({ lineupStore: makeStore(placedEvent), instrumentList: INSTRUMENT_LIST });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1' } }, res);
+    assert.strictEqual(res.statusCode, 400);
+    assert.deepStrictEqual(res.body, { error: 'invalid_body' });
+});
+
+test('changeInstrument: 400 unknown instrument', async () => {
+    const handler = createChangeInstrumentRoute({ lineupStore: makeStore(placedEvent), instrumentList: INSTRUMENT_LIST });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'u1', instrument: 'bogus' } }, res);
+    assert.strictEqual(res.statusCode, 400);
+    assert.deepStrictEqual(res.body, { error: 'invalid_instrument' });
+});
+
+test('changeInstrument: 404 user_not_placed', async () => {
+    const handler = createChangeInstrumentRoute({ lineupStore: makeStore(placedEvent), instrumentList: INSTRUMENT_LIST });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'c1', userId: 'ghost', instrument: 'tarol' } }, res);
+    assert.strictEqual(res.statusCode, 404);
+    assert.deepStrictEqual(res.body, { error: 'user_not_placed' });
+});
+
+test('changeInstrument: 404 event_not_found', async () => {
+    const store = { async loadEvent() { return null; }, async mutateEvent() { throw new Error('event_not_found'); } };
+    const handler = createChangeInstrumentRoute({ lineupStore: store, instrumentList: INSTRUMENT_LIST });
+    const res = mockRes();
+    await handler({ user: { id: 'me' }, body: { concertId: 'gone', userId: 'u1', instrument: 'tarol' } }, res);
+    assert.strictEqual(res.statusCode, 404);
+    assert.deepStrictEqual(res.body, { error: 'event_not_found' });
 });

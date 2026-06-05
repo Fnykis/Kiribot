@@ -138,4 +138,33 @@ function createInstrumentsRoute({ instrumentList }) {
     };
 }
 
-module.exports = { createPlaceRoute, createMoveRoute, createMestreRoute, createRemoveRoute, createInstrumentsRoute };
+function createChangeInstrumentRoute({ lineupStore, instrumentList }) {
+    return async function changeInstrumentRoute(req, res) {
+        const { concertId, userId, instrument } = req.body || {};
+        if (!concertId || !userId || !instrument) {
+            return res.status(400).json({ error: 'invalid_body' });
+        }
+        if (!Object.prototype.hasOwnProperty.call(instrumentList, instrument)) {
+            return res.status(400).json({ error: 'invalid_instrument' });
+        }
+        const event = await lineupStore.loadEvent(concertId);
+        if (!event) return res.status(404).json({ error: 'event_not_found' });
+
+        let updated;
+        try {
+            updated = await lineupStore.mutateEvent(concertId, ev => {
+                const entry = ev.lineup.find(e => e.userId === userId);
+                if (!entry) throw new Error('user_not_placed');
+                entry.instrument = instrument;
+                return ev;
+            });
+        } catch (err) {
+            if (err.message === 'user_not_placed') return res.status(404).json({ error: 'user_not_placed' });
+            if (err.message === 'event_not_found') return res.status(404).json({ error: 'event_not_found' });
+            throw err;
+        }
+        return res.json(updated);
+    };
+}
+
+module.exports = { createPlaceRoute, createMoveRoute, createMestreRoute, createRemoveRoute, createInstrumentsRoute, createChangeInstrumentRoute };
