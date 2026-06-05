@@ -8,7 +8,7 @@ vi.mock('../../src/responsive.js', () => ({
     applyResponsiveLayout: () => {},
 }));
 
-import { clientToStage, snapToGrid } from '../../src/canvas/drag.js';
+import { clientToStage, snapToGrid, buildInstrumentPicker } from '../../src/canvas/drag.js';
 import { GRID_STEP } from '../../src/canvas/stage.js';
 
 // ---- Sidebar-row drop tests ----
@@ -69,11 +69,39 @@ describe('clientToStage', () => {
 
 describe('snapToGrid', () => {
     it('snaps to nearest grid intersection', () => {
-        const step = GRID_STEP; // 24
-        expect(snapToGrid(0, 0, step)).toEqual({ x: 0, y: 0 });
-        expect(snapToGrid(25, 25, step)).toEqual({ x: 24, y: 24 });
-        expect(snapToGrid(23, 23, step)).toEqual({ x: 24, y: 24 });
-        expect(snapToGrid(100, 50, step)).toEqual({ x: 96, y: 48 });
+        expect(snapToGrid(0, 0, 24)).toEqual({ x: 0, y: 0 });
+        expect(snapToGrid(25, 25, 24)).toEqual({ x: 24, y: 24 });
+        expect(snapToGrid(23, 23, 24)).toEqual({ x: 24, y: 24 });
+        expect(snapToGrid(100, 50, 24)).toEqual({ x: 96, y: 48 });
+    });
+});
+
+describe('buildInstrumentPicker', () => {
+    const instruments = ['1:a', '2:a', 'tarol'];
+
+    it('renders one row per instrument with name text', () => {
+        const menu = document.createElement('div');
+        buildInstrumentPicker(menu, { current: '1:a', instruments, onSelect: () => {} });
+        const rows = menu.querySelectorAll('.instrument-row');
+        expect(rows.length).toBe(3);
+        expect([...rows].map(r => r.querySelector('.instrument-name').textContent))
+            .toEqual(['1:a', '2:a', 'tarol']);
+    });
+
+    it('marks the current instrument row with the current class', () => {
+        const menu = document.createElement('div');
+        buildInstrumentPicker(menu, { current: 'tarol', instruments, onSelect: () => {} });
+        const current = menu.querySelectorAll('.instrument-row.current');
+        expect(current.length).toBe(1);
+        expect(current[0].querySelector('.instrument-name').textContent).toBe('tarol');
+    });
+
+    it('fires onSelect with the instrument name on row click', () => {
+        const menu = document.createElement('div');
+        const onSelect = vi.fn();
+        buildInstrumentPicker(menu, { current: '1:a', instruments, onSelect });
+        menu.querySelectorAll('.instrument-row')[2].click();
+        expect(onSelect).toHaveBeenCalledWith('tarol');
     });
 });
 

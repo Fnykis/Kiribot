@@ -1,5 +1,5 @@
 import interact from 'interactjs';
-import { Hand } from 'lucide';
+import { Hand, Drum } from 'lucide';
 import { STAGE_W, STAGE_H, GRID_STEP, instrumentColor, abbreviateInstrument, edgeEndpoints } from './stage.js';
 import { getViewport, setViewport, getZoom, clampZoom, focalZoom, applyViewport, resetViewport } from './viewport.js';
 import { isMobile } from '../responsive.js';
@@ -56,6 +56,27 @@ export function applySelectionVisual(stageEl) {
     });
 }
 
+export function buildInstrumentPicker(menuEl, { current, instruments, onSelect }) {
+    menuEl.replaceChildren();
+    menuEl.classList.add('instrument-picker');
+    for (const name of instruments) {
+        const row = document.createElement('button');
+        row.className = name === current ? 'instrument-row current' : 'instrument-row';
+        row.title = name;
+        const swatch = document.createElement('span');
+        swatch.className = 'instrument-swatch';
+        swatch.style.backgroundColor = instrumentColor(name);
+        row.appendChild(swatch);
+        const label = document.createElement('span');
+        label.className = 'instrument-name';
+        label.textContent = name;
+        row.appendChild(label);
+        row.addEventListener('click', () => onSelect(name));
+        menuEl.appendChild(row);
+    }
+    return menuEl;
+}
+
 let _radialMenu = null;
 let _radialOutsideHandler = null;
 
@@ -67,7 +88,7 @@ function dismissRadialMenu() {
     }
 }
 
-function showRadialMenu(userId, cx, cy, stageEl, onMestre) {
+function showRadialMenu(userId, cx, cy, stageEl, onMestre, instruments, onChangeInstrument) {
     dismissRadialMenu();
     _radialMenu = document.createElement('div');
     _radialMenu.className = 'radial-menu';
@@ -85,6 +106,27 @@ function showRadialMenu(userId, cx, cy, stageEl, onMestre) {
         if (onMestre) onMestre({ userId });
     });
     _radialMenu.appendChild(mestreBtn);
+
+    if (instruments && instruments.length && onChangeInstrument) {
+        const instrBtn = document.createElement('button');
+        instrBtn.className = 'radial-btn';
+        instrBtn.title = 'Byt instrument';
+        instrBtn.appendChild(createLucideIcon(Drum));
+        instrBtn.addEventListener('click', () => {
+            const dot = stageEl.querySelector(`.stage-dot[data-user-id="${userId}"]`);
+            const current = dot ? dot.dataset.instrument : null;
+            buildInstrumentPicker(_radialMenu, {
+                current,
+                instruments,
+                onSelect: (instrument) => {
+                    dismissRadialMenu();
+                    onChangeInstrument({ userId, instrument });
+                }
+            });
+        });
+        _radialMenu.appendChild(instrBtn);
+    }
+
     document.body.appendChild(_radialMenu);
 
     _radialOutsideHandler = (e) => {
@@ -96,7 +138,8 @@ function showRadialMenu(userId, cx, cy, stageEl, onMestre) {
 
 export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDraggingId,
                           setDraggingPosition, setDraggingSidebarUserId,
-                          onPlace, onMove, onMoveMany, onRemove, onMestre, onMestreMove, onError,
+                          onPlace, onMove, onMoveMany, onRemove, onMestre, onMestreMove,
+                          onChangeInstrument, instruments, onError,
                           renderLocal }) {
     setDraggingPosition = setDraggingPosition || (() => {});
     setDraggingSidebarUserId = setDraggingSidebarUserId || (() => {});
@@ -548,7 +591,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
         if (!el) return;
         const dr = el.getBoundingClientRect();
         setTimeout(() => {
-            showRadialMenu(userId, dr.left + dr.width / 2, dr.top, stageEl, onMestre);
+            showRadialMenu(userId, dr.left + dr.width / 2, dr.top, stageEl, onMestre, instruments, onChangeInstrument);
         }, 300);
     }
 
