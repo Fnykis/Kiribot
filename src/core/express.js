@@ -16,7 +16,9 @@ const {
     createPlaceRoute,
     createMoveRoute,
     createMestreRoute,
-    createRemoveRoute
+    createRemoveRoute,
+    createInstrumentsRoute,
+    createChangeInstrumentRoute
 } = require('../routes/api/lineup');
 const createGuildMembersRoute = require('../routes/api/guildMembers');
 const createVoiceMuteRoute = require('../routes/api/voiceMute');
@@ -72,6 +74,9 @@ function buildApp({ client, config }) {
     app.get('/api/state/:concertId', authMiddleware,
         asyncRoute(createStateRoute({ lineupStore })));
 
+    app.get('/api/instruments', authMiddleware,
+        createInstrumentsRoute({ instrumentList }));
+
     app.post('/api/lineup/place', authMiddleware, lineupLimiter,
         asyncRoute(createPlaceRoute({
             lineupStore,
@@ -84,6 +89,9 @@ function buildApp({ client, config }) {
         asyncRoute(createMestreRoute({ lineupStore })));
     app.post('/api/lineup/remove', authMiddleware, lineupLimiter,
         asyncRoute(createRemoveRoute({ lineupStore })));
+
+    app.post('/api/lineup/instrument', authMiddleware, lineupLimiter,
+        asyncRoute(createChangeInstrumentRoute({ lineupStore, instrumentList })));
 
     const voiceMuteLimiter = rateLimit({
         windowMs: 1000,
