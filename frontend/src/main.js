@@ -193,8 +193,24 @@ function drawWatermark(ctx, text, w, h, pr, baseFontPx) {
 
 async function captureCroppedLineup(stageEl, titleText, fontEmbedCSS) {
     const pixelRatio = 2;
-    const fullCanvas = await toCanvas(stageEl, { pixelRatio, cacheBust: true, fontEmbedCSS, skipFonts: true });
-    const bbox = computeDotsBBox(stageEl);
+    // Capture must run against an untransformed stage. On mobile #stage carries
+    // the pan/zoom transform (translate+scale), which corrupts both the render
+    // (html-to-image copies the transform but sizes the canvas to the un-scaled
+    // clientWidth) and the crop rect (computeDotsBBox reads post-transform
+    // getBoundingClientRect). Neutralize it for the capture, then restore so the
+    // user's view does not jump. Desktop has no transform, so this is a no-op there.
+    const prevTransform = stageEl.style.transform;
+    const prevTransformOrigin = stageEl.style.transformOrigin;
+    stageEl.style.transform = 'none';
+    stageEl.style.transformOrigin = '';
+    let fullCanvas, bbox;
+    try {
+        fullCanvas = await toCanvas(stageEl, { pixelRatio, cacheBust: true, fontEmbedCSS, skipFonts: true });
+        bbox = computeDotsBBox(stageEl);
+    } finally {
+        stageEl.style.transform = prevTransform;
+        stageEl.style.transformOrigin = prevTransformOrigin;
+    }
     if (!bbox) throw new Error('Inga prickar att exportera');
 
     const padX = 40, padTop = 40, padBottom = 60;
