@@ -212,6 +212,7 @@ export function wireGestures({ viewportEl, stageEl }) {
     // touch (or any descendant of it) is on a .stage-dot / .mestre-ghost.
     interact(viewportEl).draggable({
         ignoreFrom: '.stage-dot, .mestre-ghost',
+        styleCursor: false, // pan is touch-only; no desktop pan cursor (mobile has none)
         listeners: {
             move(evt) {
                 if (!isMobile()) return;
