@@ -479,6 +479,10 @@ async function loadPlanner(concertId) {
     try {
         instruments = await fetchInstruments(_accessToken);
     } catch (err) {
+        // Empty list hides the instrument-change (drum) button in the radial menu.
+        // Surface the cause instead of silently dropping the feature (e.g. stale
+        // backend missing /api/instruments → 404).
+        console.error('fetchInstruments failed — instrument (drum) button will be hidden:', err);
         instruments = [];
     }
 
