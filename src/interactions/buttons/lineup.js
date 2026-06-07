@@ -5,7 +5,7 @@ const {
     MessageFlags
 } = require('discord.js');
 const createActivityInviteService = require('../../services/activityInvite');
-const { scheduleRevoke } = require('../../services/lineupAccess');
+const { scheduleRevoke, scheduleReplyDeletion } = require('../../services/lineupAccess');
 const { ch_LineupVoice, activity_Lineup } = require('../../core/constants');
 const { harmonianRoleId } = require('../../../config.json');
 const logActivity = require('../../core/logger');
@@ -61,10 +61,13 @@ async function execute(interaction) {
         .setURL(`https://discord.gg/${invite.code}`);
 
     logActivity(`btn_lineup_invite: ${interaction.member?.displayName || interaction.user.username} generated lineup invite`);
-    return interaction.editReply({
+    await interaction.editReply({
         content: 'Klicka för att starta lineup-aktiviteten:',
         components: [new ActionRowBuilder().addComponents(urlBtn)],
     });
+    // Remove the prompt after 1 min. If the user never joined, their channel
+    // access is revoked on the same delay (scheduleRevoke), killing the stale link.
+    scheduleReplyDeletion(interaction, member.user.id);
 }
 
 module.exports = { matches, execute };

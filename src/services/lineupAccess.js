@@ -1,6 +1,8 @@
 const logActivity = require('../core/logger');
 
-const REVOKE_DELAY_MS = 5 * 60 * 1000;
+// 1 min: how long a clicker's lineup-channel access (and the ephemeral prompt)
+// lives without joining. Joining cancels the revoke (voiceStateUpdate).
+const REVOKE_DELAY_MS = 60 * 1000;
 const pendingRevokes = new Map();
 
 function scheduleRevoke(userId, channel) {
@@ -25,4 +27,14 @@ function cancelRevoke(userId) {
     }
 }
 
-module.exports = { scheduleRevoke, cancelRevoke };
+// Delete an ephemeral interaction reply after REVOKE_DELAY_MS (the lineup prompt
+// "Klicka för att starta..."). Failures — e.g. the user already dismissed it, or
+// the bot restarted — are swallowed and logged. `label` is for log context only.
+function scheduleReplyDeletion(interaction, label) {
+    setTimeout(() => {
+        Promise.resolve(interaction.deleteReply()).catch(err =>
+            logActivity(`lineupAccess: failed to delete prompt for ${label}: ${err.message}`));
+    }, REVOKE_DELAY_MS);
+}
+
+module.exports = { scheduleRevoke, cancelRevoke, scheduleReplyDeletion, REVOKE_DELAY_MS };
