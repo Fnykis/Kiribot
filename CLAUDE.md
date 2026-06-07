@@ -4,6 +4,16 @@
 
 Discord.js v14 bot for Kiriaka music org. Modular `src/` structure (see auto-memory). `frontend/` = Discord Activity (lineup planner), Vite app.
 
+## ALWAYS: report non-frontend file changes
+
+At the END of every response where you created, modified, or deleted any file **outside `frontend/`** (excluding anything under `docs/`), finish the message with:
+
+**Files touched outside /frontend:**
+- `path/one`
+- `path/two`
+
+If no such file was touched, omit this section entirely. `docs/` and `tests/` changes never count. This applies regardless of task type (code, config, commits).
+
 ## Frontend dev mode — PROD FIRST
 
 The frontend has a local dev mode that bypasses the server and Discord auth. **Production behavior is the default and must stay that way.**
@@ -18,7 +28,6 @@ The frontend has a local dev mode that bypasses the server and Discord auth. **P
 3. **New API calls go through `dataSource.js`**, not raw `get/post` in components. Keeps the dev/prod branch in one place.
 4. **Test both modes before pushing** anything touching the data layer: `npm run dev` with the flag on, and verify the real-API path still compiles/works with it off.
 5. Dev mode fakes `hasHarmonian: true` and only knows members already in signup JSON — it cannot fully exercise the auth gate or guild roster. Auth/permission changes must be tested against the real server.
-6. List any files outside of /frontend that was touched (only if not none).
 
 ## Commands
 - `npm start` — bot
