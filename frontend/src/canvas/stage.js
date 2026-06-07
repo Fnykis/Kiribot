@@ -238,6 +238,10 @@ export function renderStage(stageEl, event) {
             badge.title = tip.textContent;
             badge.appendChild(mark);
             badge.appendChild(tip);
+            // Radial menu opens on pointerdown/pointerup on the dot — stop those
+            // here so tapping the badge never bubbles up to trigger it.
+            badge.addEventListener('pointerdown', ev => ev.stopPropagation());
+            badge.addEventListener('pointerup', ev => ev.stopPropagation());
             badge.addEventListener('click', ev => {
                 ev.stopPropagation();
                 const wasOpen = badge.classList.contains('show-tip');

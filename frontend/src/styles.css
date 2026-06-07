@@ -1088,6 +1088,16 @@ body {
 @media (max-width: 767px) {
     body, #app { height: 100vh; height: 100dvh; } /* vh fallback, dvh where supported */
 
+    /* Bigger stale "!" badge on mobile — easier to see and tap. */
+    .stale-badge {
+        top: -6px;
+        right: -6px;
+        width: 24px;
+        height: 24px;
+        font-size: 0.95rem;
+    }
+    .stale-tip { font-size: 0.85rem; }
+
     /* --- Header collapses to: ☰ | title | ⋮ --- */
     #planner-header {
         padding: 0.4rem 0.5rem;
