@@ -6,6 +6,9 @@ const lines = [];
 let panel = null;
 let body = null;
 
+// Injected by Vite define at build/dev-server start (git hash + time). Falls back in tests.
+const BUILD_INFO = (typeof __BUILD_INFO__ !== 'undefined') ? __BUILD_INFO__ : 'dev';
+
 function fmtArg(a) {
     if (a instanceof Error) return (a.stack || a.message || String(a));
     if (typeof a === 'string') return a;
@@ -61,6 +64,10 @@ function ensurePanel() {
     });
     const title = document.createElement('span');
     title.textContent = 'Debug Console';
+    const build = document.createElement('span');
+    build.textContent = `  build ${BUILD_INFO}`;
+    build.style.color = '#6b7280';
+    title.appendChild(build);
     header.appendChild(title);
     const btns = document.createElement('div');
     const clearBtn = document.createElement('button');
@@ -125,7 +132,7 @@ export function installDebugOverlay() {
     });
 
     window.__debugOverlay = { toggle, push, lines };
-    push('info', ['Debug overlay armed.']);
+    push('info', [`Debug overlay armed. build ${BUILD_INFO}`]);
 }
 
 export function toggleDebugOverlay(force) {

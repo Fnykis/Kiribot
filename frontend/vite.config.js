@@ -1,7 +1,21 @@
 import { defineConfig } from 'vite';
+import { execSync } from 'node:child_process';
+
+const gitHash = (() => {
+  try { return execSync('git rev-parse --short HEAD').toString().trim(); }
+  catch { return 'nogit'; }
+})();
+const gitDirty = (() => {
+  try { return execSync('git status --porcelain').toString().trim() ? '+' : ''; }
+  catch { return ''; }
+})();
+const buildInfo = `${gitHash}${gitDirty} · ${new Date().toISOString().replace('T', ' ').slice(0, 16)}`;
 
 export default defineConfig({
   base: '/',
+  define: {
+    __BUILD_INFO__: JSON.stringify(buildInfo),
+  },
   build: {
     outDir: 'dist',
   },
