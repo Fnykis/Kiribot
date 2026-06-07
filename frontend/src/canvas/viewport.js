@@ -1,8 +1,11 @@
 // Canvas pan/zoom viewport: shared state + pure math + transform application.
 // z is the zoom factor on top of the CSS-fit stage (z=1 = fit-to-height baseline).
+//
+// Zoom range is dynamic. The CSS sizes the stage to fit-to-height, so z=1 is the
+// MAX zoom (canvas height fills the viewport). MIN zoom is fit-to-width (canvas
+// width fills the viewport) — z<1 on a portrait phone, computed from live dims.
 
-export const MIN_Z = 1;
-export const MAX_Z = 3;
+export const MAX_Z = 1; // fit-to-height baseline (z=1 = stage height fills viewport)
 
 let _state = { panX: 0, panY: 0, z: 1 };
 
@@ -11,8 +14,22 @@ export function getZoom() { return _state.z; }
 export function setViewport(s) { _state = { panX: s.panX, panY: s.panY, z: s.z }; }
 export function resetViewport() { _state = { panX: 0, panY: 0, z: 1 }; }
 
-export function clampZoom(z) {
-    return Math.max(MIN_Z, Math.min(MAX_Z, z));
+// Minimum zoom = z where the rendered stage width equals the viewport width
+// (fit-to-width). stageWidthCss = stageEl.clientWidth (untransformed CSS width,
+// which the CSS sets to the fit-to-height width). Capped at MAX_Z so a viewport
+// wider than the canvas aspect can never yield min > max.
+export function minZoom(stageWidthCss, viewWidth) {
+    if (!stageWidthCss) return MAX_Z;
+    return Math.min(viewWidth / stageWidthCss, MAX_Z);
+}
+
+export function clampZoom(z, minZ, maxZ = MAX_Z) {
+    return Math.max(minZ, Math.min(maxZ, z));
+}
+
+// Live zoom bounds from element dimensions.
+export function zoomBounds(stageEl, viewportEl) {
+    return { minZ: minZoom(stageEl.clientWidth, viewportEl.clientWidth), maxZ: MAX_Z };
 }
 
 // Clamp pan so the stage edges cannot pass the viewport interior.
@@ -53,6 +70,21 @@ export function applyViewport(stageEl, viewportEl) {
     _state.panY = panY;
     stageEl.style.transformOrigin = '0 0';
     stageEl.style.transform = `translate(${panX}px, ${panY}px) scale(${_state.z})`;
+}
+
+// Open at fit-to-width (whole canvas visible, vertical letterbox auto-centered
+// by applyViewport's clampPan). Used for the initial mobile view.
+export function fitToWidth(stageEl, viewportEl) {
+    const { minZ } = zoomBounds(stageEl, viewportEl);
+    _state = { panX: 0, panY: 0, z: minZ };
+    applyViewport(stageEl, viewportEl);
+}
+
+// Re-clamp z to current bounds and re-apply (after resize / orientation change).
+export function refit(stageEl, viewportEl) {
+    const { minZ, maxZ } = zoomBounds(stageEl, viewportEl);
+    _state.z = clampZoom(_state.z, minZ, maxZ);
+    applyViewport(stageEl, viewportEl);
 }
 
 // Remove the transform (used when leaving mobile / desktop baseline).

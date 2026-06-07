@@ -576,7 +576,7 @@ async function loadPlanner(concertId) {
             }
         }
     });
-    wireGestures({ viewportEl: document.getElementById('stage-container'), stageEl: stage });
+    const gestures = wireGestures({ viewportEl: document.getElementById('stage-container'), stageEl: stage });
 
     const manualBtn = document.getElementById('manual-add-btn');
     const modalEl = document.getElementById('manual-add-modal');
@@ -822,13 +822,23 @@ async function boot() {
 
     // Place buttons for the current breakpoint, and re-place on breakpoint change.
     applyResponsiveLayout();
+    // Mobile opens at fit-to-width (whole canvas visible).
+    if (isMobile()) gestures.fit();
     mobileMQ.addEventListener('change', () => {
         applyResponsiveLayout();
         closeDrawer();
-        // Drop any stale pan/zoom transform when crossing the breakpoint
-        // (desktop must never carry a transform; mobile re-fits on next gesture).
         const stageEl = document.getElementById('stage');
-        if (stageEl) clearViewportTransform(stageEl);
+        if (!stageEl) return;
+        // Desktop must never carry a transform; mobile re-fits to fit-to-width.
+        if (isMobile()) gestures.fit();
+        else clearViewportTransform(stageEl);
+    });
+    // Re-fit on resize / orientation change while on mobile (rAF-coalesced).
+    let _refitRaf = 0;
+    window.addEventListener('resize', () => {
+        if (!isMobile()) return;
+        cancelAnimationFrame(_refitRaf);
+        _refitRaf = requestAnimationFrame(() => gestures.refit());
     });
 
     await fetchAndShowPicker();

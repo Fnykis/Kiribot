@@ -1,19 +1,37 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-    clampPan, focalZoom, clampZoom,
-    MIN_Z, MAX_Z,
+    clampPan, focalZoom, clampZoom, minZoom,
+    MAX_Z,
     getViewport, setViewport, resetViewport, getZoom,
 } from '../../src/canvas/viewport.js';
 
-describe('clampZoom', () => {
-    it('clamps below MIN_Z up to MIN_Z', () => {
-        expect(clampZoom(0.5)).toBe(MIN_Z);
+describe('minZoom — fit-to-width factor relative to the fit-to-height baseline', () => {
+    it('portrait viewport: min < 1 (zoom out to see the whole landscape canvas)', () => {
+        // stage CSS width 1333 (=800*1000/600 fit-height) in a 400 viewport
+        // -> min = 400/1333 = 0.30 (fit-to-width)
+        expect(minZoom(1333, 400)).toBeCloseTo(0.3, 2);
     });
-    it('clamps above MAX_Z down to MAX_Z', () => {
-        expect(clampZoom(99)).toBe(MAX_Z);
+    it('caps at MAX_Z when the viewport is wider than the canvas (never min > max)', () => {
+        expect(minZoom(800, 2000)).toBe(MAX_Z);
+    });
+    it('returns MAX_Z when stage width is 0 (pre-layout safety)', () => {
+        expect(minZoom(0, 400)).toBe(MAX_Z);
+    });
+});
+
+describe('clampZoom — dynamic bounds', () => {
+    it('clamps below minZ up to minZ', () => {
+        expect(clampZoom(0.1, 0.3, MAX_Z)).toBe(0.3);
+    });
+    it('clamps above maxZ down to maxZ', () => {
+        expect(clampZoom(99, 0.3, MAX_Z)).toBe(MAX_Z);
     });
     it('passes values inside the range unchanged', () => {
-        expect(clampZoom(2)).toBe(2);
+        expect(clampZoom(0.6, 0.3, MAX_Z)).toBe(0.6);
+    });
+    it('maxZ defaults to MAX_Z (fit-to-height = 1)', () => {
+        expect(clampZoom(5, 0.3)).toBe(MAX_Z);
+        expect(MAX_Z).toBe(1);
     });
 });
 

@@ -1,7 +1,7 @@
 import interact from 'interactjs';
 import { Hand, Drum } from 'lucide';
 import { STAGE_W, STAGE_H, GRID_STEP, instrumentColor, abbreviateInstrument, edgeEndpoints } from './stage.js';
-import { getViewport, setViewport, getZoom, clampZoom, focalZoom, applyViewport, resetViewport } from './viewport.js';
+import { getViewport, setViewport, getZoom, clampZoom, zoomBounds, focalZoom, applyViewport, resetViewport, fitToWidth, refit } from './viewport.js';
 import { isMobile } from '../responsive.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -765,8 +765,9 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
     interact(stageEl).dropzone({ accept: '.stage-dot, .available-row', overlap: 0.05 });
 }
 
-// Two-finger pan + pinch-zoom on the stage viewport (mobile only).
-// viewportEl is the clipping container (#stage-container); stageEl is #stage.
+// Single-finger pan (background) + two-finger pinch-zoom/pan on the stage
+// viewport (mobile only). viewportEl = clipping container (#stage-container);
+// stageEl = #stage. Zoom range is dynamic: fit-to-width (min) .. fit-to-height (max).
 export function wireGestures({ viewportEl, stageEl }) {
     let _startZ = 1;
 
@@ -777,6 +778,22 @@ export function wireGestures({ viewportEl, stageEl }) {
         viewportEl.classList.toggle('can-pan-left', v.panX < -0.5);
         viewportEl.classList.toggle('can-pan-right', v.panX > vw - renderedW + 0.5);
     }
+
+    // Single-finger pan on the canvas background. ignoreFrom keeps dot/ghost
+    // drags intact: interact.js rejects this draggable before it starts when the
+    // touch (or any descendant of it) is on a .stage-dot / .mestre-ghost.
+    interact(viewportEl).draggable({
+        ignoreFrom: '.stage-dot, .mestre-ghost',
+        listeners: {
+            move(evt) {
+                if (!isMobile()) return;
+                const v = getViewport();
+                setViewport({ panX: v.panX + evt.dx, panY: v.panY + evt.dy, z: v.z });
+                applyViewport(stageEl, viewportEl);
+                refreshPanAffordance();
+            },
+        },
+    });
 
     interact(viewportEl).gesturable({
         listeners: {
@@ -789,7 +806,8 @@ export function wireGestures({ viewportEl, stageEl }) {
                 const rect = viewportEl.getBoundingClientRect();
                 const focalX = evt.clientX - rect.left; // gesture midpoint, viewport-relative
                 const focalY = evt.clientY - rect.top;
-                const nextZ = clampZoom(_startZ * evt.scale);
+                const { minZ, maxZ } = zoomBounds(stageEl, viewportEl);
+                const nextZ = clampZoom(_startZ * evt.scale, minZ, maxZ);
                 const zoomed = focalZoom(getViewport(), focalX, focalY, nextZ);
                 // Add the midpoint translation (two-finger pan).
                 zoomed.panX += evt.dx;
@@ -801,6 +819,13 @@ export function wireGestures({ viewportEl, stageEl }) {
         },
     });
 
-    // Reset to fit + clear affordance when switching to desktop.
-    return { refreshPanAffordance, reset: () => { resetViewport(); refreshPanAffordance(); } };
+    return {
+        refreshPanAffordance,
+        // Open at fit-to-width (initial mobile view).
+        fit: () => { fitToWidth(stageEl, viewportEl); refreshPanAffordance(); },
+        // Re-clamp to current bounds after resize / orientation change.
+        refit: () => { refit(stageEl, viewportEl); refreshPanAffordance(); },
+        // Reset to baseline + clear affordance when switching to desktop.
+        reset: () => { resetViewport(); refreshPanAffordance(); },
+    };
 }
