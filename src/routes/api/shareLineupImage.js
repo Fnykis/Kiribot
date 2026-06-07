@@ -1,5 +1,4 @@
-// TEMP: posting to test channel instead of Harmonia. Revert to '1139444157706932234' when done.
-const HARMONIA_CHANNEL_ID = '1231042885411930253';
+const HARMONIA_CHANNEL_ID = '1139444157706932234';
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function isPng(buf) {
