@@ -18,6 +18,7 @@ The frontend has a local dev mode that bypasses the server and Discord auth. **P
 3. **New API calls go through `dataSource.js`**, not raw `get/post` in components. Keeps the dev/prod branch in one place.
 4. **Test both modes before pushing** anything touching the data layer: `npm run dev` with the flag on, and verify the real-API path still compiles/works with it off.
 5. Dev mode fakes `hasHarmonian: true` and only knows members already in signup JSON — it cannot fully exercise the auth gate or guild roster. Auth/permission changes must be tested against the real server.
+6. List any files outside of /frontend that was touched (only if not none).
 
 ## Commands
 - `npm start` — bot
