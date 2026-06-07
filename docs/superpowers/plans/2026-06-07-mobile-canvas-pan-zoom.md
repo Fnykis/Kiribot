@@ -277,49 +277,64 @@ git commit -m "feat(planner): single-finger background pan + dynamic pinch bound
 ## Task 4: Init + breakpoint + resize fitting in main.js
 
 **Files:**
-- Modify: `frontend/src/main.js` — capture `wireGestures` result (the `wireGestures({...})` call) and the `applyResponsiveLayout()` / `mobileMQ` block.
+- Modify: `frontend/src/main.js` — module-level `_gestures`, assign + initial fit in `loadPlanner`, breakpoint/resize handlers in `boot()`.
 
-- [ ] **Step 1: Capture the gesture controller**
+> **Scope note (why a module-level var):** the gesture controller is created in `loadPlanner` (the stage only exists once a concert is loaded), but the `mobileMQ`/`resize` listeners must be registered exactly **once** — that belongs in `boot()`. `boot()` and `loadPlanner` are sibling functions, so a local `const gestures` in `loadPlanner` is **out of scope** in `boot()`; referencing it there throws `ReferenceError` (and on mobile, where `isMobile()` is true, that aborts `boot()` before the loading screen is hidden → app stuck on "Laddar…"). A module-level `_gestures` is the bridge. The initial mobile fit lives in `loadPlanner` (not `boot()`), because at boot the **picker** is on screen, not the planner.
 
-In `frontend/src/main.js`, change the `wireGestures` call to assign its return value:
+- [ ] **Step 1: Declare module-level `_gestures`**
+
+In `frontend/src/main.js`, beside the other module state (`let _accessToken = null;` …):
 
 ```js
-    const gestures = wireGestures({ viewportEl: document.getElementById('stage-container'), stageEl: stage });
+let _gestures = null; // canvas pan/zoom controller; set per planner load (loadPlanner)
 ```
 
-- [ ] **Step 2: Fit on init + breakpoint + resize**
+- [ ] **Step 2: Assign it + initial mobile fit in `loadPlanner`**
 
-In `frontend/src/main.js`, replace the existing `applyResponsiveLayout()` + `mobileMQ.addEventListener('change', ...)` block with:
+In `frontend/src/main.js`, in `loadPlanner` (after `showEl('app')`, so the stage is laid out), replace the `wireGestures({...})` call:
+
+```js
+    _gestures = wireGestures({ viewportEl: document.getElementById('stage-container'), stageEl: stage });
+    // Mobile opens at fit-to-width (whole canvas visible). The stage is already
+    // visible here (showEl('app') above), so clientWidth is laid out.
+    if (isMobile()) _gestures.fit();
+```
+
+- [ ] **Step 3: Breakpoint + resize handlers in `boot()` (registered once)**
+
+In `frontend/src/main.js`, in `boot()`, replace the `applyResponsiveLayout()` + `mobileMQ.addEventListener('change', ...)` block with:
 
 ```js
     // Place buttons for the current breakpoint, and re-place on breakpoint change.
+    // (Initial mobile fit happens in loadPlanner, where the stage exists; the
+    // picker — not the planner — is on screen at boot.)
     applyResponsiveLayout();
-    // Mobile opens at fit-to-width (whole canvas visible).
-    if (isMobile()) gestures.fit();
     mobileMQ.addEventListener('change', () => {
         applyResponsiveLayout();
         closeDrawer();
         const stageEl = document.getElementById('stage');
         if (!stageEl) return;
         // Desktop must never carry a transform; mobile re-fits to fit-to-width.
-        if (isMobile()) gestures.fit();
+        if (isMobile()) { if (_gestures) _gestures.fit(); }
         else clearViewportTransform(stageEl);
     });
     // Re-fit on resize / orientation change while on mobile (rAF-coalesced).
     let _refitRaf = 0;
     window.addEventListener('resize', () => {
-        if (!isMobile()) return;
+        if (!isMobile() || !_gestures) return;
         cancelAnimationFrame(_refitRaf);
-        _refitRaf = requestAnimationFrame(() => gestures.refit());
+        _refitRaf = requestAnimationFrame(() => _gestures.refit());
     });
 ```
 
-- [ ] **Step 3: Production build (compiles the real-API path)**
+- [ ] **Step 4: Production build (compiles the real-API path)**
 
 Run: `cd frontend && npm run build`
 Expected: `✓ built` with no errors. (Prod build has no `VITE_DEV_MODE`, so this exercises the real-API code path per CLAUDE.md prod-first.)
 
-- [ ] **Step 4: Commit**
+> **Build caveat:** an out-of-scope variable reference (the scope bug above) is a **runtime** `ReferenceError`, not a build error — `npm run build` passes regardless. Catching this needs mobile runtime QA (Task 5 Step 2), not just a green build.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add frontend/src/main.js

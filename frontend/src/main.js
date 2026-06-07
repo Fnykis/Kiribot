@@ -248,6 +248,7 @@ let _accessToken = null;
 let _pollHandle = null;
 let _sdk = null;
 let _userId = null;
+let _gestures = null; // canvas pan/zoom controller; set per planner load (loadPlanner)
 const _activeVoiceControls = new Set();
 
 function mountVoiceControls(root) {
@@ -576,7 +577,10 @@ async function loadPlanner(concertId) {
             }
         }
     });
-    const gestures = wireGestures({ viewportEl: document.getElementById('stage-container'), stageEl: stage });
+    _gestures = wireGestures({ viewportEl: document.getElementById('stage-container'), stageEl: stage });
+    // Mobile opens at fit-to-width (whole canvas visible). The stage is already
+    // visible here (showEl('app') above), so clientWidth is laid out.
+    if (isMobile()) _gestures.fit();
 
     const manualBtn = document.getElementById('manual-add-btn');
     const modalEl = document.getElementById('manual-add-modal');
@@ -821,24 +825,24 @@ async function boot() {
     }
 
     // Place buttons for the current breakpoint, and re-place on breakpoint change.
+    // (Initial mobile fit happens in loadPlanner, where the stage exists; the
+    // picker — not the planner — is on screen at boot.)
     applyResponsiveLayout();
-    // Mobile opens at fit-to-width (whole canvas visible).
-    if (isMobile()) gestures.fit();
     mobileMQ.addEventListener('change', () => {
         applyResponsiveLayout();
         closeDrawer();
         const stageEl = document.getElementById('stage');
         if (!stageEl) return;
         // Desktop must never carry a transform; mobile re-fits to fit-to-width.
-        if (isMobile()) gestures.fit();
+        if (isMobile()) { if (_gestures) _gestures.fit(); }
         else clearViewportTransform(stageEl);
     });
     // Re-fit on resize / orientation change while on mobile (rAF-coalesced).
     let _refitRaf = 0;
     window.addEventListener('resize', () => {
-        if (!isMobile()) return;
+        if (!isMobile() || !_gestures) return;
         cancelAnimationFrame(_refitRaf);
-        _refitRaf = requestAnimationFrame(() => gestures.refit());
+        _refitRaf = requestAnimationFrame(() => _gestures.refit());
     });
 
     await fetchAndShowPicker();
