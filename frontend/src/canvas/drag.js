@@ -312,7 +312,6 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                 _groupDrag = getSelectedIds().size > 1 && getSelectedIds().has(userId);
                 setDraggingId(userId);
                 sidebarEl.classList.add('dot-drag-active');
-                beginDrawerDragMode();
                 if (_groupDrag) {
                     stageEl.querySelectorAll('.stage-dot').forEach(dot => {
                         if (getSelectedIds().has(dot.dataset.userId)) {
@@ -367,7 +366,6 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                 const liveRect = stageEl.getBoundingClientRect();
                 const live = clientToStage(liveRect, evt.client.x, evt.client.y);
                 setDraggingPosition(live);
-                updateDrawerDuringDrag(evt.client.x);
             },
             async end(evt) {
                 const userId = evt.target.dataset.userId;
@@ -380,15 +378,17 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                                          evt.client.y >= sidebarRect.top  && evt.client.y < sidebarRect.bottom;
                 try {
                     if (droppedOnSidebar) {
-                        // Dropping on the sidebar cancels the drag (snaps back) — deletion
-                        // now happens only via the radial menu's trash button or Backspace/Delete.
                         dismissRadialMenu();
                         if (_groupDrag) {
+                            const userIds = [...getSelectedIds()];
                             stageEl.querySelectorAll('.stage-dot').forEach(dot => {
                                 if (getSelectedIds().has(dot.dataset.userId)) dot.style.transform = '';
                             });
+                            clearSelectedIds();
+                            for (const uid of userIds) await onRemove({ userId: uid });
                         } else {
                             evt.target.style.transform = '';
+                            await onRemove({ userId });
                         }
                     } else if (_groupDrag) {
                         const stageRect = stageEl.getBoundingClientRect();
@@ -439,7 +439,6 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                     setDraggingId(null);
                     setDraggingPosition(null);
                     sidebarEl.classList.remove('dot-drag-active');
-                    endDrawerDragMode();
                 }
             }
         }

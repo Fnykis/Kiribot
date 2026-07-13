@@ -516,6 +516,32 @@ async function loadPlanner(concertId) {
         instruments = [];
     }
 
+    const placeAndRender = async (payload) => {
+        const updated = await placeMember({ concertId, ...payload }, _accessToken);
+        setEvent(updated);
+        renderAvailable(sidebarInner, updated);
+        renderStage(stage, updated);
+    };
+
+    // Tapping/clicking a name places them at the stage center — interactjs's
+    // drag threshold means this fires only on a genuine tap, not a drag.
+    sidebarInner.addEventListener('click', async (e) => {
+        const row = e.target.closest('.available-row');
+        if (!row) return;
+        try {
+            await placeAndRender({
+                userId: row.dataset.userId,
+                displayName: row.textContent.trim(),
+                instrument: row.dataset.instrument,
+                x: STAGE_W / 2,
+                y: STAGE_H / 2,
+                manuallyAdded: false,
+            });
+        } catch (err) {
+            showTransientError('Kunde inte lägga till medlem: ' + (err.message || err));
+        }
+    });
+
     wireDrag({
         stageEl: stage,
         sidebarEl: sidebar,
@@ -525,12 +551,7 @@ async function loadPlanner(concertId) {
         setDraggingId,
         setDraggingPosition,
         setDraggingSidebarUserId,
-        onPlace: async (payload) => {
-            const updated = await placeMember({ concertId, ...payload }, _accessToken);
-            setEvent(updated);
-            renderAvailable(sidebarInner, updated);
-            renderStage(stage, updated);
-        },
+        onPlace: placeAndRender,
         onMove: async ({ userId, x, y }) => {
             const updated = await moveMember({ concertId, userId, x, y }, _accessToken);
             setEvent(updated);

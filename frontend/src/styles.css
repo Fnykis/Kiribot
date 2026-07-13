@@ -234,6 +234,23 @@ body.pip-mode #pip-overlay {
     padding: 0.95rem;
 }
 
+#sidebar.dot-drag-active::after {
+    content: 'Släpp här för att ta bort';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.85rem;
+    color: #e74c3c;
+    border: 1px dashed rgba(231, 76, 60, 0.4);
+    border-radius: 4px;
+    background: rgba(13, 8, 20, 0.7);
+    pointer-events: none;
+}
+
 .available-section { margin-bottom: 1rem; }
 
 .available-section summary {
@@ -1239,6 +1256,7 @@ body.pip-mode #pip-overlay {
     /* --- Spelningar (concert picker) list --- */
     #picker {
         padding: 1rem;
+        padding-top: calc(1rem + env(safe-area-inset-top));
     }
     .picker-list {
         grid-template-columns: 1fr;
