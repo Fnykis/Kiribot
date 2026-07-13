@@ -17,4 +17,12 @@ function makeFileNameFriendly(str) {
     return newStr;
 }
 
-module.exports = { formatChannelName, makeFileNameFriendly };
+function truncateText(text, maxLength = 200) {
+    const collapsed = text.replace(/\s+/g, ' ').trim();
+    if (collapsed.length <= maxLength) return collapsed;
+    const cut = collapsed.slice(0, maxLength);
+    const lastSpace = cut.lastIndexOf(' ');
+    return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut) + '...';
+}
+
+module.exports = { formatChannelName, makeFileNameFriendly, truncateText };

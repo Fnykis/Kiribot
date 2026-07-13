@@ -5,6 +5,7 @@ const lockFile = require('lockfile');
 const logActivity = require('../../core/logger');
 const { dir_EventsActive, guildId } = require('../../core/constants');
 const { getNickname } = require('../../utils/interactionUtils');
+const { truncateText } = require('../../utils/stringUtils');
 const { getEventJSON } = require('../../features/signup');
 const { getParticipantUserIds, updateInformationMessage } = require('../../features/eventThread');
 
@@ -179,13 +180,20 @@ module.exports = {
 
                 const messages = await thread.messages.fetch({ after: thread.id, limit: 1 });
                 let informationMessageId = null;
+                let informationPreview = '';
                 if (messages.size > 0) {
                     const informationMessage = messages.first();
-                    const isInformationMessage =
-                        informationMessage.content.startsWith('## ℹ️ Information') ||
-                        informationMessage.content.startsWith('Information:');
-                    if (isInformationMessage) {
+                    const prefix = informationMessage.content.startsWith('## ℹ️ Information')
+                        ? '## ℹ️ Information'
+                        : informationMessage.content.startsWith('Information:')
+                            ? 'Information:'
+                            : null;
+                    if (prefix !== null) {
                         informationMessageId = informationMessage.id;
+                        const rawText = informationMessage.content === prefix
+                            ? ''
+                            : informationMessage.content.slice(prefix.length + 1);
+                        informationPreview = rawText ? truncateText(rawText) : '';
                     }
                 }
 
@@ -193,9 +201,11 @@ module.exports = {
                     ? `https://discord.com/channels/${guildId}/${thread.id}/${informationMessageId}`
                     : '';
 
+                const previewBlock = informationPreview ? `\n\n> ${informationPreview}` : '';
+
                 if (notifyType === 'thread') {
                     const notificationText = informationMessageId
-                        ? `📢 Ny information har lagts till för **${eventData.name}**.\n\nKlicka här för att se informationsmeddelandet: ${messageLink}`
+                        ? `📢 Ny information har lagts till för **${eventData.name}**:${previewBlock}\n\nKlicka här för att se informationsmeddelandet: ${messageLink}`
                         : `📢 Ny information har lagts till för **${eventData.name}**.`;
 
                     await thread.send(notificationText);
@@ -208,7 +218,7 @@ module.exports = {
                     const mentions = participantIds.map(id => `<@${id}>`).join(' ');
 
                     const notificationText = informationMessageId
-                        ? `${mentions}\n\n📢 Ny information har lagts till för **${eventData.name}**.\n\nKlicka här för att se informationsmeddelandet: ${messageLink}`
+                        ? `${mentions}\n\n📢 Ny information har lagts till för **${eventData.name}**:${previewBlock}\n\nKlicka här för att se informationsmeddelandet: ${messageLink}`
                         : `${mentions}\n\n📢 Ny information har lagts till för **${eventData.name}**.`;
 
                     await thread.send({
