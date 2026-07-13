@@ -147,7 +147,7 @@ async function postCalendar(update) {
                 description += `__**${month}**__\n\n`;
 
                 // For each event in this month
-                groupedByYear[year][month].forEach(({ event, eventDate }) => {
+                groupedByYear[year][month].forEach(({ event, eventDate }, idx, monthEvents) => {
                     entryIndex++;
                     // Format date
 			let eventDateString = eventDate.toLocaleDateString('en-GB', {
@@ -179,7 +179,10 @@ async function postCalendar(update) {
 					description += `~~${event.name}~~\n`;
 				}
 			}
-			if (entryIndex < totalEntries) description += `\n`;
+			// No blank line between events sharing the same date
+			const nextEventDate = monthEvents[idx + 1]?.eventDate;
+			const sameDayAsNext = nextEventDate && nextEventDate.getTime() === eventDate.getTime();
+			if (entryIndex < totalEntries && !sameDayAsNext) description += `\n`;
                 });
             });
         });
