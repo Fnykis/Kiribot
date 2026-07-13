@@ -4,7 +4,7 @@ const path = require('path');
 const client = require('../core/client');
 const logActivity = require('../core/logger');
 const { ch_Calendar, ch_Signup, ch_Verktyg_Signup, guildId, dir_EventsActive } = require('../core/constants');
-const { parseEventDate } = require('../utils/dateUtils');
+const { parseEventDate, parseSwedishTime } = require('../utils/dateUtils');
 const { moveToArchived } = require('./signup');
 
 async function postCalendar(update) {
@@ -46,7 +46,19 @@ async function postCalendar(update) {
             if (da === null) return -1;
             if (db === null) return 1;
 
-            return da - db;
+            if (da.getTime() !== db.getTime()) return da - db;
+
+            // Same date: sort by time (events with unparseable/missing time go last)
+            const ta = parseSwedishTime(a.time);
+            const tb = parseSwedishTime(b.time);
+            const ma = ta ? ta.hours * 60 + ta.minutes : null;
+            const mb = tb ? tb.hours * 60 + tb.minutes : null;
+
+            if (ma === null && mb === null) return 0;
+            if (ma === null) return 1;
+            if (mb === null) return -1;
+
+            return ma - mb;
 		});
 
         // 2) Filter out past events and group by year, then by month
@@ -93,12 +105,23 @@ async function postCalendar(update) {
         // 3) Build the calendar string with year and monthly subtitles
         let description = '';
 
+        // Count total entries so we know when we're on the last one (skip trailing line break there)
+        let totalEntries = invalidDateEvents.length;
+        Object.keys(groupedByYear).forEach(year => {
+            Object.keys(groupedByYear[year]).forEach(month => {
+                totalEntries += groupedByYear[year][month].length;
+            });
+        });
+        let entryIndex = 0;
+
         // First, handle invalid date events if any
         if (invalidDateEvents.length > 0) {
             description += `\n__**Ogiltigt datum**__\n`;
             invalidDateEvents.forEach(({ event, eventDate }) => {
-                description += `${event.name}\n`;
+                entryIndex++;
                 description += `**Okänd datum**\n`;
+                description += `${event.name}\n`;
+                if (entryIndex < totalEntries) description += `\n`;
             });
         }
 
@@ -121,10 +144,11 @@ async function postCalendar(update) {
             // Iterate through each month in this year
             monthKeys.forEach(month => {
                 // Add the month subtitle as underlined bold
-                description += `__**${month}**__\n`;
+                description += `__**${month}**__\n\n`;
 
                 // For each event in this month
                 groupedByYear[year][month].forEach(({ event, eventDate }) => {
+                    entryIndex++;
                     // Format date
 			let eventDateString = eventDate.toLocaleDateString('en-GB', {
 				month: 'numeric',
@@ -139,22 +163,23 @@ async function postCalendar(update) {
 				let messageLink = `https://discord.com/channels/${guildId}/${ch_Signup}/${event.link}`;
 				// Append event details to the string
 				if (event.active) {
-					description += `[${event.name}](${messageLink})\n`;
 					description += `**${eventDateString}**  ${eventDayString}  -  ${event.time ?? 'Okänt'}\n`;
+					description += `[${event.name}](${messageLink})\n`;
 				} else {
-					description += `~~[${event.name}](${messageLink})~~\n`;
 					description += `~~**${eventDateString}**~~  ${eventDayString}  (avböjd)\n`;
+					description += `~~[${event.name}](${messageLink})~~\n`;
 				}
 			} else {
 				// Append event details to the string
 				if (event.active) {
-					description += `${event.name}\n`;
 					description += `**${eventDateString}**  ${eventDayString}  -  ${event.time ?? 'Okänt'}\n`;
+					description += `${event.name}\n`;
 				} else {
-					description += `~~${event.name}~~\n`;
 					description += `~~**${eventDateString}**  ${eventDayString}~~  (avböjd)\n`;
+					description += `~~${event.name}~~\n`;
 				}
 			}
+			if (entryIndex < totalEntries) description += `\n`;
                 });
             });
         });
