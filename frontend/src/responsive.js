@@ -5,6 +5,11 @@
 export const mobileMQ = window.matchMedia('(max-width: 767px)');
 export function isMobile() { return mobileMQ.matches; }
 
+// Discord's PiP window (minimised activity) shrinks the iframe far below any
+// real phone viewport — short height is the reliable signal, not width alone.
+export const pipMQ = window.matchMedia('(max-width: 260px), (max-height: 220px)');
+export function isPip() { return pipMQ.matches; }
+
 function byId(id) { return document.getElementById(id); }
 
 export function applyResponsiveLayout() {

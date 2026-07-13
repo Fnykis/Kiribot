@@ -1,5 +1,5 @@
 import interact from 'interactjs';
-import { Hand, Drum } from 'lucide';
+import { Hand, Drum, Trash2 } from 'lucide';
 import { STAGE_W, STAGE_H, GRID_STEP, instrumentColor, abbreviateInstrument, edgeEndpoints } from './stage.js';
 import { getViewport, setViewport, getZoom, clampZoom, zoomBounds, focalZoom, applyViewport, resetViewport, fitToWidth, refit } from './viewport.js';
 import { isMobile } from '../responsive.js';
@@ -88,12 +88,28 @@ function dismissRadialMenu() {
     }
 }
 
-function showRadialMenu(userId, cx, cy, stageEl, onMestre, instruments, onChangeInstrument) {
+function showRadialMenu(userId, cx, cy, stageEl, onMestre, instruments, onChangeInstrument, onRemove, onError) {
     dismissRadialMenu();
     _radialMenu = document.createElement('div');
     _radialMenu.className = 'radial-menu';
     _radialMenu.style.left = `${cx}px`;
     _radialMenu.style.top  = `${cy}px`;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'radial-btn danger';
+    removeBtn.title = 'Ta bort';
+    removeBtn.appendChild(createLucideIcon(Trash2));
+    removeBtn.addEventListener('click', async () => {
+        dismissRadialMenu();
+        clearSelectedIds();
+        applySelectionVisual(stageEl);
+        try {
+            if (onRemove) await onRemove({ userId });
+        } catch (err) {
+            if (onError) onError(err);
+        }
+    });
+    _radialMenu.appendChild(removeBtn);
 
     const mestreBtn = document.createElement('button');
     mestreBtn.className = getMestres().has(String(userId)) ? 'radial-btn active' : 'radial-btn';
@@ -364,17 +380,15 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
                                          evt.client.y >= sidebarRect.top  && evt.client.y < sidebarRect.bottom;
                 try {
                     if (droppedOnSidebar) {
+                        // Dropping on the sidebar cancels the drag (snaps back) — deletion
+                        // now happens only via the radial menu's trash button or Backspace/Delete.
                         dismissRadialMenu();
                         if (_groupDrag) {
-                            const userIds = [...getSelectedIds()];
                             stageEl.querySelectorAll('.stage-dot').forEach(dot => {
                                 if (getSelectedIds().has(dot.dataset.userId)) dot.style.transform = '';
                             });
-                            clearSelectedIds();
-                            for (const uid of userIds) await onRemove({ userId: uid });
                         } else {
                             evt.target.style.transform = '';
-                            await onRemove({ userId });
                         }
                     } else if (_groupDrag) {
                         const stageRect = stageEl.getBoundingClientRect();
@@ -591,7 +605,7 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
         if (!el) return;
         const dr = el.getBoundingClientRect();
         setTimeout(() => {
-            showRadialMenu(userId, dr.left + dr.width / 2, dr.top, stageEl, onMestre, instruments, onChangeInstrument);
+            showRadialMenu(userId, dr.left + dr.width / 2, dr.top, stageEl, onMestre, instruments, onChangeInstrument, onRemove, onError);
         }, 300);
     }
 
@@ -610,7 +624,14 @@ export function wireDrag({ stageEl, sidebarEl, sidebarContentEl, getEvent, setDr
         }
         if (evt.target.closest('.mestre-ghost')) return;
         dismissRadialMenu();
-        if (isMobile()) return; // no marquee on touch; panning is the two-finger job
+        if (isMobile()) {
+            // No marquee on touch (panning is the two-finger job) — a tap on
+            // empty canvas just deselects.
+            clearSelectedIds();
+            clearSelectedGhostIds();
+            applySelectionVisual(stageEl);
+            return;
+        }
         _selMoved = false;
         _selStart = { x: evt.clientX, y: evt.clientY };
         setIsSelecting(true);

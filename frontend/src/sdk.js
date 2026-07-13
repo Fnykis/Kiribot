@@ -20,6 +20,15 @@ export async function bootSdk(DiscordSDKClass, clientId, patchUrlMappingsFn) {
         throw new Error('not_in_discord');
     }
 
+    try {
+        // Keeps our page live (so the PiP overlay message renders) instead of
+        // Discord showing a frozen snapshot when the activity is minimised.
+        await sdk.commands.setConfig({ use_interactive_pip: true });
+    } catch {
+        // Unsupported on older clients — non-fatal, PiP overlay still toggles
+        // client-side via viewport size.
+    }
+
     const { code } = await sdk.commands.authorize({
         client_id: clientId,
         response_type: 'code',

@@ -255,8 +255,21 @@ import { wireDrag, wireGestures, applySelectionVisual } from './canvas/drag.js';
 import { openManualAdd } from './sidebar/manualAdd.js';
 import { openStallUppAlla } from './sidebar/stallUppAlla.js';
 import { computeAutoPositions } from './canvas/autoPlace.js';
-import { applyResponsiveLayout, mobileMQ, isMobile } from './responsive.js';
+import { applyResponsiveLayout, mobileMQ, isMobile, pipMQ, isPip } from './responsive.js';
 import { clearViewportTransform } from './canvas/viewport.js';
+
+// Runs independently of boot()/auth so the PiP message still shows even if
+// the app is still loading or auth hasn't resolved.
+function applyPipLayout() {
+    document.body.classList.toggle('pip-mode', isPip());
+}
+applyPipLayout();
+pipMQ.addEventListener('change', applyPipLayout);
+
+// Belt-and-suspenders: user-select:none already blocks text selection, but a
+// rapid double-tap can still trigger a native selection highlight in some
+// mobile webviews.
+document.addEventListener('dblclick', (e) => e.preventDefault());
 
 const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 
