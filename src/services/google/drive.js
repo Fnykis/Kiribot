@@ -314,8 +314,31 @@ async function postDriveLinkToEventThread(eventId, driveUrl, eventName) {
 	}
 }
 
+// Persist a flag on the event JSON so future hourly runs can skip re-checking
+// Discord/Drive for this event entirely, instead of re-deriving "already done"
+// via live API calls every run (which was the source of repeated console spam).
+function markDriveLinkPosted(eventData, fileName) {
+	try {
+		eventData.driveLinkPosted = true;
+		const filePath = path.join(dir_EventsActive, fileName);
+		fs.writeFileSync(filePath, JSON.stringify(eventData));
+	} catch (error) {
+		logActivity(`Error marking Drive link posted for event '${eventData.name}': ${error.message}`);
+	}
+}
+
 async function processPassedEvent(eventData, fileName) {
 	try {
+		// Skip cancelled events (active:false)
+		if (eventData.active === false) {
+			return;
+		}
+
+		// Already fully processed in a previous run - skip without touching Discord/Drive APIs
+		if (eventData.driveLinkPosted) {
+			return;
+		}
+
 		// Check if Drive folder creation is requested for this event
 		if (eventData.createDriveDir === false || typeof eventData.createDriveDir === 'undefined') {
 			logActivity(`Skipping Drive folder creation for event '${eventData.name}' as per event settings.`);
@@ -333,7 +356,7 @@ async function processPassedEvent(eventData, fileName) {
 		// Check if bot has already posted a Google Drive link message in this thread
 		const alreadyPosted = await hasExistingDriveLinkMessage(targetThread);
 		if (alreadyPosted) {
-			// logActivity(`Google Drive link already posted for event '${eventData.name}' (ID: ${eventData.id}). Skipping Drive folder creation and link posting.`);
+			markDriveLinkPosted(eventData, fileName);
 			return;
 		}
 
@@ -348,9 +371,14 @@ async function processPassedEvent(eventData, fileName) {
 		// Only post Drive link to thread if folder was just created (not if it already existed)
 		if (!driveResult.alreadyExists) {
 			const success = await postDriveLinkToEventThread(eventData.id, driveResult.folderUrl, eventData.name);
-			if (!success) {
+			if (success) {
+				markDriveLinkPosted(eventData, fileName);
+			} else {
 				logActivity(`Warning: Drive folder created for event '${eventData.name}' but failed to post link to thread.`);
 			}
+		} else {
+			// Folder already existed from a prior run and the link was presumably already posted
+			markDriveLinkPosted(eventData, fileName);
 		}
 
 		// Note: Archiving logic can be added here or in checkAndProcessPassedEvents() later
