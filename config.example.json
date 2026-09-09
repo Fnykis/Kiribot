@@ -6,5 +6,8 @@
 	"sheetsTab": "[YOUR SHEETS TAB NAME]",
 	"calendarSpreadsheetId": "[YOUR CALENDAR SPREADSHEET ID]",
 	"calendarTab": "[YOUR CALENDAR TAB NAME]",
-	"googleCredsPath": "./src/services/service-account.json"
+	"googleCredsPath": "./src/services/service-account.json",
+	"webOrigin": "https://kiribot.ollelindberg.se",
+	"webRedirectUri": "https://kiribot.ollelindberg.se/yearwheel/callback.html",
+	"sessionSecret": "GENERATE_WITH_crypto.randomBytes(32).toString('base64url')"
 }

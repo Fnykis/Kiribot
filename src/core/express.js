@@ -10,7 +10,15 @@ const createTokenRoute = require('../routes/api/token');
 const createMeRoute = require('../routes/api/me');
 const createConcertsRoute = require('../routes/api/concerts');
 const createStateRoute = require('../routes/api/state');
-const { dir_EventsActive } = require('./constants');
+const createWebSession = require('../services/webSession');
+const createWebAuthMiddleware = require('../middleware/webAuth');
+const createMemberGroupsService = require('../services/memberGroups');
+const createArshjulStore = require('../services/arshjulStore');
+const createWebTokenRoute = require('../routes/api/web/token');
+const createWebLogoutRoute = require('../routes/api/web/logout');
+const createWebMeRoute = require('../routes/api/web/me');
+const createWebYearwheelRoute = require('../routes/api/web/yearwheel');
+const { dir_EventsActive, hex_instr, hex_arbet, role_moderator } = require('./constants');
 const { parseEventDate } = require('../utils/dateUtils');
 const {
     createPlaceRoute,
@@ -50,6 +58,20 @@ function buildApp({ client, config }) {
 
     const authMiddleware = createAuthMiddleware({ oauth, guildMember, logger });
 
+    const webSession = createWebSession({ secret: config.sessionSecret });
+    const webAuth = createWebAuthMiddleware({ webSession });
+
+    const memberGroups = createMemberGroupsService({
+        client,
+        guildId: config.guildId,
+        hexInstr: hex_instr,
+        hexArbet: hex_arbet,
+        moderatorRoleId: role_moderator,
+        cache: createTtlCache({ ttlMs: 60_000 })
+    });
+
+    const arshjulStore = createArshjulStore({ filePath: 'src/data/arshjul.json' });
+
     const lineupLimiter = rateLimit({
         windowMs: 1000,
         limit: 30,
@@ -61,8 +83,9 @@ function buildApp({ client, config }) {
 
     const app = express();
     app.use(cors({
-        origin: /\.discordsays\.com$/,
+        origin: [/\.discordsays\.com$/, config.webOrigin],
         methods: ['GET', 'POST'],
+        credentials: true,
     }));
     app.use(express.json({ limit: '64kb' }));
 
@@ -70,6 +93,14 @@ function buildApp({ client, config }) {
     app.get('/api/me', authMiddleware, createMeRoute());
     app.get('/api/concerts', authMiddleware,
         createConcertsRoute({ activeDir: dir_EventsActive, parseEventDate, logger }));
+
+    app.post('/api/web/token', asyncRoute(createWebTokenRoute({
+        oauth, webSession, redirectUri: config.webRedirectUri, logger
+    })));
+    app.post('/api/web/logout', asyncRoute(createWebLogoutRoute()));
+    app.get('/api/web/me', webAuth, asyncRoute(createWebMeRoute({ memberGroups, logger })));
+    app.get('/api/web/yearwheel/:roleId', webAuth,
+        asyncRoute(createWebYearwheelRoute({ memberGroups, arshjulStore, logger })));
 
     app.get('/api/state/:concertId', authMiddleware,
         asyncRoute(createStateRoute({ lineupStore })));
