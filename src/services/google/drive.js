@@ -521,6 +521,11 @@ async function backupJsonFiles() {
 				subfolderName: 'instrumentList',
 				localPath: path.join(__dirname, '../../data/instrumentList.json'),
 				backupFileName: `${dateString}.json`
+			},
+			{
+				subfolderName: 'arshjul',
+				localPath: path.join(__dirname, '../../data/arshjul.json'),
+				backupFileName: `${dateString}.json`
 			}
 		];
 
