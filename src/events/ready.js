@@ -1,9 +1,8 @@
 const { Events } = require('discord.js');
-const config = require('../../config.json');
 const logActivity = require('../core/logger');
 const { cleanupOldLogs } = require('../core/logger');
 const { cleanupOldUiMetricsLogs } = require('../core/uiMetricsLogger');
-const { ch_LineupVoice, ch_YourProfile, guildId } = require('../core/constants');
+const { ch_LineupVoice, guildId } = require('../core/constants');
 const { loadPermissions } = require('../services/permissions');
 const { scheduleDailyTask, scheduleHourlyTask, scheduleTwiceDailyTask } = require('../services/scheduler');
 const { cleanupLocks } = require('../services/lockUtils');
@@ -13,7 +12,6 @@ const { checkRoles, postNyckelList } = require('../features/lists');
 const { updateDetails } = require('../features/details');
 const { postCalendar } = require('../features/calendar');
 const { verktygSignup, updateSignupButtonMessage } = require('../features/signup');
-const postArshjulPanel = require('../features/arshjulPanel');
 
 module.exports = {
 	name: Events.ClientReady,
@@ -45,20 +43,6 @@ module.exports = {
 			}
 		} catch (err) {
 			console.error('ready: lineup unmute sweep failed', err);
-		}
-		if (config.webOrigin) {
-			try {
-				await postArshjulPanel({
-					client: readyClient,
-					channelId: ch_YourProfile,
-					url: `${config.webOrigin}/yearwheel/`,
-					logger: logActivity
-				});
-			} catch (err) {
-				logActivity(`arshjulPanel failed: ${err.message}`);
-			}
-		} else {
-			logActivity('config.webOrigin missing — skipping arshjulPanel post');
 		}
 		logActivity(`Ready! Logged in as ${readyClient.user.tag}`);
 		// testFunction: delay updateSignupButtonMessage by 5 seconds on startup

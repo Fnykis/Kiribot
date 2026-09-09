@@ -545,6 +545,14 @@ async function updateSignupButtonMessage() {
 				.setLabel('Hur gör jag?')
 				.setStyle(ButtonStyle.Secondary);
 
+			// Link button to the årshjul site — DO NOT enable until explicitly approved.
+			// See docs/yearwheel/DEPLOY.md. Uncomment the button and add it to
+			// row1_buttons's addComponents(...) call when yearwheel is ready to go live.
+			// const btn_arshjul = new ButtonBuilder()
+			// 	.setLabel('Årshjul')
+			// 	.setStyle(ButtonStyle.Link)
+			// 	.setURL('https://kiribot.ollelindberg.se/yearwheel/');
+
 			const row1_buttons = new ActionRowBuilder()
 				.addComponents(btn_showSignups, btn_signupverktyg, btn_signupHowTo);
 

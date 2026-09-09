@@ -11,6 +11,7 @@ tunnel-credentials.json
 # docs (ignore everything except superpowers subtree)
 /docs/*
 !/docs/superpowers/
+!/docs/yearwheel/
 
 # local one-time script (runtime only)
 src/one-time/oneTimeFunction.js
