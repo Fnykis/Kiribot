@@ -213,6 +213,38 @@ body.pip-mode #pip-overlay {
 .confirm-btn.danger:hover { background: #e74c3c; color: #fff; }
 .confirm-btn.primary { background: rgba(88, 165, 117, 0.18); border-color: #58a575; color: #b6e3c4; }
 .confirm-btn.primary:hover { background: #58a575; color: #fff; }
+.confirm-btn.subtle { background: transparent; border-color: transparent; color: var(--text-muted); }
+.confirm-btn.subtle:hover { background: var(--bg-hover); border-color: var(--border); color: var(--text-primary); }
+
+/* Save fallback: the rendered PNG shown for long-press / right-click saving. */
+.image-preview-box { max-width: min(92vw, 640px); }
+.image-preview {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 60vh;
+    object-fit: contain;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-stage);
+    -webkit-touch-callout: default;   /* body sets none; the save menu needs it */
+    user-select: auto;
+    -webkit-user-select: auto;
+    touch-action: auto;
+}
+
+/* Choice list (camera: send / copy / save / cancel) — full-width rows read
+   better than a cramped right-aligned button row, and stay tappable on mobile. */
+.confirm-actions.stacked {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+}
+.confirm-actions.stacked .confirm-btn {
+    width: 100%;
+    min-height: 42px;
+    text-align: center;
+}
 
 #sidebar.collapsed {
     width: 0;
@@ -298,6 +330,9 @@ body.pip-mode #pip-overlay {
     border: 1px solid var(--border);
     margin-bottom: 0.25rem;
     user-select: none;
+    /* Vertical touch scrolling of the list stays native; sideways drags (row ->
+       stage) reach interact.js instead of being swallowed as a scroll. */
+    touch-action: pan-y;
     color: var(--text-primary);
     transition: background 0.15s, border-color 0.15s;
 }
@@ -317,6 +352,11 @@ body.pip-mode #pip-overlay {
     justify-content: center;
     background: var(--bg-stage);
     overflow: hidden;
+    /* All pointer gestures on the canvas are ours (drag, marquee, pan/pinch).
+       Without this the browser claims touch drags as scroll/zoom and fires
+       pointercancel, which kills interact.js drags on touch-capable desktops
+       (e.g. a Lenovo Yoga), where the mobile media query does not apply. */
+    touch-action: none;
 }
 
 #stage {
@@ -397,6 +437,7 @@ body.pip-mode #pip-overlay {
     border-radius: 50%;
     transform: translate(-50%, -50%);
     cursor: grab !important;
+    touch-action: none;   /* dot dragging is ours on every touch device */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -841,6 +882,7 @@ body.pip-mode #pip-overlay {
     border-radius: 50%;
     transform: translate(-50%, -50%);
     cursor: grab !important;
+    touch-action: none;
     opacity: 0.4;
     outline: 0.2cqw dashed var(--border-mestre);
     outline-offset: 0.1cqw;
@@ -1224,7 +1266,6 @@ body.pip-mode #pip-overlay {
         width: 100%;
         height: calc(100vh - var(--header-h) - var(--safe-top));   /* vh fallback */
         height: calc(100dvh - var(--header-h) - var(--safe-top));
-        touch-action: none;       /* gestures handled by interact.gesturable */
     }
     #stage {
         position: absolute;

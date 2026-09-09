@@ -337,6 +337,19 @@ function formatErrDetail(err) {
     return lines.length ? lines.join('\n') : String(err);
 }
 
+// "Kiriaka 12/4 – Storkyrkan" -> "kiriaka-12-4-storkyrkan-2026-09-09.png"
+function lineupImageFilename(titleText) {
+    const slug = String(titleText || 'uppstallning')
+        .toLowerCase()
+        .replace(/[åä]/g, 'a').replace(/ö/g, 'o')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 60) || 'uppstallning';
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${slug}-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.png`;
+}
+
 function showTransientError(message) {
     const existing = document.getElementById('transient-error');
     if (existing) existing.remove();
@@ -376,7 +389,9 @@ function openConfirm(modalEl, { message, confirmLabel = 'Bekräfta', cancelLabel
     modalEl.appendChild(box);
 }
 
-function openShareConfirm(modalEl, { message, onConfirm }) {
+// Picks what to do with a freshly rendered lineup image: send it to the
+// Harmonia channel, copy it to the clipboard, or save it as a file.
+function openImageActions(modalEl, { message, onSend, onCopy, onSave }) {
     modalEl.replaceChildren();
     modalEl.style.display = 'flex';
     const box = document.createElement('div');
@@ -385,36 +400,103 @@ function openShareConfirm(modalEl, { message, onConfirm }) {
     msg.className = 'confirm-msg';
     msg.textContent = message;
     const actions = document.createElement('div');
-    actions.className = 'confirm-actions';
-    const nej = document.createElement('button');
-    nej.type = 'button';
-    nej.className = 'confirm-btn';
-    nej.textContent = 'Nej';
-    const ja = document.createElement('button');
-    ja.type = 'button';
-    ja.className = 'confirm-btn primary';
-    ja.textContent = 'Ja';
+    actions.className = 'confirm-actions stacked';
 
     const close = () => {
         modalEl.style.display = 'none';
         modalEl.replaceChildren();
         document.removeEventListener('keydown', onKey, true);
     };
-    const confirm = async () => { close(); if (onConfirm) await onConfirm(); };
+    const run = async (fn) => { close(); if (fn) await fn(); };
     const onKey = (e) => {
         if (e.key === 'Escape') { e.preventDefault(); close(); }
-        else if (e.key === 'Enter') { e.preventDefault(); confirm(); }
+        else if (e.key === 'Enter') { e.preventDefault(); run(onSend); }
     };
 
-    nej.onclick = close;
-    ja.onclick = confirm;
+    const mkBtn = (label, cls, handler) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = cls;
+        b.textContent = label;
+        b.onclick = () => run(handler);
+        return b;
+    };
+
+    const send = mkBtn('Skicka till Harmonia', 'confirm-btn primary', onSend);
+    const copy = mkBtn('Kopiera bild', 'confirm-btn', onCopy);
+    const save = mkBtn('Spara bild', 'confirm-btn', onSave);
+    const cancel = mkBtn('Avbryt', 'confirm-btn subtle', null);
+
     modalEl.onclick = (e) => { if (e.target === modalEl) close(); };
     document.addEventListener('keydown', onKey, true);
 
-    actions.append(nej, ja);
+    actions.append(send, copy, save, cancel);
     box.append(msg, actions);
     modalEl.appendChild(box);
-    ja.focus();
+    send.focus();
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+// Last-resort save path. Discord's Activity iframe is sandboxed without
+// allow-downloads (their attribute, not ours), so an <a download> click can be
+// dropped silently. Showing the PNG lets the user save it through the native
+// image context menu / long-press instead.
+function openImagePreview(modalEl, blob, filename) {
+    modalEl.replaceChildren();
+    modalEl.style.display = 'flex';
+    const url = URL.createObjectURL(blob);
+    const box = document.createElement('div');
+    box.className = 'confirm-box image-preview-box';
+
+    const msg = document.createElement('p');
+    msg.className = 'confirm-msg';
+    msg.textContent = 'Långtryck (eller högerklicka) på bilden och välj "Spara bild" — Discord blockerar vanliga nedladdningar.';
+
+    const img = document.createElement('img');
+    img.className = 'image-preview';
+    img.src = url;
+    img.alt = filename;
+
+    const actions = document.createElement('div');
+    actions.className = 'confirm-actions';
+    // No-op where Discord's sandbox blocks downloads, works if they ever allow it.
+    const download = document.createElement('button');
+    download.type = 'button';
+    download.className = 'confirm-btn primary';
+    download.textContent = 'Ladda ner';
+    download.onclick = () => {
+        try { downloadBlob(blob, filename); }
+        catch (err) { console.warn('download from preview failed', err); }
+    };
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'confirm-btn';
+    close.textContent = 'Stäng';
+
+    const dismiss = () => {
+        modalEl.style.display = 'none';
+        modalEl.replaceChildren();
+        URL.revokeObjectURL(url);
+        document.removeEventListener('keydown', onKey, true);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); dismiss(); } };
+    close.onclick = dismiss;
+    modalEl.onclick = (e) => { if (e.target === modalEl) dismiss(); };
+    document.addEventListener('keydown', onKey, true);
+
+    actions.append(close, download);
+    box.append(msg, img, actions);
+    modalEl.appendChild(box);
 }
 
 function hideEl(id) {
@@ -738,38 +820,71 @@ async function loadPlanner(concertId) {
                 stage.classList.remove('no-grid');
             }
 
-            const flashAndToast = () => {
+            const flashAndToast = (text) => {
                 cameraBtn.classList.add('flash');
                 setTimeout(() => cameraBtn.classList.remove('flash'), 400);
                 const toast = document.getElementById('camera-toast');
                 if (toast) {
+                    if (text) toast.textContent = text;
                     toast.classList.add('show');
                     clearTimeout(toast._hideTimer);
                     toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
                 }
             };
 
-            if (isDevMode) {
-                try {
-                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                    flashAndToast();
-                } catch (err) {
-                    console.warn('dev clipboard write failed', err);
-                    showTransientError('Klippbord misslyckades: ' + (err.message || err));
-                }
-                return;
-            }
-
-            openShareConfirm(shareModal, {
-                message: 'Vill du skicka den här uppställningen som bild till Harmonia-kanalen?',
-                onConfirm: async () => {
+            openImageActions(shareModal, {
+                message: 'Vad vill du göra med bilden?',
+                onSend: async () => {
                     try {
                         await shareLineupImage(blob, concertId, _accessToken);
-                        flashAndToast();
+                        flashAndToast('Bild skickad till Harmonia!');
                     } catch (err) {
                         console.warn('share image failed', err && err.name, err && err.status, err && err.message, err && err.body, err);
                         const detail = err && (err.status ? `${err.status} ${err.message || ''}` : (err.message || String(err)));
                         showTransientError('Kunde inte skicka bilden: ' + detail);
+                    }
+                },
+                onCopy: async () => {
+                    try {
+                        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                        flashAndToast('Bild sparad till urklipp!');
+                    } catch (err) {
+                        console.warn('clipboard write failed', err);
+                        showTransientError('Klippbord misslyckades: ' + (err.message || err));
+                    }
+                },
+                onSave: async () => {
+                    const filename = lineupImageFilename(titleText);
+
+                    // 1. Native share sheet (mobile Discord webview): its "Save
+                    //    image" entry is not affected by the iframe sandbox.
+                    try {
+                        const file = new File([blob], filename, { type: 'image/png' });
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({ files: [file], title: titleText || 'Uppställning' });
+                            return; // the OS sheet is its own confirmation
+                        }
+                    } catch (err) {
+                        if (err && err.name === 'AbortError') return; // user dismissed the sheet
+                        console.warn('share sheet failed, falling back to download', err);
+                    }
+
+                    // 2. Framed (= running as a Discord Activity): a blocked
+                    //    download fails silently — no exception, no event — so
+                    //    do not rely on it. Show the PNG instead; the preview
+                    //    still offers a download button for clients that allow it.
+                    if (window.self !== window.top) {
+                        openImagePreview(shareModal, blob, filename);
+                        return;
+                    }
+
+                    // 3. Standalone browser (dev): plain download.
+                    try {
+                        downloadBlob(blob, filename);
+                        flashAndToast('Bild sparad!');
+                    } catch (err) {
+                        console.warn('save image failed', err);
+                        openImagePreview(shareModal, blob, filename);
                     }
                 }
             });
