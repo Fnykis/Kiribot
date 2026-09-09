@@ -61,11 +61,12 @@ export async function leaveVoice(token) {
     return isDevMode ? dev().leaveVoice() : post('/api/voice/leave', {}, token);
 }
 
-export async function shareLineupImage(blob, concertId, token) {
+// target: 'channel' (Harmonia) | 'dm' (bot DMs the image to the caller).
+export async function shareLineupImage(blob, concertId, token, target = 'channel') {
     if (isDevMode) {
-        console.info('[devMode] shareLineupImage', { concertId, size: blob.size });
+        console.info('[devMode] shareLineupImage', { concertId, target, size: blob.size });
         return { ok: true };
     }
-    const qs = new URLSearchParams({ concertId }).toString();
+    const qs = new URLSearchParams({ concertId, target }).toString();
     return postBlob(`/api/lineup/share-image?${qs}`, blob, 'image/png', token);
 }

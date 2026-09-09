@@ -38,11 +38,47 @@ module.exports = function createShareLineupImageRoute({ client, lineupStore, log
                 return res.status(400).json({ error: 'not_png' });
             }
 
+            const target = String(req.query.target || 'channel').trim();
+            if (target !== 'channel' && target !== 'dm') {
+                return res.status(400).json({ error: 'bad_target' });
+            }
+            if (target === 'dm' && !req.user) {
+                return res.status(401).json({ error: 'unauthorized' });
+            }
+
             const rawName = sanitizeTitle(event.name || 'Uppställning');
             const rawDate = sanitizeTitle(event.date || '');
             const fileSafe = (event.name || 'lineup').replace(/[^\wåäöÅÄÖ0-9-]+/g, '_').slice(0, 80) || 'lineup';
             const userTag = req.user ? `<@${req.user.id}>` : 'Någon';
             const titleLine = rawDate ? `**${rawName}** — ${rawDate}` : `**${rawName}**`;
+            const files = [{ attachment: buf, name: `${fileSafe}.png` }];
+
+            // The Activity iframe is sandboxed: no clipboard, no downloads, no
+            // image context menu. A DM is the only way to hand the user a file
+            // they can actually save.
+            if (target === 'dm') {
+                let user;
+                try {
+                    user = await client.users.fetch(req.user.id);
+                } catch (err) {
+                    if (logger) logger('shareLineupImage: user fetch failed', req.user.id, err);
+                    return res.status(500).json({ error: 'user_unavailable' });
+                }
+                try {
+                    await user.send({
+                        content: `Här är din uppställning: ${titleLine}`,
+                        files,
+                        allowedMentions: { parse: [] }
+                    });
+                } catch (err) {
+                    // 50007 = "Cannot send messages to this user" (DMs closed).
+                    if (err && err.code === 50007) {
+                        return res.status(403).json({ error: 'dm_blocked' });
+                    }
+                    throw err;
+                }
+                return res.json({ ok: true });
+            }
 
             const channel = await client.channels.fetch(HARMONIA_CHANNEL_ID);
             if (!channel || typeof channel.send !== 'function') {
@@ -52,7 +88,7 @@ module.exports = function createShareLineupImageRoute({ client, lineupStore, log
 
             await channel.send({
                 content: `${userTag} delade en uppställning: ${titleLine}`,
-                files: [{ attachment: buf, name: `${fileSafe}.png` }],
+                files,
                 allowedMentions: { parse: [] }
             });
 

@@ -337,19 +337,6 @@ function formatErrDetail(err) {
     return lines.length ? lines.join('\n') : String(err);
 }
 
-// "Kiriaka 12/4 – Storkyrkan" -> "kiriaka-12-4-storkyrkan-2026-09-09.png"
-function lineupImageFilename(titleText) {
-    const slug = String(titleText || 'uppstallning')
-        .toLowerCase()
-        .replace(/[åä]/g, 'a').replace(/ö/g, 'o')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 60) || 'uppstallning';
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${slug}-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.png`;
-}
-
 function showTransientError(message) {
     const existing = document.getElementById('transient-error');
     if (existing) existing.remove();
@@ -389,9 +376,11 @@ function openConfirm(modalEl, { message, confirmLabel = 'Bekräfta', cancelLabel
     modalEl.appendChild(box);
 }
 
-// Picks what to do with a freshly rendered lineup image: send it to the
-// Harmonia channel, copy it to the clipboard, or save it as a file.
-function openImageActions(modalEl, { message, onSend, onCopy, onSave }) {
+// Picks where a freshly rendered lineup image goes: the Harmonia channel, or a
+// DM from the bot to the caller. Copy/download are impossible here — Discord's
+// Activity iframe blocks the Clipboard API by permissions policy, blocks
+// downloads by sandbox, and suppresses the image context menu.
+function openImageActions(modalEl, { message, onSend, onDm }) {
     modalEl.replaceChildren();
     modalEl.style.display = 'flex';
     const box = document.createElement('div');
@@ -422,81 +411,17 @@ function openImageActions(modalEl, { message, onSend, onCopy, onSave }) {
         return b;
     };
 
-    const send = mkBtn('Skicka till Harmonia', 'confirm-btn primary', onSend);
-    const copy = mkBtn('Kopiera bild', 'confirm-btn', onCopy);
-    const save = mkBtn('Spara bild', 'confirm-btn', onSave);
+    const send = mkBtn('Skicka till Harmonia', 'confirm-btn', onSend);
+    const dm = mkBtn('Skicka till mig (DM)', 'confirm-btn', onDm);
     const cancel = mkBtn('Avbryt', 'confirm-btn subtle', null);
 
     modalEl.onclick = (e) => { if (e.target === modalEl) close(); };
     document.addEventListener('keydown', onKey, true);
 
-    actions.append(send, copy, save, cancel);
+    actions.append(send, dm, cancel);
     box.append(msg, actions);
     modalEl.appendChild(box);
     send.focus();
-}
-
-function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
-
-// Last-resort save path. Discord's Activity iframe is sandboxed without
-// allow-downloads (their attribute, not ours), so an <a download> click can be
-// dropped silently. Showing the PNG lets the user save it through the native
-// image context menu / long-press instead.
-function openImagePreview(modalEl, blob, filename) {
-    modalEl.replaceChildren();
-    modalEl.style.display = 'flex';
-    const url = URL.createObjectURL(blob);
-    const box = document.createElement('div');
-    box.className = 'confirm-box image-preview-box';
-
-    const msg = document.createElement('p');
-    msg.className = 'confirm-msg';
-    msg.textContent = 'Långtryck (eller högerklicka) på bilden och välj "Spara bild" — Discord blockerar vanliga nedladdningar.';
-
-    const img = document.createElement('img');
-    img.className = 'image-preview';
-    img.src = url;
-    img.alt = filename;
-
-    const actions = document.createElement('div');
-    actions.className = 'confirm-actions';
-    // No-op where Discord's sandbox blocks downloads, works if they ever allow it.
-    const download = document.createElement('button');
-    download.type = 'button';
-    download.className = 'confirm-btn primary';
-    download.textContent = 'Ladda ner';
-    download.onclick = () => {
-        try { downloadBlob(blob, filename); }
-        catch (err) { console.warn('download from preview failed', err); }
-    };
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'confirm-btn';
-    close.textContent = 'Stäng';
-
-    const dismiss = () => {
-        modalEl.style.display = 'none';
-        modalEl.replaceChildren();
-        URL.revokeObjectURL(url);
-        document.removeEventListener('keydown', onKey, true);
-    };
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); dismiss(); } };
-    close.onclick = dismiss;
-    modalEl.onclick = (e) => { if (e.target === modalEl) dismiss(); };
-    document.addEventListener('keydown', onKey, true);
-
-    actions.append(close, download);
-    box.append(msg, img, actions);
-    modalEl.appendChild(box);
 }
 
 function hideEl(id) {
@@ -844,47 +769,18 @@ async function loadPlanner(concertId) {
                         showTransientError('Kunde inte skicka bilden: ' + detail);
                     }
                 },
-                onCopy: async () => {
+                onDm: async () => {
                     try {
-                        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                        flashAndToast('Bild sparad till urklipp!');
+                        await shareLineupImage(blob, concertId, _accessToken, 'dm');
+                        flashAndToast('Bild skickad i DM!');
                     } catch (err) {
-                        console.warn('clipboard write failed', err);
-                        showTransientError('Klippbord misslyckades: ' + (err.message || err));
-                    }
-                },
-                onSave: async () => {
-                    const filename = lineupImageFilename(titleText);
-
-                    // 1. Native share sheet (mobile Discord webview): its "Save
-                    //    image" entry is not affected by the iframe sandbox.
-                    try {
-                        const file = new File([blob], filename, { type: 'image/png' });
-                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            await navigator.share({ files: [file], title: titleText || 'Uppställning' });
-                            return; // the OS sheet is its own confirmation
+                        console.warn('dm image failed', err && err.name, err && err.status, err && err.message, err && err.body, err);
+                        if (err && err.message === 'dm_blocked') {
+                            showTransientError('Boten kan inte DM:a dig. Slå på direktmeddelanden från serverns medlemmar i Discords sekretessinställningar.');
+                            return;
                         }
-                    } catch (err) {
-                        if (err && err.name === 'AbortError') return; // user dismissed the sheet
-                        console.warn('share sheet failed, falling back to download', err);
-                    }
-
-                    // 2. Framed (= running as a Discord Activity): a blocked
-                    //    download fails silently — no exception, no event — so
-                    //    do not rely on it. Show the PNG instead; the preview
-                    //    still offers a download button for clients that allow it.
-                    if (window.self !== window.top) {
-                        openImagePreview(shareModal, blob, filename);
-                        return;
-                    }
-
-                    // 3. Standalone browser (dev): plain download.
-                    try {
-                        downloadBlob(blob, filename);
-                        flashAndToast('Bild sparad!');
-                    } catch (err) {
-                        console.warn('save image failed', err);
-                        openImagePreview(shareModal, blob, filename);
+                        const detail = err && (err.status ? `${err.status} ${err.message || ''}` : (err.message || String(err)));
+                        showTransientError('Kunde inte skicka bilden: ' + detail);
                     }
                 }
             });

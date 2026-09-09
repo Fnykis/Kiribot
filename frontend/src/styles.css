@@ -216,24 +216,7 @@ body.pip-mode #pip-overlay {
 .confirm-btn.subtle { background: transparent; border-color: transparent; color: var(--text-muted); }
 .confirm-btn.subtle:hover { background: var(--bg-hover); border-color: var(--border); color: var(--text-primary); }
 
-/* Save fallback: the rendered PNG shown for long-press / right-click saving. */
-.image-preview-box { max-width: min(92vw, 640px); }
-.image-preview {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 60vh;
-    object-fit: contain;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: var(--bg-stage);
-    -webkit-touch-callout: default;   /* body sets none; the save menu needs it */
-    user-select: auto;
-    -webkit-user-select: auto;
-    touch-action: auto;
-}
-
-/* Choice list (camera: send / copy / save / cancel) — full-width rows read
+/* Choice list (camera: Harmonia / DM / cancel) — full-width rows read
    better than a cramped right-aligned button row, and stay tappable on mobile. */
 .confirm-actions.stacked {
     flex-direction: column;
