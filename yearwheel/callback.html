@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loggar in…</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+  <main id="app">Loggar in…</main>
+  <script type="module">
+    import { handleCallback } from './src/callback.js';
+    handleCallback(window.location.search, document.getElementById('app'));
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+:root { --bg: #1e1f22; --fg: #f2f3f5; --accent: #5865f2; --muted: #b5bac1; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 1.5rem; font-family: system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+main { max-width: 40rem; margin: 0 auto; }
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2rem; }
+.notice { line-height: 1.5; }
+.group-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
+.group-link { display: block; padding: .9rem 1rem; background: #2b2d31; color: var(--fg); border-radius: .5rem; text-decoration: none; }
+.group-link:hover { background: #35373c; }
+.btn { margin-top: 2rem; padding: .75rem 1.25rem; background: var(--accent); color: #fff; border: 0; border-radius: .5rem; font-size: 1rem; cursor: pointer; }
+.entry-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
+.entry { padding: .9rem 1rem; background: #2b2d31; border-radius: .5rem; }
+.entry-date { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: .75rem; }
