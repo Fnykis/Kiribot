@@ -4,13 +4,21 @@
 
 Discord.js v14 bot for Kiriaka music org. Modular `src/` structure (see auto-memory). `frontend/` = Discord Activity (lineup planner), Vite app.
 
-## ALWAYS: report non-frontend file changes
+## ALWAYS: flag anything that touches the live Discord server
 
-At the END of every response where you created, modified, or deleted any file **outside `frontend/`** (excluding anything under `docs/`), finish the message with:
+This bot runs against Kiriaka's live Discord server — dozens of real members, always on. Any action that will (or will on the next bot restart/deploy) post a message, DM someone, ping a role, edit/delete a message, or otherwise do something visible in the live server **must be called out explicitly, up front, before it happens** — not buried mid-explanation, not left implicit.
 
-**Files touched outside /frontend:**
-- `path/one`
-- `path/two`
+State plainly: what will happen, when (e.g. "next bot restart," "as soon as this config key is set"), and who sees it (channel name, DM, everyone).
+
+Applies to: any `channel.send`/DM, any permanent panel/button message (e.g. `postArshjulPanel`), any role/permission change, any slash-command registration that changes visible bot behavior, and any manual deploy/config step that will trigger one of these on the real server. Say it before the user acts, not after.
+
+## ALWAYS: report non-frontend and non-yearwheel file changes
+
+At the END of every response where you created, modified, or deleted any file **outside `frontend/`** and **outside `yearwheel/`** (excluding anything under `docs/`), finish the message with:
+
+**Files touched outside /frontend and /yearwheel:**
+- `path/file_one`
+- `path/file_two`
 
 If no such file was touched, omit this section entirely. `docs/` and `tests/` changes never count. This applies regardless of task type (code, config, commits).
 
