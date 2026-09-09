@@ -1,14 +1,15 @@
 function createOAuthService({ fetch, clientId, clientSecret, redirectUri, verifyCache, logger }) {
-    async function exchangeCode(code) {
+    async function exchangeCode(code, redirectUriOverride) {
+        const effectiveRedirectUri = redirectUriOverride || redirectUri;
         const body = new URLSearchParams({
             client_id: clientId,
             client_secret: clientSecret,
             grant_type: 'authorization_code',
             code,
-            redirect_uri: redirectUri
+            redirect_uri: effectiveRedirectUri
         }).toString();
 
-        if (logger) logger('token exchange payload:', { client_id: clientId, redirect_uri: redirectUri, code });
+        if (logger) logger('token exchange payload:', { client_id: clientId, redirect_uri: effectiveRedirectUri, code });
         const res = await fetch('https://discord.com/api/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

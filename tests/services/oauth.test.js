@@ -103,3 +103,36 @@ test('verifyToken throws on 401', async () => {
     });
     await assert.rejects(() => oauth.verifyToken('bad'), /401/);
 });
+
+test('exchangeCode uses the configured redirect_uri when no override is given', async () => {
+    let sentBody = null;
+    const oauth = createOAuthService({
+        fetch: async (_url, opts) => { sentBody = opts.body; return { ok: true, json: async () => ({ access_token: 't' }) }; },
+        clientId: 'cid',
+        clientSecret: 'csecret',
+        redirectUri: 'https://activity.example/callback',
+        verifyCache: { get: () => undefined, set: () => {} }
+    });
+
+    await oauth.exchangeCode('the-code');
+
+    const params = new URLSearchParams(sentBody);
+    assert.strictEqual(params.get('redirect_uri'), 'https://activity.example/callback');
+});
+
+test('exchangeCode uses the override redirect_uri when one is given', async () => {
+    let sentBody = null;
+    const oauth = createOAuthService({
+        fetch: async (_url, opts) => { sentBody = opts.body; return { ok: true, json: async () => ({ access_token: 't' }) }; },
+        clientId: 'cid',
+        clientSecret: 'csecret',
+        redirectUri: 'https://activity.example/callback',
+        verifyCache: { get: () => undefined, set: () => {} }
+    });
+
+    await oauth.exchangeCode('the-code', 'https://kiribot.ollelindberg.se/yearwheel/callback.html');
+
+    const params = new URLSearchParams(sentBody);
+    assert.strictEqual(params.get('redirect_uri'), 'https://kiribot.ollelindberg.se/yearwheel/callback.html');
+    assert.strictEqual(params.get('code'), 'the-code');
+});
