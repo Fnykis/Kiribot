@@ -7,7 +7,9 @@ async function postArshjulPanel({ client, channelId, url, logger }) {
         return 'skipped';
     }
 
-    const messages = await channel.messages.fetch();
+    // Explicit dedup-scan window (Discord's default limit is undocumented) — see the
+    // ch_YourProfile "last message" caveat noted on postYourProfile in src/features/profile.js.
+    const messages = await channel.messages.fetch({ limit: 50 });
     const existing = [...messages.values()].find(msg =>
         (msg.components || []).some(row =>
             (row.components || []).some(c => c.data && c.data.url === url)

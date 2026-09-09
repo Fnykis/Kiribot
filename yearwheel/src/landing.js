@@ -3,6 +3,8 @@ import { buildAuthorizeUrl, newState } from './auth.js';
 
 export const NOT_MEMBER_TEXT = 'Du är inte medlem i Kiriakas Discord-server, så årshjulet är inte tillgängligt för dig.';
 export const NO_GROUPS_TEXT = 'Du måste ansluta till ett instrument eller en arbetsgrupp för att använda årshjulet. Har du nyligen ändrat din profil? Vänta då i några minuter och prova igen.';
+export const LOAD_ERROR_TEXT = 'Kunde inte ladda sidan. Försök igen senare.';
+export const MISSING_ROLE_NOTICE_TEXT = 'Du har inte längre tillgång till den gruppens årshjul.';
 
 function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -33,9 +35,16 @@ function logoutButton() {
     return btn;
 }
 
-export function renderLanding(root, state) {
+export function renderLanding(root, state, notice) {
     root.replaceChildren();
     root.appendChild(el('h1', null, 'Årshjul'));
+
+    if (notice) root.appendChild(el('p', 'notice notice-transient', notice));
+
+    if (state.kind === 'error') {
+        root.appendChild(el('p', 'notice', LOAD_ERROR_TEXT));
+        return;
+    }
 
     if (state.kind === 'anonymous') {
         const btn = el('button', 'btn', 'Logga in med Discord');
@@ -71,15 +80,22 @@ export function toState(me) {
     return { kind: 'ok', displayName: me.displayName, instruments: me.instruments, workgroups: me.workgroups };
 }
 
-export async function initLanding(root) {
+export async function initLanding(root, search = window.location.search) {
+    const reason = new URLSearchParams(search).get('reason');
+    const notice = reason === 'missing_role' ? MISSING_ROLE_NOTICE_TEXT : undefined;
+
     let state;
     try {
         state = toState(await apiGet('/api/web/me'));
     } catch (err) {
-        if (err.status === 401) state = { kind: 'anonymous' };
-        else throw err;
+        if (err && err.status === 401) {
+            state = { kind: 'anonymous' };
+        } else {
+            renderLanding(root, { kind: 'error' });
+            return;
+        }
     }
-    renderLanding(root, state);
+    renderLanding(root, state, notice);
 
     root.querySelector('#login-btn')?.addEventListener('click', () => {
         window.location.href = buildAuthorizeUrl({

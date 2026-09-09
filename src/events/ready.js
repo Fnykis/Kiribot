@@ -1,4 +1,5 @@
 const { Events } = require('discord.js');
+const config = require('../../config.json');
 const logActivity = require('../core/logger');
 const { cleanupOldLogs } = require('../core/logger');
 const { cleanupOldUiMetricsLogs } = require('../core/uiMetricsLogger');
@@ -45,15 +46,19 @@ module.exports = {
 		} catch (err) {
 			console.error('ready: lineup unmute sweep failed', err);
 		}
-		try {
-			await postArshjulPanel({
-				client: readyClient,
-				channelId: ch_YourProfile,
-				url: 'https://kiribot.ollelindberg.se/yearwheel/',
-				logger: logActivity
-			});
-		} catch (err) {
-			logActivity(`arshjulPanel failed: ${err.message}`);
+		if (config.webOrigin) {
+			try {
+				await postArshjulPanel({
+					client: readyClient,
+					channelId: ch_YourProfile,
+					url: `${config.webOrigin}/yearwheel/`,
+					logger: logActivity
+				});
+			} catch (err) {
+				logActivity(`arshjulPanel failed: ${err.message}`);
+			}
+		} else {
+			logActivity('config.webOrigin missing — skipping arshjulPanel post');
 		}
 		logActivity(`Ready! Logged in as ${readyClient.user.tag}`);
 		// testFunction: delay updateSignupButtonMessage by 5 seconds on startup

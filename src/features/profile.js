@@ -141,6 +141,10 @@ async function postYourProfile() {
 	const row3_buttons = new ActionRowBuilder()
 		.addComponents(btn_view);
 
+	// NOTE: ch_YourProfile now also hosts the årshjul panel message (posted by
+	// postArshjulPanel in src/events/ready.js). This "edit the last message" assumption
+	// breaks if the årshjul panel is the most recent message in the channel — whoever
+	// re-enables postYourProfile (currently dead/uncalled) should account for that.
 	client.channels.cache.get(ch_YourProfile).messages.fetch({ limit: 1 }).then(messages => {
 		let lastMessage = messages.first();
 
