@@ -479,9 +479,13 @@ The storage shape is decided in milestone 1 because it is the expensive thing to
 
 1. **Preset fields.** The exact field list, types, and validation rules for an årshjul entry are
    not yet defined. Needed before milestone 2 planning.
-2. **Backups.** Nothing backs up `src/data/*.json` today. Writes make that gap more expensive.
-3. **Non-member wording.** The Swedish text shown to someone who signs in but is not in the guild
+2. **Non-member wording.** The Swedish text shown to someone who signs in but is not in the guild
    is a placeholder awaiting the user's own phrasing.
+
+**Closed:** backups exist. `backupJsonFiles` (`src/services/google/drive.js:488`) copies data files to
+Google Drive twice daily via `scheduleTwiceDailyTask` in `src/events/ready.js`. It uses an explicit
+per-file `backupConfig` array rather than a directory scan, so `arshjul.json` must be registered
+there — a task in the milestone 1 plan, not an open question.
 
 **Closed:** deploy is a manual FTP upload of `yearwheel/dist/` (see Frontend). The bot has the
 thread permissions it needs in the role channels — confirmed 2026-09-09 — so the dispatcher can
