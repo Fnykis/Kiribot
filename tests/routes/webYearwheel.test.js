@@ -92,3 +92,45 @@ test('500 when the store fails', async () => {
     assert.strictEqual(res.statusCode, 500);
     assert.deepStrictEqual(res.body, { error: 'internal' });
 });
+
+test('403 not_in_guild is checked before the moderator fallback, even for a moderator', async () => {
+    const res = mockRes();
+    await route({ member: false, isModerator: true })(req('r-any'), res);
+    assert.strictEqual(res.statusCode, 403);
+    assert.deepStrictEqual(res.body, { error: 'not_in_guild' });
+});
+
+test('calls getGroups with the caller id and listByRole with the requested roleId', async () => {
+    const getGroupsCalls = [];
+    const listByRoleCalls = [];
+    const handler = createWebYearwheelRoute({
+        memberGroups: {
+            getGroups: async (userId) => {
+                getGroupsCalls.push(userId);
+                return MEMBER_OF_R1;
+            }
+        },
+        arshjulStore: {
+            listByRole: async (roleId) => {
+                listByRoleCalls.push(roleId);
+                return [];
+            }
+        }
+    });
+    const res = mockRes();
+    await handler(req('r1', 'the-caller'), res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(getGroupsCalls, ['the-caller']);
+    assert.deepStrictEqual(listByRoleCalls, ['r1']);
+});
+
+test('500 when getGroups resolves a malformed shape (missing instruments/workgroups)', async () => {
+    const handler = createWebYearwheelRoute({
+        memberGroups: { getGroups: async () => ({ member: true, isModerator: false }) },
+        arshjulStore: { listByRole: async () => [] }
+    });
+    const res = mockRes();
+    await handler(req('r1'), res);
+    assert.strictEqual(res.statusCode, 500);
+    assert.deepStrictEqual(res.body, { error: 'internal' });
+});

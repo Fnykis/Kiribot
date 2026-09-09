@@ -10,11 +10,17 @@ function createWebYearwheelRoute({ memberGroups, arshjulStore, logger }) {
             return res.status(500).json({ error: 'internal' });
         }
 
-        if (!groups.member) return res.status(403).json({ error: 'not_in_guild' });
+        let owned;
+        try {
+            if (!groups.member) return res.status(403).json({ error: 'not_in_guild' });
 
-        const owned = [...groups.instruments, ...groups.workgroups].find(g => g.id === roleId);
-        if (!owned && !groups.isModerator) {
-            return res.status(403).json({ error: 'missing_role' });
+            owned = [...groups.instruments, ...groups.workgroups].find(g => g.id === roleId);
+            if (!owned && !groups.isModerator) {
+                return res.status(403).json({ error: 'missing_role' });
+            }
+        } catch (err) {
+            if (logger) logger('GET /api/web/yearwheel group shape invalid:', err.message);
+            return res.status(500).json({ error: 'internal' });
         }
 
         let entries;
