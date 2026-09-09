@@ -39,6 +39,13 @@ try { instrumentList = require('../data/instrumentList.json'); } catch { instrum
 
 const asyncRoute = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+// A generated secret (crypto.randomBytes(32).toString('base64url')) is 43+ chars. Anything
+// shorter is either unset, a placeholder left over from config.example.json, or otherwise too
+// weak to trust — treat it as absent rather than using it to sign session cookies.
+const MIN_SESSION_SECRET_LENGTH = 32;
+const isUsableSessionSecret = secret =>
+    typeof secret === 'string' && secret.length >= MIN_SESSION_SECRET_LENGTH;
+
 function buildApp({ client, config }) {
     const oauth = createOAuthService({
         fetch: globalThis.fetch,
@@ -58,8 +65,17 @@ function buildApp({ client, config }) {
 
     const authMiddleware = createAuthMiddleware({ oauth, guildMember, logger });
 
-    const webSession = createWebSession({ secret: config.sessionSecret });
-    const webAuth = createWebAuthMiddleware({ webSession });
+    // The /api/web/* routes are additive to the Activity API below. A missing or obviously
+    // invalid config.sessionSecret must never take down the Activity's own routes, so this
+    // fails soft: log and skip mounting the web routes rather than throwing during buildApp.
+    const sessionSecretUsable = isUsableSessionSecret(config.sessionSecret);
+    if (!sessionSecretUsable) {
+        logger(config.sessionSecret
+            ? 'config.sessionSecret looks invalid or is a placeholder (too short) — /api/web routes not mounted'
+            : 'config.sessionSecret missing — /api/web routes not mounted');
+    }
+    const webSession = sessionSecretUsable ? createWebSession({ secret: config.sessionSecret }) : null;
+    const webAuth = webSession ? createWebAuthMiddleware({ webSession }) : null;
 
     const memberGroups = createMemberGroupsService({
         client,
@@ -82,10 +98,20 @@ function buildApp({ client, config }) {
     });
 
     const app = express();
-    app.use(cors({
-        origin: [/\.discordsays\.com$/, config.webOrigin],
-        methods: ['GET', 'POST'],
-        credentials: true,
+    // The Discord Activity origin (*.discordsays.com) never needs credentialed requests, and the
+    // årshjul site origin always does (it relies on the kiribot_session cookie). Rather than a
+    // static `credentials: true` that would apply to every allowed origin, decide both the origin
+    // match and the credentials flag per-request so a lookalike or the Activity origin can never
+    // pick up Access-Control-Allow-Credentials.
+    app.use(cors((req, callback) => {
+        const origin = req.headers.origin;
+        const isDiscordActivity = typeof origin === 'string' && /\.discordsays\.com$/.test(origin);
+        const isWebOrigin = typeof origin === 'string' && origin === config.webOrigin;
+        callback(null, {
+            origin: isDiscordActivity || isWebOrigin,
+            methods: ['GET', 'POST'],
+            credentials: isWebOrigin,
+        });
     }));
     app.use(express.json({ limit: '64kb' }));
 
@@ -94,13 +120,15 @@ function buildApp({ client, config }) {
     app.get('/api/concerts', authMiddleware,
         createConcertsRoute({ activeDir: dir_EventsActive, parseEventDate, logger }));
 
-    app.post('/api/web/token', asyncRoute(createWebTokenRoute({
-        oauth, webSession, redirectUri: config.webRedirectUri, logger
-    })));
-    app.post('/api/web/logout', asyncRoute(createWebLogoutRoute()));
-    app.get('/api/web/me', webAuth, asyncRoute(createWebMeRoute({ memberGroups, logger })));
-    app.get('/api/web/yearwheel/:roleId', webAuth,
-        asyncRoute(createWebYearwheelRoute({ memberGroups, arshjulStore, logger })));
+    if (webSession) {
+        app.post('/api/web/token', asyncRoute(createWebTokenRoute({
+            oauth, webSession, redirectUri: config.webRedirectUri, logger
+        })));
+        app.post('/api/web/logout', asyncRoute(createWebLogoutRoute()));
+        app.get('/api/web/me', webAuth, asyncRoute(createWebMeRoute({ memberGroups, logger })));
+        app.get('/api/web/yearwheel/:roleId', webAuth,
+            asyncRoute(createWebYearwheelRoute({ memberGroups, arshjulStore, logger })));
+    }
 
     app.get('/api/state/:concertId', authMiddleware,
         asyncRoute(createStateRoute({ lineupStore })));
