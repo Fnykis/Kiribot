@@ -28,6 +28,7 @@ The parent spec left these open. They are now closed.
 | Wheel UI | Month-grouped list with editing. No circular SVG — that is a later milestone if it is ever wanted. |
 | Group without a Discord channel | Save is allowed. The entry stores `channelId: null`, the page shows a warning banner and marks the entry undeliverable, and the dispatcher skips it until a channel exists. |
 | Send time | One tick per day at 08:00 Europe/Stockholm, plus a catch-up tick on bot start when the local hour is already past it. |
+| Moderator visibility | A moderator's own groups render exactly like anyone else's. Their access to every other wheel lives in a separate, collapsed **Mod** section — never mixed into their own group list. |
 
 ## Non-goals
 
@@ -106,9 +107,44 @@ No existing route changes.
 | `POST /api/web/yearwheel/:roleId` | `{ monthDay, title, body }` | `201` + entry | `400 invalid_input`, `403` |
 | `PATCH /api/web/yearwheel/entry/:id` | `{ monthDay, title, body, version }` | `200` + entry | `409 version_conflict` (with the current entry), `404`, `400`, `403` |
 | `DELETE /api/web/yearwheel/entry/:id` | `{ version }` | `204` | `409 version_conflict`, `404`, `403` |
+| `GET /api/web/groups` | — | `200` + all groups | `403 not_moderator`, `403 not_in_guild` |
 
 `GET /api/web/yearwheel/:roleId` gains `role.hasChannel` in its response so the page can render the
 no-channel warning. Its entry payload is otherwise unchanged.
+
+### Moderator access
+
+Milestone 1 already lets a moderator read and (in this milestone) write any wheel, but nothing in
+the UI exposes that — `GET /api/web/me` does not even return `isModerator`
+(`src/routes/api/web/me.js:13-18`), so the only way a moderator reaches another group's wheel today
+is by hand-typing a `roleId` into the URL. Two additions fix that without changing what a plain
+member receives.
+
+**`GET /api/web/me` gains `isModerator: true | false`.** It is already computed in
+`memberGroups.getGroups` (`src/services/memberGroups.js:32`) and simply not forwarded.
+
+**`GET /api/web/groups` is new and moderator-only.** It returns every instrument and workgroup role
+in the guild, in the same `{ id, name }` shape:
+
+```json
+{ "instruments": [ … ], "workgroups": [ … ] }
+```
+
+A caller who is not a moderator gets `403 { error: 'not_moderator' }` — a distinct code from
+`missing_role`, because the client's response differs: it is not a revocation, it just means the
+Mod section is not for them. A non-member still gets `403 not_in_guild`.
+
+`memberGroups` gains `listAllGroups()`, filtering `guild.roles.cache` by the same two colours
+`byColor` already uses, behind the same 60s cache. A workgroup created in Discord appears in the Mod
+list within a minute, with no rebuild — the same property the parent spec requires of wheels
+generally.
+
+The parent spec's reason for `me` returning only the caller's own groups — keeping the roster of
+groups someone is not in out of their browser — still holds. This is a separate, gated endpoint, so
+a plain member's browser receives exactly what it received before.
+
+Moderator reach is unchanged and was always enforced server-side. This makes it discoverable, not
+broader.
 
 ### Channel resolution
 
@@ -263,6 +299,44 @@ SEPTEMBER
   20  Terminsstart                   [✎] [✕]
 ```
 
+### Landing page — Mod section
+
+`landing.js` renders the caller's own **Instrument** and **Arbetsgrupper** sections exactly as it
+does today. When `me.isModerator` is true, one collapsed section is appended below them:
+
+```
+Olle L
+
+Instrument
+  tarol
+
+Arbetsgrupper
+  transportgruppen
+  fikagruppen
+
+▸ Mod — alla gruppers årshjul
+```
+
+Opening it fetches `GET /api/web/groups` — **lazily, on first open**, not on page load, so a
+moderator's normal visit costs exactly what it costs everyone else. It then lists every instrument
+and workgroup under the same two headings, linking to the same `wheel.html?role=<id>`.
+
+It is a `<details>` element, closed by default, and it lists **all** groups including the
+moderator's own — "alla grupper" that quietly omits three is worse than a short duplicate. A load
+failure inside the section renders an error line inside it and leaves the rest of the page alone.
+
+A moderator who is in no group at all still gets the `no_groups` message *and* the Mod section — the
+message explains why their own list is empty, which is true, while the section still works.
+
+### Wheel page — moderator context
+
+When a moderator opens a wheel for a group they do not belong to, the page shows a line under the
+heading: `Du visar den här gruppens årshjul som moderator.` The API already distinguishes the two
+cases — the existing read route sets `role.name` from the caller's own groups and falls back to the
+raw id otherwise (`src/routes/api/web/yearwheel.js:35`) — so this milestone has the route return the
+role name for moderators too, plus an explicit `role.viaModerator: true`. Editing works normally;
+the line exists so nobody edits another group's wheel thinking it is their own.
+
 ### Entry form
 
 Fields: **Titel** (text), **Datum**, **Beskrivning** (textarea). Buttons: **Spara**, **Avbryt**.
@@ -291,6 +365,9 @@ The day list re-renders when the month changes; February offers 29.
 | Where | Text |
 |---|---|
 | New entry button | `+ Ny post` |
+| Mod section heading | `Mod — alla gruppers årshjul` |
+| Mod section load error | `Kunde inte hämta grupplistan.` |
+| Moderator viewing a foreign wheel | `Du visar den här gruppens årshjul som moderator.` |
 | No-channel banner | `Gruppen saknar en egen kanal i Discord — inga påminnelser skickas förrän en kanal finns.` |
 | Undeliverable entry marker | `(skickas ej)` |
 | Version conflict | `Någon annan hann före — posten laddades om.` |
@@ -314,13 +391,18 @@ in `src/core/constants.js:22` as `ch_BotTest` and is not duplicated into config.
 
 **Created**
 - `src/services/arshjulDispatcher.js`
+- `src/routes/api/web/groups.js` — moderator-only group roster
 - `yearwheel/src/entryForm.js`
 
 **Modified**
 - `src/services/arshjulStore.js` — write methods and the lockfile mutate
-- `src/routes/api/web/yearwheel.js` — create, update, delete handlers; `hasChannel` on the read
-- `src/core/express.js` — mount the write routes, write rate limiter
+- `src/routes/api/web/yearwheel.js` — create, update, delete handlers; `hasChannel` and
+  `viaModerator` on the read
+- `src/routes/api/web/me.js` — forward `isModerator`
+- `src/services/memberGroups.js` — `listAllGroups()`
+- `src/core/express.js` — mount the write routes and `/api/web/groups`, write rate limiter
 - `src/events/ready.js` — register the dispatcher
+- `yearwheel/src/landing.js` — Mod section
 - `config.example.json` — the two new keys
 - `yearwheel/src/wheel.js`, `yearwheel/wheel.html`, `yearwheel/src/api.js`, `yearwheel/src/styles.css`
 
@@ -357,6 +439,11 @@ Backend with `node --test`, frontend with `cd yearwheel && npx vitest run`.
 - Each validation rule, including `02-30` rejected and `02-29` accepted.
 - A missing or foreign `Origin` on a write → rejected.
 - Rate limit trips after the configured burst.
+- `GET /api/web/groups` returns every instrument and workgroup for a moderator,
+  `403 not_moderator` for an ordinary member holding groups, and `403 not_in_guild` for a
+  non-member. A role created after the cache expires appears in the result.
+- `GET /api/web/me` returns `isModerator: true` for a moderator and `false` otherwise, and still
+  returns only the caller's own groups in both cases.
 
 **Frontend** (vitest)
 - Month grouping and within-month ordering; empty months absent.
@@ -364,6 +451,12 @@ Backend with `node --test`, frontend with `cd yearwheel && npx vitest run`.
 - The no-channel banner and the `(skickas ej)` markers render from `hasChannel: false`.
 - A `409` triggers a refetch and re-renders the form with server values.
 - Polling pauses while a form is dirty and resumes after save or cancel.
+- The Mod section renders only when `isModerator` is true, is closed on first render, and fetches
+  `/api/web/groups` on first open rather than on page load.
+- A failed group fetch renders its error inside the Mod section, leaving the caller's own group
+  sections intact.
+- A moderator in no groups sees both the `no_groups` message and a working Mod section.
+- `role.viaModerator` renders the moderator line on the wheel page; a member's own wheel does not.
 
 ## Manual steps
 
