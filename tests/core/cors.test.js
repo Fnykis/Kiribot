@@ -210,3 +210,33 @@ test('a placeholder/too-short config.sessionSecret is treated as absent, not use
         await new Promise(res => server.close(res));
     }
 });
+
+const servers = [];
+async function listen(app) {
+    const server = await new Promise(resolve => {
+        const s = app.listen(0, '127.0.0.1', () => resolve(s));
+    });
+    servers.push(server);
+    return server.address().port;
+}
+test.after(() => servers.forEach(s => s.close()));
+
+test('CORS advertises the methods the årshjul write routes need', async () => {
+    const app = buildApp({
+        client: { guilds: { cache: { get: () => undefined } } },
+        config: { webOrigin: 'https://kiribot.ollelindberg.se', sessionSecret: 'x'.repeat(43) }
+    });
+
+    const res = await fetch(`http://127.0.0.1:${await listen(app)}/api/web/me`, {
+        method: 'OPTIONS',
+        headers: {
+            origin: 'https://kiribot.ollelindberg.se',
+            'access-control-request-method': 'PATCH'
+        }
+    });
+    const allowed = (res.headers.get('access-control-allow-methods') || '').split(',').map(s => s.trim());
+    assert.ok(allowed.includes('PATCH'), `expected PATCH in ${allowed}`);
+    assert.ok(allowed.includes('DELETE'), `expected DELETE in ${allowed}`);
+    assert.ok(allowed.includes('GET'));
+    assert.ok(allowed.includes('POST'));
+});

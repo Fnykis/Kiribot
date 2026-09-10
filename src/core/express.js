@@ -18,7 +18,17 @@ const createWebTokenRoute = require('../routes/api/web/token');
 const createWebLogoutRoute = require('../routes/api/web/logout');
 const createWebMeRoute = require('../routes/api/web/me');
 const createWebYearwheelRoute = require('../routes/api/web/yearwheel');
-const { dir_EventsActive, hex_instr, hex_arbet, role_moderator } = require('./constants');
+const createRoleChannelService = require('../services/roleChannel');
+const createWebOriginMiddleware = require('../middleware/webOrigin');
+const createWebGroupsRoute = require('../routes/api/web/groups');
+const {
+    createWebYearwheelCreateRoute,
+    createWebYearwheelUpdateRoute,
+    createWebYearwheelDeleteRoute
+} = require('../routes/api/web/yearwheelWrite');
+const {
+    dir_EventsActive, hex_instr, hex_arbet, role_moderator, cat_Arbetsgrupper, cat_Sektioner
+} = require('./constants');
 const { parseEventDate } = require('../utils/dateUtils');
 const {
     createPlaceRoute,
@@ -88,6 +98,26 @@ function buildApp({ client, config }) {
 
     const arshjulStore = createArshjulStore({ filePath: 'src/data/arshjul.json' });
 
+    const roleChannel = createRoleChannelService({
+        client,
+        guildId: config.guildId,
+        categoryIds: [cat_Arbetsgrupper, cat_Sektioner],
+        cache: createTtlCache({ ttlMs: 60_000 })
+    });
+
+    // A user-editable cron that pings a whole role is inherently a spam vector; this is one of
+    // the four mitigations, alongside the role gate, restricted mentions and the audit log.
+    const arshjulWriteLimiter = rateLimit({
+        windowMs: 60_000,
+        limit: 30,
+        standardHeaders: 'draft-7',
+        legacyHeaders: false,
+        keyGenerator: req => req.webUser?.id || req.ip,
+        message: { error: 'rate_limited' }
+    });
+
+    const webOrigin = createWebOriginMiddleware({ allowedOrigin: config.webOrigin, logger });
+
     const lineupLimiter = rateLimit({
         windowMs: 1000,
         limit: 30,
@@ -109,7 +139,7 @@ function buildApp({ client, config }) {
         const isWebOrigin = typeof origin === 'string' && origin === config.webOrigin;
         callback(null, {
             origin: isDiscordActivity || isWebOrigin,
-            methods: ['GET', 'POST'],
+            methods: ['GET', 'POST', 'PATCH', 'DELETE'],
             credentials: isWebOrigin,
         });
     }));
@@ -127,7 +157,18 @@ function buildApp({ client, config }) {
         app.post('/api/web/logout', asyncRoute(createWebLogoutRoute()));
         app.get('/api/web/me', webAuth, asyncRoute(createWebMeRoute({ memberGroups, logger })));
         app.get('/api/web/yearwheel/:roleId', webAuth,
-            asyncRoute(createWebYearwheelRoute({ memberGroups, arshjulStore, logger })));
+            asyncRoute(createWebYearwheelRoute({
+                memberGroups, arshjulStore, resolveChannelId: roleChannel.resolveChannelId, logger
+            })));
+        app.get('/api/web/groups', webAuth, asyncRoute(createWebGroupsRoute({ memberGroups, logger })));
+        app.post('/api/web/yearwheel/:roleId', webAuth, webOrigin, arshjulWriteLimiter,
+            asyncRoute(createWebYearwheelCreateRoute({
+                memberGroups, arshjulStore, resolveChannelId: roleChannel.resolveChannelId, logger
+            })));
+        app.patch('/api/web/yearwheel/entry/:id', webAuth, webOrigin, arshjulWriteLimiter,
+            asyncRoute(createWebYearwheelUpdateRoute({ memberGroups, arshjulStore, logger })));
+        app.delete('/api/web/yearwheel/entry/:id', webAuth, webOrigin, arshjulWriteLimiter,
+            asyncRoute(createWebYearwheelDeleteRoute({ memberGroups, arshjulStore, logger })));
     }
 
     app.get('/api/state/:concertId', authMiddleware,
@@ -207,6 +248,7 @@ function buildApp({ client, config }) {
         res.status(500).json({ error: 'internal' });
     });
 
+    app.locals.arshjul = { store: arshjulStore, resolveChannelId: roleChannel.resolveChannelId };
     return app;
 }
 
