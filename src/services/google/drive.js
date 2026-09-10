@@ -522,11 +522,15 @@ async function backupJsonFiles() {
 				localPath: path.join(__dirname, '../../data/instrumentList.json'),
 				backupFileName: `${dateString}.json`
 			},
-			{
-				subfolderName: 'arshjul',
-				localPath: path.join(__dirname, '../../data/arshjul.json'),
-				backupFileName: `${dateString}.json`
-			}
+			// Årshjul backup disabled for now — Drive backups are not currently
+			// working for any subfolder (no dated files appear in permissions/,
+			// detailsList/, etc.), and src/data/arshjul.json does not exist until
+			// milestone 2 writes it. Re-enable once Drive backup is verified working.
+			// {
+			// 	subfolderName: 'arshjul',
+			// 	localPath: path.join(__dirname, '../../data/arshjul.json'),
+			// 	backupFileName: `${dateString}.json`
+			// }
 		];
 
 		// Backup single files
