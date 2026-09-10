@@ -41,3 +41,57 @@ describe('apiPost', () => {
         expect(JSON.parse(opts.body)).toEqual({ code: 'abc' });
     });
 });
+
+import { apiPatch, apiDelete } from '../src/api.js';
+
+describe('apiPatch', () => {
+    it('sends a PATCH with credentials and a JSON body', async () => {
+        let seen;
+        const fetchFn = async (url, opts) => {
+            seen = { url, opts };
+            return { ok: true, json: async () => ({ id: 'e1', version: 2 }) };
+        };
+        const out = await apiPatch('/api/web/yearwheel/entry/e1', { title: 'B', version: 1 }, fetchFn);
+        expect(out).toEqual({ id: 'e1', version: 2 });
+        expect(seen.opts.method).toBe('PATCH');
+        expect(seen.opts.credentials).toBe('include');
+        expect(seen.opts.headers['Content-Type']).toBe('application/json');
+        expect(JSON.parse(seen.opts.body)).toEqual({ title: 'B', version: 1 });
+    });
+
+    it('throws an ApiError carrying the server error code', async () => {
+        const fetchFn = async () => ({
+            ok: false, status: 409,
+            json: async () => ({ error: 'version_conflict', entry: { id: 'e1' } })
+        });
+        await expect(apiPatch('/x', {}, fetchFn)).rejects.toBeInstanceOf(ApiError);
+        await expect(apiPatch('/x', {}, fetchFn)).rejects.toMatchObject({ status: 409, code: 'version_conflict' });
+    });
+
+    it('exposes the conflicting entry from a 409 body', async () => {
+        const fetchFn = async () => ({
+            ok: false, status: 409,
+            json: async () => ({ error: 'version_conflict', entry: { id: 'e1', version: 7 } })
+        });
+        await expect(apiPatch('/x', {}, fetchFn)).rejects.toMatchObject({ body: { entry: { id: 'e1', version: 7 } } });
+    });
+});
+
+describe('apiDelete', () => {
+    it('sends a DELETE with the version and resolves with nothing on 204', async () => {
+        let seen;
+        const fetchFn = async (url, opts) => {
+            seen = { url, opts };
+            return { ok: true, status: 204 };
+        };
+        const out = await apiDelete('/api/web/yearwheel/entry/e1', { version: 1 }, fetchFn);
+        expect(out).toBeUndefined();
+        expect(seen.opts.method).toBe('DELETE');
+        expect(JSON.parse(seen.opts.body)).toEqual({ version: 1 });
+    });
+
+    it('throws an ApiError on failure', async () => {
+        const fetchFn = async () => ({ ok: false, status: 409, json: async () => ({ error: 'version_conflict' }) });
+        await expect(apiDelete('/x', { version: 1 }, fetchFn)).rejects.toMatchObject({ code: 'version_conflict' });
+    });
+});
