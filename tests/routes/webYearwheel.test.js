@@ -25,8 +25,23 @@ const MEMBER_OF_R1 = {
 
 function route(groups, entries = []) {
     return createWebYearwheelRoute({
-        memberGroups: { getGroups: async () => groups },
-        arshjulStore: { listByRole: async () => entries }
+        memberGroups: {
+            getGroups: async () => groups,
+            listAllGroups: async () => ({ instruments: [], workgroups: [] })
+        },
+        arshjulStore: { listByRole: async () => entries },
+        resolveChannelId: async () => null
+    });
+}
+
+function routeWithChannel(groups, { entries = [], channelId = 'c1', all } = {}) {
+    return createWebYearwheelRoute({
+        memberGroups: {
+            getGroups: async () => groups,
+            listAllGroups: async () => all ?? { instruments: [], workgroups: [] }
+        },
+        arshjulStore: { listByRole: async () => entries },
+        resolveChannelId: async () => channelId
     });
 }
 
@@ -84,8 +99,12 @@ test('403 missing_role when roleId is absent', async () => {
 
 test('500 when the store fails', async () => {
     const handler = createWebYearwheelRoute({
-        memberGroups: { getGroups: async () => MEMBER_OF_R1 },
-        arshjulStore: { listByRole: async () => { throw new Error('arshjul_file_corrupt'); } }
+        memberGroups: {
+            getGroups: async () => MEMBER_OF_R1,
+            listAllGroups: async () => ({ instruments: [], workgroups: [] })
+        },
+        arshjulStore: { listByRole: async () => { throw new Error('arshjul_file_corrupt'); } },
+        resolveChannelId: async () => null
     });
     const res = mockRes();
     await handler(req('r1'), res);
@@ -108,14 +127,16 @@ test('calls getGroups with the caller id and listByRole with the requested roleI
             getGroups: async (userId) => {
                 getGroupsCalls.push(userId);
                 return MEMBER_OF_R1;
-            }
+            },
+            listAllGroups: async () => ({ instruments: [], workgroups: [] })
         },
         arshjulStore: {
             listByRole: async (roleId) => {
                 listByRoleCalls.push(roleId);
                 return [];
             }
-        }
+        },
+        resolveChannelId: async () => null
     });
     const res = mockRes();
     await handler(req('r1', 'the-caller'), res);
@@ -126,11 +147,74 @@ test('calls getGroups with the caller id and listByRole with the requested roleI
 
 test('500 when getGroups resolves a malformed shape (missing instruments/workgroups)', async () => {
     const handler = createWebYearwheelRoute({
-        memberGroups: { getGroups: async () => ({ member: true, isModerator: false }) },
-        arshjulStore: { listByRole: async () => [] }
+        memberGroups: {
+            getGroups: async () => ({ member: true, isModerator: false }),
+            listAllGroups: async () => ({ instruments: [], workgroups: [] })
+        },
+        arshjulStore: { listByRole: async () => [] },
+        resolveChannelId: async () => null
     });
     const res = mockRes();
     await handler(req('r1'), res);
     assert.strictEqual(res.statusCode, 500);
     assert.deepStrictEqual(res.body, { error: 'internal' });
+});
+
+test('reports hasChannel true when the group has a channel', async () => {
+    const res = mockRes();
+    await routeWithChannel(MEMBER_OF_R1)(req('r1'), res);
+    assert.strictEqual(res.body.role.hasChannel, true);
+});
+
+test('reports hasChannel false when the group has none', async () => {
+    const res = mockRes();
+    await routeWithChannel(MEMBER_OF_R1, { channelId: null })(req('r1'), res);
+    assert.strictEqual(res.body.role.hasChannel, false);
+});
+
+test('a member reading their own wheel is not marked viaModerator', async () => {
+    const res = mockRes();
+    await routeWithChannel(MEMBER_OF_R1)(req('r1'), res);
+    assert.strictEqual(res.body.role.viaModerator, false);
+});
+
+test('a moderator reading a foreign wheel gets viaModerator and the real role name', async () => {
+    const mod = { member: true, displayName: 'Mod', isModerator: true, instruments: [], workgroups: [] };
+    const res = mockRes();
+    await routeWithChannel(mod, { all: { instruments: [], workgroups: [{ id: 'r-any', name: 'fikagruppen' }] } })(
+        req('r-any'), res
+    );
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.role.viaModerator, true);
+    assert.strictEqual(res.body.role.name, 'fikagruppen');
+});
+
+test('a moderator reading a wheel for a role they also hold is not marked viaModerator', async () => {
+    const mod = {
+        member: true, displayName: 'Mod', isModerator: true,
+        instruments: [], workgroups: [{ id: 'r1', name: 'transportgruppen' }]
+    };
+    const res = mockRes();
+    await routeWithChannel(mod)(req('r1'), res);
+    assert.strictEqual(res.body.role.viaModerator, false);
+    assert.strictEqual(res.body.role.name, 'transportgruppen');
+});
+
+test('falls back to the role id when even the roster does not know the role', async () => {
+    const mod = { member: true, displayName: 'Mod', isModerator: true, instruments: [], workgroups: [] };
+    const res = mockRes();
+    await routeWithChannel(mod)(req('r-unknown'), res);
+    assert.strictEqual(res.body.role.name, 'r-unknown');
+});
+
+test('a channel lookup failure does not fail the read', async () => {
+    const handler = createWebYearwheelRoute({
+        memberGroups: { getGroups: async () => MEMBER_OF_R1, listAllGroups: async () => ({ instruments: [], workgroups: [] }) },
+        arshjulStore: { listByRole: async () => [] },
+        resolveChannelId: async () => { throw new Error('Bot not in guild g1'); }
+    });
+    const res = mockRes();
+    await handler(req('r1'), res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.role.hasChannel, false);
 });
