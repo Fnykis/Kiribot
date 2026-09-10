@@ -1,4 +1,8 @@
-import { apiGet } from './api.js';
+import { apiGet, apiPost, apiPatch, apiDelete } from './api.js';
+import {
+    renderEntryForm, isFormDirty, deleteConfirmText, showFormError,
+    SAVE_FAILED_TEXT, CONFLICT_TEXT
+} from './entryForm.js';
 
 export const POLL_INTERVAL_MS = 60_000;
 
@@ -91,29 +95,129 @@ export function renderWheel(root, { role, entries }, handlers = {}) {
     }
 }
 
-export async function initWheel(root, search = window.location.search) {
+export async function initWheel(root, search = window.location.search, deps = {}) {
+    const {
+        get = path => apiGet(path),
+        post = (path, body) => apiPost(path, body),
+        patch = (path, body) => apiPatch(path, body),
+        del = (path, body) => apiDelete(path, body),
+        confirm: confirmFn = message => window.confirm(message),
+        poll = true
+    } = deps;
+
     const roleId = new URLSearchParams(search).get('role');
     if (!roleId) {
         window.location.replace('index.html');
         return;
     }
 
-    async function load() {
+    let data = null;
+    let openEntry = null;   // the entry being edited, or null for a new one
+    let formOpen = false;
+    let notice = null;
+
+    function currentForm() {
+        return root.querySelector('#form-slot form');
+    }
+
+    function closeForm() {
+        formOpen = false;
+        openEntry = null;
+        draw();
+    }
+
+    function openForm(entry) {
+        formOpen = true;
+        openEntry = entry || null;
+        draw();
+    }
+
+    function draw() {
+        renderWheel(root, data, {
+            onNew: () => openForm(null),
+            onEdit: entry => openForm(entry),
+            onDelete: entry => remove(entry)
+        });
+        if (notice) {
+            root.querySelector('#form-slot').before(el('p', 'notice notice-transient', notice));
+            notice = null;
+        }
+        if (formOpen) {
+            root.querySelector('#form-slot').appendChild(
+                renderEntryForm({ entry: openEntry, onSave: save, onCancel: closeForm })
+            );
+        }
+    }
+
+    async function save(values) {
+        const form = currentForm();
         try {
-            renderWheel(root, await apiGet(`/api/web/yearwheel/${encodeURIComponent(roleId)}`));
+            if (openEntry) {
+                await patch(`/api/web/yearwheel/entry/${encodeURIComponent(openEntry.id)}`, values);
+            } else {
+                await post(`/api/web/yearwheel/${encodeURIComponent(roleId)}`, {
+                    title: values.title, body: values.body, monthDay: values.monthDay
+                });
+            }
+            formOpen = false;
+            openEntry = null;
+            await load();
         } catch (err) {
-            const dest = destinationFor(err);
-            if (dest) {
-                window.location.replace(`${dest.url}?reason=${dest.reason}`);
+            if (navigateOnError(err)) return;
+            if (err && err.code === 'version_conflict') {
+                // Reopen the form on the server's values — nothing typed is written over
+                // someone else's edit.
+                notice = CONFLICT_TEXT;
+                openEntry = err.body?.entry ?? openEntry;
+                await load({ keepForm: true });
                 return;
             }
+            if (form) showFormError(form, SAVE_FAILED_TEXT);
+        }
+    }
+
+    async function remove(entry) {
+        if (!confirmFn(deleteConfirmText(entry.title))) return;
+        try {
+            await del(`/api/web/yearwheel/entry/${encodeURIComponent(entry.id)}`, { version: entry.version });
+            await load();
+        } catch (err) {
+            if (navigateOnError(err)) return;
+            notice = err && err.code === 'version_conflict' ? CONFLICT_TEXT : SAVE_FAILED_TEXT;
+            await load();
+        }
+    }
+
+    function navigateOnError(err) {
+        const dest = destinationFor(err);
+        if (!dest) return false;
+        window.location.replace(`${dest.url}?reason=${dest.reason}`);
+        return true;
+    }
+
+    async function load({ keepForm = false } = {}) {
+        try {
+            data = await get(`/api/web/yearwheel/${encodeURIComponent(roleId)}`);
+            if (keepForm) formOpen = true;
+            draw();
+        } catch (err) {
+            if (navigateOnError(err)) return;
             root.replaceChildren(el('p', 'notice', 'Kunde inte hämta årshjulet. Försök igen senare.'));
         }
     }
 
     await load();
-    setInterval(load, POLL_INTERVAL_MS);
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') load();
-    });
+
+    if (poll) {
+        // A poll must never redraw the DOM under an active cursor.
+        const refresh = () => {
+            const form = currentForm();
+            if (form && isFormDirty(form)) return;
+            load({ keepForm: formOpen });
+        };
+        setInterval(refresh, POLL_INTERVAL_MS);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') refresh();
+        });
+    }
 }

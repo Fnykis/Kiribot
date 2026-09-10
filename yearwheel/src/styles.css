@@ -22,3 +22,10 @@ h2 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spa
 .entry-undeliverable { font-size: 0.85em; opacity: 0.7; }
 .notice-warning { border-left: 3px solid currentColor; padding-left: 0.75rem; }
 .notice-mod { font-style: italic; opacity: 0.8; }
+.entry-form { display: grid; gap: 0.75rem; margin: 1rem 0; }
+.entry-form label { display: grid; gap: 0.25rem; }
+.entry-form .field-label { font-size: 0.85rem; opacity: 0.7; }
+.entry-form .date-row { display: flex; gap: 0.5rem; }
+.form-error:empty { display: none; }
+.form-error { color: #b3261e; }
+.notice-transient { font-style: italic; }
