@@ -36,12 +36,13 @@ test('returns the member display name and both group lists', async () => {
     assert.deepStrictEqual(res.body, {
         member: true,
         displayName: 'Olle L',
+        isModerator: false,
         instruments: [{ id: 'r1', name: 'tarol' }],
         workgroups: [{ id: 'r2', name: 'transportgruppen' }]
     });
 });
 
-test('does not leak moderator status', async () => {
+test('exposes isModerator status when present', async () => {
     const handler = createWebMeRoute({
         memberGroups: {
             getGroups: async () => ({ member: true, displayName: 'M', isModerator: true, instruments: [], workgroups: [] })
@@ -49,7 +50,7 @@ test('does not leak moderator status', async () => {
     });
     const res = mockRes();
     await handler({ webUser: { id: 'u1' } }, res);
-    assert.strictEqual('isModerator' in res.body, false);
+    assert.strictEqual(res.body.isModerator, true);
 });
 
 test('a member with no groups returns empty arrays', async () => {
@@ -68,4 +69,40 @@ test('500 member_lookup_failed when Discord lookup throws', async () => {
     await handler({ webUser: { id: 'u1' } }, res);
     assert.strictEqual(res.statusCode, 500);
     assert.deepStrictEqual(res.body, { error: 'member_lookup_failed' });
+});
+
+test('reports isModerator true for a moderator', async () => {
+    const res = mockRes();
+    await createWebMeRoute({
+        memberGroups: {
+            getGroups: async () => ({
+                member: true, displayName: 'Mod', isModerator: true,
+                instruments: [], workgroups: []
+            })
+        }
+    })({ webUser: { id: 'u1' } }, res);
+    assert.strictEqual(res.body.isModerator, true);
+});
+
+test('reports isModerator false for an ordinary member and still lists only their own groups', async () => {
+    const res = mockRes();
+    await createWebMeRoute({
+        memberGroups: {
+            getGroups: async () => ({
+                member: true, displayName: 'Olle L', isModerator: false,
+                instruments: [{ id: 'i1', name: 'tarol' }], workgroups: []
+            })
+        }
+    })({ webUser: { id: 'u1' } }, res);
+    assert.strictEqual(res.body.isModerator, false);
+    assert.deepStrictEqual(res.body.instruments, [{ id: 'i1', name: 'tarol' }]);
+    assert.deepStrictEqual(res.body.workgroups, []);
+});
+
+test('a non-member response still carries nothing but member:false', async () => {
+    const res = mockRes();
+    await createWebMeRoute({ memberGroups: { getGroups: async () => ({ member: false }) } })(
+        { webUser: { id: 'u1' } }, res
+    );
+    assert.deepStrictEqual(res.body, { member: false });
 });

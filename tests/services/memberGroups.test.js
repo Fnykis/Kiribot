@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const createMemberGroupsService = require('../../src/services/memberGroups');
+const createTtlCache = require('../../src/utils/ttlCache');
 
 const HEX_INSTR = '#e91e63';
 const HEX_ARBET = '#f1c40f';
@@ -121,4 +122,54 @@ test('throws when the bot is not in the guild', async () => {
     const client = { guilds: { cache: { get: () => undefined } } };
     const svc = service(client);
     await assert.rejects(() => svc.getGroups('u1'), /not in guild/i);
+});
+
+test('listAllGroups returns every instrument and workgroup role in the guild', async () => {
+    const client = {
+        guilds: {
+            cache: {
+                get: () => ({
+                    roles: {
+                        cache: new Map([
+                            ['i1', { id: 'i1', name: 'tarol', hexColor: '#e91e63' }],
+                            ['w1', { id: 'w1', name: 'transportgruppen', hexColor: '#f1c40f' }],
+                            ['w2', { id: 'w2', name: 'fikagruppen', hexColor: '#f1c40f' }],
+                            ['x1', { id: 'x1', name: 'moderator', hexColor: '#992d22' }]
+                        ])
+                    }
+                })
+            }
+        }
+    };
+    const svc = createMemberGroupsService({
+        client, guildId: 'g1', hexInstr: '#e91e63', hexArbet: '#f1c40f',
+        moderatorRoleId: 'mod', cache: createTtlCache({ ttlMs: 60_000 })
+    });
+    const all = await svc.listAllGroups();
+    assert.deepStrictEqual(all.instruments, [{ id: 'i1', name: 'tarol' }]);
+    assert.deepStrictEqual(all.workgroups, [
+        { id: 'w2', name: 'fikagruppen' },
+        { id: 'w1', name: 'transportgruppen' }
+    ]);
+});
+
+test('listAllGroups caches so repeat calls do not rescan', async () => {
+    let scans = 0;
+    const client = {
+        guilds: {
+            cache: {
+                get: () => {
+                    scans++;
+                    return { roles: { cache: new Map() } };
+                }
+            }
+        }
+    };
+    const svc = createMemberGroupsService({
+        client, guildId: 'g1', hexInstr: '#e91e63', hexArbet: '#f1c40f',
+        moderatorRoleId: 'mod', cache: createTtlCache({ ttlMs: 60_000 })
+    });
+    await svc.listAllGroups();
+    await svc.listAllGroups();
+    assert.strictEqual(scans, 1);
 });

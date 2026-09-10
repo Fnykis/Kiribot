@@ -13,6 +13,7 @@ function createWebMeRoute({ memberGroups, logger }) {
         return res.json({
             member: true,
             displayName: groups.displayName,
+            isModerator: groups.isModerator === true,
             instruments: groups.instruments,
             workgroups: groups.workgroups
         });

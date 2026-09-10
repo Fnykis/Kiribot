@@ -37,7 +37,26 @@ function createMemberGroupsService({ client, guildId, hexInstr, hexArbet, modera
         return result;
     }
 
-    return { getGroups };
+    // Cached under a fixed key so a burst of Mod-section opens costs one role scan per TTL.
+    const ALL_GROUPS_KEY = '__all_groups__';
+
+    async function listAllGroups() {
+        const cached = cache.get(ALL_GROUPS_KEY);
+        if (cached) return cached;
+
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) throw new Error(`Bot not in guild ${guildId}`);
+
+        const roles = guild.roles.cache;
+        const result = {
+            instruments: byColor(roles, hexInstr),
+            workgroups: byColor(roles, hexArbet)
+        };
+        cache.set(ALL_GROUPS_KEY, result);
+        return result;
+    }
+
+    return { getGroups, listAllGroups };
 }
 
 module.exports = createMemberGroupsService;
