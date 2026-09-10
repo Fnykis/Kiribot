@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderWheel, initWheel, destinationFor, POLL_INTERVAL_MS, MONTH_NAMES, NO_CHANNEL_TEXT, UNDELIVERABLE_TEXT, VIA_MODERATOR_TEXT } from '../src/wheel.js';
 import { ApiError } from '../src/api.js';
 
@@ -259,5 +259,38 @@ describe('wheel CRUD wiring', () => {
         await new Promise(r => setTimeout(r, 0));
         expect(root.textContent).toContain('Någon annan hann före — posten laddades om.');
         expect(root.querySelector('#form-slot input[name="title"]').value).toBe('Serverns titel');
+    });
+});
+
+describe('poll pause and cleanup', () => {
+    let root;
+    beforeEach(() => { root = document.createElement('div'); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    const wheelData = {
+        role: { id: 'r1', name: 'tarol', hasChannel: true, viaModerator: false },
+        entries: [{ id: 'e1', roleId: 'r1', monthDay: '01-15', title: 'Boka lokal', body: '', version: 1, sentYears: [] }]
+    };
+
+    it('does not redraw the open form on a poll tick even before it is dirty', async () => {
+        vi.useFakeTimers();
+        await initWheel(root, '?role=r1', { get: async () => wheelData, poll: true });
+        root.querySelector('#new-entry-btn').click();
+        const formBefore = root.querySelector('#form-slot form');
+        expect(formBefore).not.toBeNull();
+
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+
+        // Same node — a poll tick over an open, untouched form must not have redrawn it.
+        expect(root.querySelector('#form-slot form')).toBe(formBefore);
+    });
+
+    it('does not leave a duplicate interval behind when initWheel runs again', async () => {
+        vi.useFakeTimers();
+        await initWheel(root, '?role=r1', { get: async () => wheelData, poll: true });
+        await initWheel(root, '?role=r1', { get: async () => wheelData, poll: true });
+
+        // Only the second call's interval should still be pending — the first was torn down.
+        expect(vi.getTimerCount()).toBe(1);
     });
 });

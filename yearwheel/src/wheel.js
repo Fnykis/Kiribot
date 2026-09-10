@@ -1,12 +1,17 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './api.js';
 import {
-    renderEntryForm, isFormDirty, deleteConfirmText, showFormError,
+    renderEntryForm, deleteConfirmText, showFormError,
     SAVE_FAILED_TEXT, CONFLICT_TEXT
 } from './entryForm.js';
 
 export const POLL_INTERVAL_MS = 60_000;
 
 const REDIRECTING_CODES = new Set(['no_session', 'not_in_guild', 'missing_role']);
+
+// Module-level so a re-entrant initWheel() call (no full page reload in between) tears
+// down the previous poll instead of stacking a second interval/listener on top of it.
+let activePollInterval = null;
+let activeVisibilityHandler = null;
 
 function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -96,6 +101,17 @@ export function renderWheel(root, { role, entries }, handlers = {}) {
 }
 
 export async function initWheel(root, search = window.location.search, deps = {}) {
+    // Idempotent re-init: stop any poll a prior initWheel() call started before setting
+    // up a new one, so calling this twice never leaves duplicate intervals/listeners.
+    if (activePollInterval !== null) {
+        clearInterval(activePollInterval);
+        activePollInterval = null;
+    }
+    if (activeVisibilityHandler) {
+        document.removeEventListener('visibilitychange', activeVisibilityHandler);
+        activeVisibilityHandler = null;
+    }
+
     const {
         get = path => apiGet(path),
         post = (path, body) => apiPost(path, body),
@@ -209,15 +225,17 @@ export async function initWheel(root, search = window.location.search, deps = {}
     await load();
 
     if (poll) {
-        // A poll must never redraw the DOM under an active cursor.
+        // A poll must never touch the form's DOM once it's open — even before it's dirty,
+        // a redraw would destroy the field the user just clicked into. The form is a
+        // manual, explicit action; only an explicit save/cancel/409-reload may redraw it.
         const refresh = () => {
-            const form = currentForm();
-            if (form && isFormDirty(form)) return;
-            load({ keepForm: formOpen });
+            if (formOpen) return;
+            load();
         };
-        setInterval(refresh, POLL_INTERVAL_MS);
-        document.addEventListener('visibilitychange', () => {
+        activePollInterval = setInterval(refresh, POLL_INTERVAL_MS);
+        activeVisibilityHandler = () => {
             if (document.visibilityState === 'visible') refresh();
-        });
+        };
+        document.addEventListener('visibilitychange', activeVisibilityHandler);
     }
 }
