@@ -14,7 +14,7 @@ Applies to: any `channel.send`/DM, any permanent panel/button message (e.g. `pos
 
 ## ALWAYS: report non-frontend and non-yearwheel file changes
 
-At the END of every response where you created, modified, or deleted any file **outside `frontend/`** and **outside `yearwheel/`** (excluding anything under `docs/`), finish the message with:
+At the END of every response where you created, modified, or deleted any file **outside `frontend/`** and **outside `yearwheel/`** (exclude anything under `docs/`), finish the message with:
 
 **Files touched outside /frontend and /yearwheel:**
 - `path/file_one`

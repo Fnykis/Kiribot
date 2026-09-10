@@ -12,6 +12,7 @@ tunnel-credentials.json
 /docs/*
 !/docs/superpowers/
 !/docs/yearwheel/
+!/docs/HOSTING.md
 
 # local one-time script (runtime only)
 src/one-time/oneTimeFunction.js
