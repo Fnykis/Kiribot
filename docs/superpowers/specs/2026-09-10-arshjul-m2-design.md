@@ -205,7 +205,8 @@ Rejections return `400 { error: 'invalid_input', field: '<name>' }`.
 
 ## Dispatcher
 
-A new module, `src/services/arshjulDispatcher.js`, registered from `src/events/ready.js`. Not an
+A new module, `src/services/arshjulDispatcher.js`, started from `start()` in `src/core/express.js`
+once the server is listening (see Files for why not `src/events/ready.js`). Not an
 extension of `src/services/scheduler.js`, for the reasons the parent spec gives: that scheduler
 drifts across DST, uses server local time, has no catch-up, and records nothing about what it
 already sent.
@@ -400,8 +401,10 @@ in `src/core/constants.js:22` as `ch_BotTest` and is not duplicated into config.
   `viaModerator` on the read
 - `src/routes/api/web/me.js` — forward `isModerator`
 - `src/services/memberGroups.js` — `listAllGroups()`
-- `src/core/express.js` — mount the write routes and `/api/web/groups`, write rate limiter
-- `src/events/ready.js` — register the dispatcher
+- `src/core/express.js` — mount the write routes and `/api/web/groups`, write rate limiter, and
+  start the dispatcher from `start()` once the server is listening. Not `src/events/ready.js`:
+  `src/index.js` registers the event handlers before its own `ready` listener that starts Express,
+  so `ready.js` runs first and would find no app.
 - `yearwheel/src/landing.js` — Mod section
 - `config.example.json` — the two new keys
 - `yearwheel/src/wheel.js`, `yearwheel/wheel.html`, `yearwheel/src/api.js`, `yearwheel/src/styles.css`
