@@ -23,11 +23,19 @@ const MEMBER_OF_R1 = {
     workgroups: [{ id: 'r1', name: 'transportgruppen' }]
 };
 
-function route(groups, entries = []) {
+// The real roster a moderator's roleId gets checked against — includes r1 (so moderator
+// tests reaching an existing wheel still pass) and r-any (a second real role used by the
+// "moderator reaching a wheel they do not hold" tests).
+const DEFAULT_ALL_GROUPS = {
+    instruments: [],
+    workgroups: [{ id: 'r1', name: 'transportgruppen' }, { id: 'r-any', name: 'övrig grupp' }]
+};
+
+function route(groups, entries = [], all = DEFAULT_ALL_GROUPS) {
     return createWebYearwheelRoute({
         memberGroups: {
             getGroups: async () => groups,
-            listAllGroups: async () => ({ instruments: [], workgroups: [] })
+            listAllGroups: async () => all
         },
         arshjulStore: { listByRole: async () => entries },
         resolveChannelId: async () => null
@@ -200,11 +208,31 @@ test('a moderator reading a wheel for a role they also hold is not marked viaMod
     assert.strictEqual(res.body.role.name, 'transportgruppen');
 });
 
-test('falls back to the role id when even the roster does not know the role', async () => {
+test('404 not_found when a moderator targets a roleId the roster does not know at all', async () => {
+    // A moderator's blanket access is bounded to real instrument/workgroup roles — a
+    // fabricated roleId (or the guild's own id, which mentions as @everyone) must never
+    // fall back to a readable wheel just because the caller is a moderator.
     const mod = { member: true, displayName: 'Mod', isModerator: true, instruments: [], workgroups: [] };
     const res = mockRes();
     await routeWithChannel(mod)(req('r-unknown'), res);
-    assert.strictEqual(res.body.role.name, 'r-unknown');
+    assert.strictEqual(res.statusCode, 404);
+    assert.deepStrictEqual(res.body, { error: 'not_found' });
+});
+
+test('500 internal when the roster lookup fails while checking a moderator-only roleId', async () => {
+    const mod = { member: true, displayName: 'Mod', isModerator: true, instruments: [], workgroups: [] };
+    const handler = createWebYearwheelRoute({
+        memberGroups: {
+            getGroups: async () => mod,
+            listAllGroups: async () => { throw new Error('roster down'); }
+        },
+        arshjulStore: { listByRole: async () => [] },
+        resolveChannelId: async () => null
+    });
+    const res = mockRes();
+    await handler(req('r-any'), res);
+    assert.strictEqual(res.statusCode, 500);
+    assert.deepStrictEqual(res.body, { error: 'internal' });
 });
 
 test('a channel lookup failure does not fail the read', async () => {

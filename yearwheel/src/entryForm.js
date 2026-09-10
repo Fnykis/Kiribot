@@ -1,4 +1,5 @@
 export const TITLE_TOO_LONG_TEXT = 'Titeln får vara högst 100 tecken.';
+export const TITLE_REQUIRED_TEXT = 'Titeln får inte vara tom.';
 export const BODY_TOO_LONG_TEXT = 'Beskrivningen får vara högst 1500 tecken.';
 export const INVALID_DATE_TEXT = 'Välj ett giltigt datum.';
 export const SAVE_FAILED_TEXT = 'Kunde inte spara. Försök igen.';
@@ -120,7 +121,11 @@ export function renderEntryForm({ entry, onSave, onCancel }) {
         error.textContent = '';
 
         const titleValue = title.value.trim();
-        if (titleValue.length < 1 || titleValue.length > MAX_TITLE) {
+        if (titleValue.length < 1) {
+            error.textContent = TITLE_REQUIRED_TEXT;
+            return;
+        }
+        if (titleValue.length > MAX_TITLE) {
             error.textContent = TITLE_TOO_LONG_TEXT;
             return;
         }

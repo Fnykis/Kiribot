@@ -23,6 +23,25 @@ async function gate({ memberGroups, userId, roleId, res, logger, label }) {
         return null;
     }
 
+    // A moderator's blanket access is bounded to real instrument/workgroup roles — without
+    // this, any roleId string (including the guild's own id, which mentions as @everyone)
+    // would be accepted and stored just because the caller happens to be a moderator.
+    if (!owned) {
+        let all;
+        try {
+            all = await memberGroups.listAllGroups();
+        } catch (err) {
+            if (logger) logger(`${label} roster lookup failed:`, err.message);
+            res.status(500).json({ error: 'internal' });
+            return null;
+        }
+        const real = [...(all.instruments || []), ...(all.workgroups || [])].find(g => g.id === roleId);
+        if (!real) {
+            res.status(404).json({ error: 'not_found' });
+            return null;
+        }
+    }
+
     return groups;
 }
 

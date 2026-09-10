@@ -23,25 +23,31 @@ function createWebYearwheelRoute({ memberGroups, arshjulStore, resolveChannelId,
             return res.status(500).json({ error: 'internal' });
         }
 
+        // A moderator's blanket access is bounded to real instrument/workgroup roles — the
+        // same roster lookup that resolves the display name below also proves roleId is a
+        // real role at all, before a moderator can read a wheel for it. Without this, any
+        // roleId string (including the guild's own id, which mentions as @everyone) would
+        // be readable just because the caller happens to be a moderator.
+        let name = owned ? owned.name : roleId;
+        if (!owned) {
+            let all;
+            try {
+                all = await memberGroups.listAllGroups();
+            } catch (err) {
+                if (logger) logger('GET /api/web/yearwheel roster lookup failed:', err.message);
+                return res.status(500).json({ error: 'internal' });
+            }
+            const found = [...all.instruments, ...all.workgroups].find(g => g.id === roleId);
+            if (!found) return res.status(404).json({ error: 'not_found' });
+            name = found.name;
+        }
+
         let entries;
         try {
             entries = await arshjulStore.listByRole(roleId);
         } catch (err) {
             if (logger) logger('GET /api/web/yearwheel store failed:', err.message);
             return res.status(500).json({ error: 'internal' });
-        }
-
-        // A moderator reaching a wheel they do not hold gets the real role name from the
-        // roster rather than the bare id, so the page can name whose wheel they are editing.
-        let name = owned ? owned.name : roleId;
-        if (!owned) {
-            try {
-                const all = await memberGroups.listAllGroups();
-                const found = [...all.instruments, ...all.workgroups].find(g => g.id === roleId);
-                if (found) name = found.name;
-            } catch (err) {
-                if (logger) logger('GET /api/web/yearwheel roster lookup failed:', err.message);
-            }
         }
 
         // A missing channel is a normal state, never a reason to fail the read.

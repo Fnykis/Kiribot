@@ -60,13 +60,22 @@ function createArshjulDispatcher({
             content,
             allowedMentions: { parse: [], roles: live ? [entry.roleId] : [] }
         });
-        // The thread is the deliverable — a place the group discusses the thing.
-        await message.startThread({ name: entry.title });
 
-        // Send, then mark. A crash between the two duplicates one visible thread; the
-        // reverse order would silently drop a reminder.
+        // Mark sent right after the role-mention message lands — that message is the thing
+        // that must never repeat. Do this BEFORE the thread, so a thread-creation failure
+        // (missing CREATE_PUBLIC_THREADS, rate limit, max active threads, …) never leaves
+        // the entry "pending" — pending would re-send the same live role ping on every
+        // catch-up tick inside the dueWindow.
         await store.markSent(entry.id, year);
         logger(`arshjul: sent entry ${entry.id} "${entry.title}" to ${destination.id}${live ? '' : ' (test mode)'}`);
+
+        // The thread is the deliverable — a place the group discusses the thing. Its own
+        // try/catch keeps a thread failure from being retried as a resend.
+        try {
+            await message.startThread({ name: entry.title });
+        } catch (err) {
+            logger(`arshjul: thread creation failed for entry ${entry.id}:`, err.message);
+        }
     }
 
     // tick() is check-then-act: it reads listAll(), decides what's due, THEN marks sent —

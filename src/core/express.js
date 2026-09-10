@@ -259,7 +259,9 @@ function buildApp({ client, config }) {
             resolveChannelId: roleChannel.resolveChannelId,
             testChannelId: ch_BotTest,
             isLive: () => config.arshjulLive === true,
-            sendHour: Number.isInteger(config.arshjulSendHour) ? config.arshjulSendHour : 8,
+            sendHour: Number.isInteger(config.arshjulSendHour) && config.arshjulSendHour >= 0 && config.arshjulSendHour <= 23
+                ? config.arshjulSendHour
+                : 8,
             logger
         })
     };

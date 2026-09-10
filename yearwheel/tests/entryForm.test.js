@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
     renderEntryForm, daysInMonth, isFormDirty,
-    TITLE_TOO_LONG_TEXT, INVALID_DATE_TEXT, deleteConfirmText
+    TITLE_TOO_LONG_TEXT, TITLE_REQUIRED_TEXT, INVALID_DATE_TEXT, deleteConfirmText
 } from '../src/entryForm.js';
 
 let host;
@@ -84,12 +84,22 @@ describe('renderEntryForm', () => {
         expect(onSave).toHaveBeenCalledWith({ title: 'Ny titel', body: 'b', monthDay: '03-07', version: 2 });
     });
 
-    it('refuses to submit an empty title and says why', () => {
+    it('refuses to submit an empty title and says why, distinct from the too-long message', () => {
         const onSave = vi.fn();
         const form = mount({ onSave });
         form.dispatchEvent(new Event('submit', { cancelable: true }));
         expect(onSave).not.toHaveBeenCalled();
-        expect(form.querySelector('.form-error').textContent).toBe(TITLE_TOO_LONG_TEXT);
+        expect(form.querySelector('.form-error').textContent).toBe(TITLE_REQUIRED_TEXT);
+        expect(TITLE_REQUIRED_TEXT).not.toBe(TITLE_TOO_LONG_TEXT);
+    });
+
+    it('refuses a whitespace-only title with the same empty-title message', () => {
+        const onSave = vi.fn();
+        const form = mount({ onSave });
+        form.querySelector('input[name="title"]').value = '   ';
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+        expect(onSave).not.toHaveBeenCalled();
+        expect(form.querySelector('.form-error').textContent).toBe(TITLE_REQUIRED_TEXT);
     });
 
     it('refuses a title over 100 characters', () => {

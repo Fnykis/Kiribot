@@ -23,6 +23,18 @@ const MEMBER_OF_R1 = {
 };
 const MODERATOR = { member: true, displayName: 'Mod', isModerator: true, instruments: [], workgroups: [] };
 
+// The real roster a moderator's roleId gets checked against — includes r1 (so moderator
+// tests reaching an existing wheel still pass) and r-any (a second real role, distinct
+// from any of the tests' made-up "does not exist" ids).
+const ALL_GROUPS = {
+    instruments: [],
+    workgroups: [{ id: 'r1', name: 'transportgruppen' }, { id: 'r-any', name: 'övrig grupp' }]
+};
+
+function memberGroupsMock(groups, all = ALL_GROUPS) {
+    return { getGroups: async () => groups, listAllGroups: async () => all };
+}
+
 const ENTRY = {
     id: 'e1', roleId: 'r1', channelId: 'c1', monthDay: '01-15',
     title: 'A', body: 'b', version: 1, createdBy: 'u1', updatedBy: 'u1',
@@ -39,24 +51,24 @@ function stores(overrides = {}) {
     };
 }
 
-function createRoute(groups, store = stores(), channelId = 'c1') {
+function createRoute(groups, store = stores(), channelId = 'c1', all = ALL_GROUPS) {
     return createWebYearwheelCreateRoute({
-        memberGroups: { getGroups: async () => groups },
+        memberGroups: memberGroupsMock(groups, all),
         arshjulStore: store,
         resolveChannelId: async () => channelId
     });
 }
 
-function updateRoute(groups, store = stores()) {
+function updateRoute(groups, store = stores(), all = ALL_GROUPS) {
     return createWebYearwheelUpdateRoute({
-        memberGroups: { getGroups: async () => groups },
+        memberGroups: memberGroupsMock(groups, all),
         arshjulStore: store
     });
 }
 
-function deleteRoute(groups, store = stores()) {
+function deleteRoute(groups, store = stores(), all = ALL_GROUPS) {
     return createWebYearwheelDeleteRoute({
-        memberGroups: { getGroups: async () => groups },
+        memberGroups: memberGroupsMock(groups, all),
         arshjulStore: store
     });
 }
@@ -110,6 +122,32 @@ test('a moderator may create on a wheel they do not hold', async () => {
     const res = mockRes();
     await createRoute(MODERATOR)(postReq({ title: 'A', monthDay: '01-15' }, 'r-any'), res);
     assert.strictEqual(res.statusCode, 201);
+});
+
+test('404 not_found when a moderator targets a roleId with no matching instrument/workgroup', async () => {
+    const res = mockRes();
+    await createRoute(MODERATOR)(postReq({ title: 'A', monthDay: '01-15' }, 'not-a-real-role'), res);
+    assert.strictEqual(res.statusCode, 404);
+    assert.deepStrictEqual(res.body, { error: 'not_found' });
+});
+
+test('404 not_found (not 201) when a moderator targets the guild id itself as roleId', async () => {
+    // The guild's own id functions as @everyone for mention purposes — it must never be
+    // accepted just because the caller is a moderator and the string happens to be an id.
+    const res = mockRes();
+    await createRoute(MODERATOR)(postReq({ title: 'A', monthDay: '01-15' }, 'guild-id-not-a-role'), res);
+    assert.strictEqual(res.statusCode, 404);
+});
+
+test('500 internal when the roster lookup fails while checking a moderator-only roleId', async () => {
+    const res = mockRes();
+    const memberGroups = { getGroups: async () => MODERATOR, listAllGroups: async () => { throw new Error('roster down'); } };
+    const route = createWebYearwheelCreateRoute({
+        memberGroups, arshjulStore: stores(), resolveChannelId: async () => 'c1'
+    });
+    await route(postReq({ title: 'A', monthDay: '01-15' }, 'r-any'), res);
+    assert.strictEqual(res.statusCode, 500);
+    assert.deepStrictEqual(res.body, { error: 'internal' });
 });
 
 test('400 invalid_input names the offending field', async () => {
@@ -194,6 +232,17 @@ test('400 invalid_input when the version is missing or not a number', async () =
     assert.deepStrictEqual(res.body, { error: 'invalid_input', field: 'version' });
 });
 
+test('404 not_found when a moderator targets an entry whose roleId has no matching instrument/workgroup', async () => {
+    // ENTRY.roleId is 'r1'; give the moderator a roster where 'r1' does not exist, so the
+    // entry's own roleId is the "fabricated" one from the roster's point of view.
+    const res = mockRes();
+    await updateRoute(MODERATOR, stores(), { instruments: [], workgroups: [] })(
+        entryReq({ title: 'B', monthDay: '02-01', version: 1 }), res
+    );
+    assert.strictEqual(res.statusCode, 404);
+    assert.deepStrictEqual(res.body, { error: 'not_found' });
+});
+
 // --- delete ---
 
 test('deletes an entry and returns 204', async () => {
@@ -243,6 +292,13 @@ test('a moderator may delete an entry on a wheel they do not hold', async () => 
     const res = mockRes();
     await deleteRoute(MODERATOR)(entryReq({ version: 1 }), res);
     assert.strictEqual(res.statusCode, 204);
+});
+
+test('404 not_found when a moderator targets a delete for an entry whose roleId has no matching instrument/workgroup', async () => {
+    const res = mockRes();
+    await deleteRoute(MODERATOR, stores(), { instruments: [], workgroups: [] })(entryReq({ version: 1 }), res);
+    assert.strictEqual(res.statusCode, 404);
+    assert.deepStrictEqual(res.body, { error: 'not_found' });
 });
 
 test('500 when the store fails for an unexpected reason', async () => {

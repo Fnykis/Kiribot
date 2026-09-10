@@ -216,6 +216,54 @@ test('one entry failing to send does not stop the others', async () => {
     assert.deepStrictEqual(marked, [['good', 2026]]);
 });
 
+test('a thread-creation failure still marks the entry sent, so a second tick the same day does not re-send', async () => {
+    const sends = [];
+    const marked = [];
+    const logs = [];
+    // sentYears must be cloned, not shared with ENTRY — same reasoning as the "second tick
+    // the same day" test above: markSent below pushes into it, and ENTRY is shared.
+    const entries = [{ ...ENTRY, sentYears: [...ENTRY.sentYears] }];
+    const dispatcher = createArshjulDispatcher({
+        client: {
+            channels: {
+                fetch: async id => ({
+                    id,
+                    send: async payload => {
+                        sends.push({ channelId: id, payload });
+                        return {
+                            startThread: async () => { throw new Error('Missing Permissions'); }
+                        };
+                    }
+                })
+            }
+        },
+        store: {
+            listAll: async () => entries.map(e => ({ ...e })),
+            markSent: async (id, year) => {
+                marked.push([id, year]);
+                const target = entries.find(e => e.id === id);
+                if (!target.sentYears.includes(year)) target.sentYears.push(year);
+            }
+        },
+        resolveChannelId: async () => 'c1',
+        testChannelId: 'bot-test',
+        isLive: () => true,
+        sendHour: 8,
+        logger: (...args) => logs.push(args.join(' ')),
+        now: () => new Date('2026-03-03T09:00:00Z'),
+        sleep: async () => {}
+    });
+    await dispatcher.tick();
+    assert.strictEqual(sends.length, 1);
+    assert.deepStrictEqual(marked, [['e1', 2026]]);
+    assert.ok(logs.some(l => l.includes('thread creation failed')), `expected a thread-failure log in ${JSON.stringify(logs)}`);
+
+    // Second tick the same day: the entry is already marked sent, so nothing re-posts —
+    // this is the actual regression the fix prevents (a repeated live role-ping).
+    await dispatcher.tick();
+    assert.strictEqual(sends.length, 1);
+});
+
 test('a title at the Discord limit is used unchanged', async () => {
     const title = 'x'.repeat(100);
     const h = harness({ entries: [{ ...ENTRY, title }] });
