@@ -59,3 +59,12 @@ test('500 when the roster lookup fails', async () => {
     assert.strictEqual(res.statusCode, 500);
     assert.deepStrictEqual(res.body, { error: 'internal' });
 });
+
+test('500 when getGroups resolves a malformed shape (missing member/isModerator)', async () => {
+    const res = mockRes();
+    await createWebGroupsRoute({
+        memberGroups: { getGroups: async () => ({ instruments: [] }), listAllGroups: async () => ALL }
+    })(req, res);
+    assert.strictEqual(res.statusCode, 500);
+    assert.deepStrictEqual(res.body, { error: 'internal' });
+});

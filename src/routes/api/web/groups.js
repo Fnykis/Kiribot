@@ -10,15 +10,21 @@ function createWebGroupsRoute({ memberGroups, logger }) {
             return res.status(500).json({ error: 'internal' });
         }
 
-        if (!groups.member) return res.status(403).json({ error: 'not_in_guild' });
-        if (!groups.isModerator) return res.status(403).json({ error: 'not_moderator' });
-
+        let roster;
         try {
-            return res.json(await memberGroups.listAllGroups());
+            if (!('member' in groups)) throw new Error('missing member field');
+            if (!('isModerator' in groups)) throw new Error('missing isModerator field');
+
+            if (!groups.member) return res.status(403).json({ error: 'not_in_guild' });
+            if (!groups.isModerator) return res.status(403).json({ error: 'not_moderator' });
+
+            roster = await memberGroups.listAllGroups();
         } catch (err) {
-            if (logger) logger('GET /api/web/groups roster failed:', err.message);
+            if (logger) logger('GET /api/web/groups group shape invalid:', err.message);
             return res.status(500).json({ error: 'internal' });
         }
+
+        return res.json(roster);
     };
 }
 
