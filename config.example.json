@@ -9,5 +9,7 @@
 	"googleCredsPath": "./src/services/service-account.json",
 	"webOrigin": "https://kiribot.ollelindberg.se",
 	"webRedirectUri": "https://kiribot.ollelindberg.se/yearwheel/callback.html",
-	"sessionSecret": "[YOUR SESSION SECRET]"
+	"sessionSecret": "[YOUR SESSION SECRET]",
+	"arshjulLive": false,
+	"arshjulSendHour": 8
 }

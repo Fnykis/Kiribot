@@ -19,6 +19,8 @@ const createWebLogoutRoute = require('../routes/api/web/logout');
 const createWebMeRoute = require('../routes/api/web/me');
 const createWebYearwheelRoute = require('../routes/api/web/yearwheel');
 const createRoleChannelService = require('../services/roleChannel');
+const createArshjulDispatcher = require('../services/arshjulDispatcher');
+const { ch_BotTest } = require('./constants');
 const createWebOriginMiddleware = require('../middleware/webOrigin');
 const createWebGroupsRoute = require('../routes/api/web/groups');
 const {
@@ -248,7 +250,19 @@ function buildApp({ client, config }) {
         res.status(500).json({ error: 'internal' });
     });
 
-    app.locals.arshjul = { store: arshjulStore, resolveChannelId: roleChannel.resolveChannelId };
+    app.locals.arshjul = {
+        store: arshjulStore,
+        resolveChannelId: roleChannel.resolveChannelId,
+        createDispatcher: () => createArshjulDispatcher({
+            client,
+            store: arshjulStore,
+            resolveChannelId: roleChannel.resolveChannelId,
+            testChannelId: ch_BotTest,
+            isLive: () => config.arshjulLive === true,
+            sendHour: Number.isInteger(config.arshjulSendHour) ? config.arshjulSendHour : 8,
+            logger
+        })
+    };
     return app;
 }
 
@@ -258,6 +272,15 @@ function start({ client, config }) {
     return new Promise((resolve, reject) => {
         const server = app.listen(port, '127.0.0.1', () => {
             logger(`Express listening on 127.0.0.1:${port}`);
+            // Started here, not in events/ready.js: index.js registers the event handlers
+            // before its own ready listener that calls start(), so ready.js runs first and
+            // would find no app. By here the client is ready and the guild cache populated.
+            try {
+                app.locals.arshjul.createDispatcher().start();
+                logger(`Årshjul dispatcher started (${config.arshjulLive === true ? 'LIVE' : 'test channel'})`);
+            } catch (err) {
+                logger('Årshjul dispatcher failed to start:', err);
+            }
             resolve(server);
         });
         server.on('error', reject);
