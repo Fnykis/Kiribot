@@ -108,7 +108,16 @@ function createWebYearwheelUpdateRoute({ memberGroups, arshjulStore, logger }) {
             return res.json(entry);
         } catch (err) {
             if (err.message === 'version_conflict') {
-                return res.status(409).json({ error: 'version_conflict', entry: existing });
+                // `existing` was read before the gate's await and the write itself, so another
+                // write may have landed in that gap. Re-fetch now so the 409 carries the entry
+                // as it actually is, not a stale pre-write snapshot.
+                let current = existing;
+                try {
+                    current = (await arshjulStore.getEntry(req.params.id)) || existing;
+                } catch (fetchErr) {
+                    if (logger) logger('PATCH /api/web/yearwheel re-fetch failed:', fetchErr.message);
+                }
+                return res.status(409).json({ error: 'version_conflict', entry: current });
             }
             if (err.message === 'entry_not_found') return res.status(404).json({ error: 'not_found' });
             if (logger) logger('PATCH /api/web/yearwheel store failed:', err.message);
@@ -146,7 +155,15 @@ function createWebYearwheelDeleteRoute({ memberGroups, arshjulStore, logger }) {
             return res.status(204).end();
         } catch (err) {
             if (err.message === 'version_conflict') {
-                return res.status(409).json({ error: 'version_conflict', entry: existing });
+                // Same re-fetch as the update route: `existing` predates the gate's await and
+                // the write, so it may already be stale by the time the conflict is reported.
+                let current = existing;
+                try {
+                    current = (await arshjulStore.getEntry(req.params.id)) || existing;
+                } catch (fetchErr) {
+                    if (logger) logger('DELETE /api/web/yearwheel re-fetch failed:', fetchErr.message);
+                }
+                return res.status(409).json({ error: 'version_conflict', entry: current });
             }
             if (err.message === 'entry_not_found') return res.status(404).json({ error: 'not_found' });
             if (logger) logger('DELETE /api/web/yearwheel store failed:', err.message);

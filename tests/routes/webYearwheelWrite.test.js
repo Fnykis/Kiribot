@@ -166,6 +166,27 @@ test('409 version_conflict returns the current entry so the page can reload it',
     assert.strictEqual(res.body.entry.id, 'e1');
 });
 
+test('409 on update re-fetches so the entry reflects a write that landed mid-request, not the stale snapshot', async () => {
+    let calls = 0;
+    const store = stores({
+        // First getEntry (top-of-handler) sees the old title; a rival write lands during the
+        // gate/validate await gap; the store's own version check throws; the re-fetch inside
+        // the catch must see the new title, not the one read at the top of the handler.
+        getEntry: async id => {
+            calls += 1;
+            if (id !== 'e1') return null;
+            return calls === 1 ? { ...ENTRY, title: 'Old (pre-conflict)' } : { ...ENTRY, title: 'New (rival write)', version: 2 };
+        },
+        update: async () => { throw new Error('version_conflict'); }
+    });
+    const res = mockRes();
+    await updateRoute(MEMBER_OF_R1, store)(entryReq({ title: 'B', monthDay: '02-01', version: 1 }), res);
+    assert.strictEqual(res.statusCode, 409);
+    assert.strictEqual(res.body.entry.title, 'New (rival write)');
+    assert.strictEqual(res.body.entry.version, 2);
+    assert.ok(calls >= 2, 'expected a re-fetch after the version conflict, not just the top-of-handler read');
+});
+
 test('400 invalid_input when the version is missing or not a number', async () => {
     const res = mockRes();
     await updateRoute(MEMBER_OF_R1)(entryReq({ title: 'B', monthDay: '02-01' }), res);
@@ -198,6 +219,24 @@ test('409 version_conflict when deleting with a stale version', async () => {
     await deleteRoute(MEMBER_OF_R1, store)(entryReq({ version: 1 }), res);
     assert.strictEqual(res.statusCode, 409);
     assert.strictEqual(res.body.entry.id, 'e1');
+});
+
+test('409 on delete re-fetches so the entry reflects a write that landed mid-request, not the stale snapshot', async () => {
+    let calls = 0;
+    const store = stores({
+        getEntry: async id => {
+            calls += 1;
+            if (id !== 'e1') return null;
+            return calls === 1 ? { ...ENTRY, title: 'Old (pre-conflict)' } : { ...ENTRY, title: 'New (rival write)', version: 2 };
+        },
+        remove: async () => { throw new Error('version_conflict'); }
+    });
+    const res = mockRes();
+    await deleteRoute(MEMBER_OF_R1, store)(entryReq({ version: 1 }), res);
+    assert.strictEqual(res.statusCode, 409);
+    assert.strictEqual(res.body.entry.title, 'New (rival write)');
+    assert.strictEqual(res.body.entry.version, 2);
+    assert.ok(calls >= 2, 'expected a re-fetch after the version conflict, not just the top-of-handler read');
 });
 
 test('a moderator may delete an entry on a wheel they do not hold', async () => {
