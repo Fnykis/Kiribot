@@ -28,6 +28,38 @@ function groupSection(heading, groups) {
     return section;
 }
 
+export const MOD_SECTION_TEXT = 'Mod — alla gruppers årshjul';
+export const MOD_LOAD_ERROR_TEXT = 'Kunde inte hämta grupplistan.';
+
+function modSection() {
+    const details = el('details', 'mod-section');
+    details.appendChild(el('summary', null, MOD_SECTION_TEXT));
+    details.appendChild(el('div', 'mod-body'));
+    return details;
+}
+
+// Fetches on first open, not on page load, so a moderator's ordinary visit costs what
+// everyone else's does. Lists all groups, their own included.
+export async function fillModSection(details, loadGroups) {
+    if (!details || details.dataset.loaded === 'true') return;
+    details.dataset.loaded = 'true';
+
+    const body = details.querySelector('.mod-body');
+    body.replaceChildren();
+
+    let all;
+    try {
+        all = await loadGroups();
+    } catch {
+        details.dataset.loaded = 'false'; // allow a retry on the next open
+        body.replaceChildren(el('p', 'notice', MOD_LOAD_ERROR_TEXT));
+        return;
+    }
+
+    if (all.instruments.length) body.appendChild(groupSection('Instrument', all.instruments));
+    if (all.workgroups.length) body.appendChild(groupSection('Arbetsgrupper', all.workgroups));
+}
+
 function logoutButton() {
     const btn = el('button', 'btn', 'Logga ut');
     btn.id = 'logout-btn';
@@ -62,6 +94,7 @@ export function renderLanding(root, state, notice) {
 
     if (state.kind === 'no_groups') {
         root.appendChild(el('p', 'notice', NO_GROUPS_TEXT));
+        if (state.isModerator) root.appendChild(modSection());
         root.appendChild(logoutButton());
         return;
     }
@@ -69,15 +102,23 @@ export function renderLanding(root, state, notice) {
     root.appendChild(el('p', 'greeting', state.displayName));
     if (state.instruments.length) root.appendChild(groupSection('Instrument', state.instruments));
     if (state.workgroups.length) root.appendChild(groupSection('Arbetsgrupper', state.workgroups));
+    if (state.isModerator) root.appendChild(modSection());
     root.appendChild(logoutButton());
 }
 
 export function toState(me) {
     if (!me.member) return { kind: 'not_member' };
+    const isModerator = me.isModerator === true;
     if (!me.instruments.length && !me.workgroups.length) {
-        return { kind: 'no_groups', displayName: me.displayName };
+        return { kind: 'no_groups', displayName: me.displayName, isModerator };
     }
-    return { kind: 'ok', displayName: me.displayName, instruments: me.instruments, workgroups: me.workgroups };
+    return {
+        kind: 'ok',
+        displayName: me.displayName,
+        isModerator,
+        instruments: me.instruments,
+        workgroups: me.workgroups
+    };
 }
 
 export async function initLanding(root, search = window.location.search) {
@@ -96,6 +137,11 @@ export async function initLanding(root, search = window.location.search) {
         }
     }
     renderLanding(root, state, notice);
+
+    const mod = root.querySelector('details.mod-section');
+    mod?.addEventListener('toggle', () => {
+        if (mod.open) fillModSection(mod, () => apiGet('/api/web/groups'));
+    });
 
     root.querySelector('#login-btn')?.addEventListener('click', () => {
         window.location.href = buildAuthorizeUrl({

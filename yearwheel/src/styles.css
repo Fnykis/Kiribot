@@ -12,3 +12,6 @@ h2 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spa
 .entry-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
 .entry { padding: .9rem 1rem; background: #2b2d31; border-radius: .5rem; }
 .entry-date { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: .75rem; }
+.mod-section { margin-top: 2rem; border-top: 1px solid currentColor; padding-top: 1rem; opacity: 0.9; }
+.mod-section > summary { cursor: pointer; font-weight: 600; }
+.mod-section .mod-body { margin-top: 0.5rem; }
