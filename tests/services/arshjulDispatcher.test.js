@@ -223,3 +223,95 @@ test('a title at the Discord limit is used unchanged', async () => {
     assert.strictEqual(h.sends[0].thread.name, title);
     assert.strictEqual(h.sends[0].thread.name.length, 100);
 });
+
+test('two concurrent tick() calls send only once (check-then-act race guard)', async () => {
+    const h = harness({ entries: [ENTRY] });
+    // Fire both without awaiting the first — reproduces a manual tick() landing
+    // while a scheduled one is still mid-flight (or a doubled start()).
+    const p1 = h.dispatcher.tick();
+    const p2 = h.dispatcher.tick();
+    await Promise.all([p1, p2]);
+    assert.strictEqual(h.sends.length, 1);
+    assert.deepStrictEqual(h.marked, [['e1', 2026]]);
+});
+
+test('tick() runs again once the in-flight one has finished', async () => {
+    // Proves the in-flight guard releases after completion instead of wedging tick()
+    // shut forever: two sequential (awaited, non-overlapping) calls must each do a
+    // fresh store.listAll() read, not silently reuse the first call's settled promise.
+    let listAllCalls = 0;
+    const dispatcher = createArshjulDispatcher({
+        client: { channels: { fetch: async id => fakeChannel(id, []) } },
+        store: {
+            listAll: async () => { listAllCalls++; return []; },
+            markSent: async () => {}
+        },
+        resolveChannelId: async () => null,
+        testChannelId: 'bot-test',
+        isLive: () => true,
+        sendHour: 8,
+        logger: () => {},
+        now: () => new Date('2026-03-03T09:00:00Z'),
+        sleep: async () => {}
+    });
+    await dispatcher.tick();
+    await dispatcher.tick();
+    assert.strictEqual(listAllCalls, 2);
+});
+
+test('start() called twice does not spin up a second timer chain', () => {
+    const originalSetTimeout = global.setTimeout;
+    let calls = 0;
+    global.setTimeout = (fn, ms) => {
+        calls++;
+        return originalSetTimeout(() => {}, 0);
+    };
+    try {
+        const dispatcher = createArshjulDispatcher({
+            client: { channels: { fetch: async () => null } },
+            store: { listAll: async () => [], markSent: async () => {} },
+            resolveChannelId: async () => null,
+            testChannelId: 'bot-test',
+            isLive: () => true,
+            sendHour: 8,
+            logger: () => {},
+            now: () => new Date('2026-03-03T09:00:00Z'),
+            sleep: async () => {}
+        });
+        dispatcher.start();
+        dispatcher.start();
+        assert.strictEqual(calls, 1);
+        dispatcher.stop();
+    } finally {
+        global.setTimeout = originalSetTimeout;
+    }
+});
+
+test('stop() then start() again is allowed to spin up one fresh timer', () => {
+    const originalSetTimeout = global.setTimeout;
+    let calls = 0;
+    global.setTimeout = (fn, ms) => {
+        calls++;
+        return originalSetTimeout(() => {}, 0);
+    };
+    try {
+        const dispatcher = createArshjulDispatcher({
+            client: { channels: { fetch: async () => null } },
+            store: { listAll: async () => [], markSent: async () => {} },
+            resolveChannelId: async () => null,
+            testChannelId: 'bot-test',
+            isLive: () => true,
+            sendHour: 8,
+            logger: () => {},
+            now: () => new Date('2026-03-03T09:00:00Z'),
+            sleep: async () => {}
+        });
+        dispatcher.start();
+        dispatcher.stop();
+        dispatcher.start();
+        assert.strictEqual(calls, 2);
+        dispatcher.stop();
+    } finally {
+        global.setTimeout = originalSetTimeout;
+    }
+});

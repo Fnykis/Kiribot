@@ -12,6 +12,8 @@ function createArshjulDispatcher({
     logger = () => {}, now = () => new Date(), sleep = ms => new Promise(r => setTimeout(r, ms))
 }) {
     let timer = null;
+    let started = false;
+    let inFlight = null;
 
     async function fetchChannel(id) {
         if (!id) return null;
@@ -67,7 +69,19 @@ function createArshjulDispatcher({
         logger(`arshjul: sent entry ${entry.id} "${entry.title}" to ${destination.id}${live ? '' : ' (test mode)'}`);
     }
 
-    async function tick() {
+    // tick() is check-then-act: it reads listAll(), decides what's due, THEN marks sent —
+    // markSent's dedupe only protects the file write, not this window. Two overlapping
+    // ticks (a manual tick() while a scheduled one is still mid-flight, or a doubled
+    // start()) would both see "not sent yet" and both post — a live double-ping, not a
+    // crash. The guard below serializes tick(): a call made while one is running returns
+    // the SAME in-flight promise instead of starting a second pass.
+    function tick() {
+        if (inFlight) return inFlight;
+        inFlight = runTick().finally(() => { inFlight = null; });
+        return inFlight;
+    }
+
+    async function runTick() {
         const { year, monthDay } = todayInStockholm(now());
         const window = new Set(dueWindow(year, monthDay, CATCH_UP_DAYS));
         // The day that has just fallen out of the window — logged once, then never again.
@@ -123,6 +137,11 @@ function createArshjulDispatcher({
     }
 
     function start() {
+        // A second start() must not spin up a second competing setTimeout chain — the
+        // tick() guard above bounds concurrent sends, but two live timer chains would
+        // still double up every future day's stagger/log noise for no reason.
+        if (started) return;
+        started = true;
         // A restart after the send hour delivers that same morning rather than falling
         // through to the catch-up window.
         if (shouldTickOnStart(now(), sendHour)) safeTick();
@@ -132,6 +151,7 @@ function createArshjulDispatcher({
     function stop() {
         if (timer) clearTimeout(timer);
         timer = null;
+        started = false;
     }
 
     return { tick, start, stop };
