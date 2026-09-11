@@ -1,6 +1,8 @@
 // The full group roster is moderator-only. An ordinary member's browser never receives the
 // list of groups they are not in — see the parent spec's note on GET /api/web/me.
-function createWebGroupsRoute({ memberGroups, logger }) {
+const { loadCounts, withCounts } = require('../../../utils/groupCounts');
+
+function createWebGroupsRoute({ memberGroups, arshjulStore, logger }) {
     return async function webGroupsRoute(req, res) {
         let groups;
         try {
@@ -24,7 +26,12 @@ function createWebGroupsRoute({ memberGroups, logger }) {
             return res.status(500).json({ error: 'internal' });
         }
 
-        return res.json(roster);
+        const counts = await loadCounts(arshjulStore, logger, 'GET /api/web/groups');
+
+        return res.json({
+            instruments: withCounts(roster.instruments, counts),
+            workgroups: withCounts(roster.workgroups, counts)
+        });
     };
 }
 

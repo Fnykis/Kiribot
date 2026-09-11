@@ -31,7 +31,7 @@ describe('handleCallback', () => {
         await handleCallback(`?code=abc123&state=${state}`, root);
 
         expect(apiPost).toHaveBeenCalledWith('/api/web/token', { code: 'abc123' });
-        expect(replaceSpy).toHaveBeenCalledWith('./index.html');
+        expect(replaceSpy).toHaveBeenCalledWith('./');
     });
 
     it('mismatched state shows the failure message and never calls apiPost', async () => {

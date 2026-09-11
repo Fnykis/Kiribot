@@ -6,8 +6,11 @@ h1 { font-size: 1.5rem; }
 h2 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2rem; }
 .notice { line-height: 1.5; }
 .group-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
-.group-link { display: block; padding: .9rem 1rem; background: #2b2d31; color: var(--fg); border-radius: .5rem; text-decoration: none; }
+.group-link { display: flex; align-items: center; gap: .75rem; padding: .9rem 1rem; background: #2b2d31; color: var(--fg); border-radius: .5rem; text-decoration: none; }
 .group-link:hover { background: #35373c; }
+.group-link-name { flex: 1; overflow-wrap: anywhere; }
+.group-count { min-width: 1.75rem; padding: .15rem .5rem; border-radius: 999px; background: #3f4147; color: var(--fg); font-size: .85rem; font-variant-numeric: tabular-nums; text-align: center; }
+.group-count-zero { background: transparent; color: var(--muted); }
 .btn { margin-top: 2rem; padding: .75rem 1.25rem; background: var(--accent); color: #fff; border: 0; border-radius: .5rem; font-size: 1rem; cursor: pointer; }
 .entry-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
 .entry { padding: .9rem 1rem; background: #2b2d31; border-radius: .5rem; }

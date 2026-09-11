@@ -38,21 +38,21 @@ describe('renderWheel', () => {
 
     it('has a back link to the landing page', () => {
         renderWheel(root, { role: { id: 'r1', name: 'g' }, entries: [] });
-        expect(root.querySelector('a.back-link').getAttribute('href')).toBe('index.html');
+        expect(root.querySelector('a.back-link').getAttribute('href')).toBe('./');
     });
 });
 
 describe('destinationFor', () => {
     it('sends an expired session to the landing page', () => {
-        expect(destinationFor(new ApiError(401, 'no_session'))).toEqual({ url: 'index.html', reason: 'no_session' });
+        expect(destinationFor(new ApiError(401, 'no_session'))).toEqual({ url: './', reason: 'no_session' });
     });
 
     it('sends a kicked user to the landing page', () => {
-        expect(destinationFor(new ApiError(403, 'not_in_guild'))).toEqual({ url: 'index.html', reason: 'not_in_guild' });
+        expect(destinationFor(new ApiError(403, 'not_in_guild'))).toEqual({ url: './', reason: 'not_in_guild' });
     });
 
     it('sends a user who lost the role to the landing page', () => {
-        expect(destinationFor(new ApiError(403, 'missing_role'))).toEqual({ url: 'index.html', reason: 'missing_role' });
+        expect(destinationFor(new ApiError(403, 'missing_role'))).toEqual({ url: './', reason: 'missing_role' });
     });
 
     it('returns null for errors that should not navigate', () => {
@@ -170,6 +170,18 @@ describe('moderator context', () => {
 describe('wheel CRUD wiring', () => {
     let root;
     beforeEach(() => { root = document.createElement('div'); });
+
+    it('sends a visit without a role back to the landing page directory', async () => {
+        const replaceSpy = vi.fn();
+        const original = window.location;
+        Object.defineProperty(window, 'location', { configurable: true, value: { ...original, replace: replaceSpy } });
+        try {
+            await initWheel(root, '', { get: async () => { throw new Error('must not fetch'); }, poll: false });
+            expect(replaceSpy).toHaveBeenCalledWith('./');
+        } finally {
+            Object.defineProperty(window, 'location', { configurable: true, value: original });
+        }
+    });
 
     const wheelData = {
         role: { id: 'r1', name: 'tarol', hasChannel: true, viaModerator: false },

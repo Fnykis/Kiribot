@@ -157,12 +157,13 @@ function buildApp({ client, config }) {
             oauth, webSession, redirectUri: config.webRedirectUri, logger
         })));
         app.post('/api/web/logout', asyncRoute(createWebLogoutRoute()));
-        app.get('/api/web/me', webAuth, asyncRoute(createWebMeRoute({ memberGroups, logger })));
+        app.get('/api/web/me', webAuth, asyncRoute(createWebMeRoute({ memberGroups, arshjulStore, logger })));
         app.get('/api/web/yearwheel/:roleId', webAuth,
             asyncRoute(createWebYearwheelRoute({
                 memberGroups, arshjulStore, resolveChannelId: roleChannel.resolveChannelId, logger
             })));
-        app.get('/api/web/groups', webAuth, asyncRoute(createWebGroupsRoute({ memberGroups, logger })));
+        app.get('/api/web/groups', webAuth,
+            asyncRoute(createWebGroupsRoute({ memberGroups, arshjulStore, logger })));
         app.post('/api/web/yearwheel/:roleId', webAuth, webOrigin, arshjulWriteLimiter,
             asyncRoute(createWebYearwheelCreateRoute({
                 memberGroups, arshjulStore, resolveChannelId: roleChannel.resolveChannelId, logger

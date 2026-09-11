@@ -58,6 +58,16 @@ function createArshjulStore({ filePath = DEFAULT_FILE } = {}) {
         return Object.entries(data.entries).map(([id, e]) => ({ id, ...e }));
     }
 
+    // Entry count per roleId, for the group lists on the landing page.
+    async function countsByRole() {
+        const data = readFile();
+        const counts = {};
+        for (const e of Object.values(data.entries)) {
+            counts[e.roleId] = (counts[e.roleId] || 0) + 1;
+        }
+        return counts;
+    }
+
     async function getEntry(id) {
         const data = readFile();
         const entry = data.entries[id];
@@ -126,7 +136,7 @@ function createArshjulStore({ filePath = DEFAULT_FILE } = {}) {
         });
     }
 
-    return { listByRole, listAll, getEntry, create, update, remove, markSent };
+    return { listByRole, listAll, countsByRole, getEntry, create, update, remove, markSent };
 }
 
 module.exports = createArshjulStore;

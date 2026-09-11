@@ -22,7 +22,7 @@ function el(tag, className, text) {
 
 export function destinationFor(error) {
     if (!error || !REDIRECTING_CODES.has(error.code)) return null;
-    return { url: 'index.html', reason: error.code };
+    return { url: './', reason: error.code };
 }
 
 export const MONTH_NAMES = [
@@ -60,7 +60,7 @@ export function renderWheel(root, { role, entries }, handlers = {}) {
     root.replaceChildren();
 
     const back = el('a', 'back-link', '← Tillbaka');
-    back.setAttribute('href', 'index.html');
+    back.setAttribute('href', './');
     root.appendChild(back);
 
     const newBtn = el('button', 'btn', '+ Ny post');
@@ -123,7 +123,7 @@ export async function initWheel(root, search = window.location.search, deps = {}
 
     const roleId = new URLSearchParams(search).get('role');
     if (!roleId) {
-        window.location.replace('index.html');
+        window.location.replace('./');
         return;
     }
 

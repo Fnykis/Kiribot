@@ -243,3 +243,22 @@ test('markSent does not bump the version — it is not a user edit', async () =>
     await store.markSent('e1', 2026);
     assert.strictEqual((await store.getEntry('e1')).version, 1);
 });
+
+test('countsByRole tallies entries per role and omits roles with none', async () => {
+    const file = tmpFile();
+    write(file, {
+        version: 1,
+        entries: {
+            e1: { roleId: 'r1', monthDay: '03-01', title: 'A', fields: {}, version: 1, sentYears: [] },
+            e2: { roleId: 'r1', monthDay: '04-01', title: 'B', fields: {}, version: 1, sentYears: [] },
+            e3: { roleId: 'r2', monthDay: '05-01', title: 'C', fields: {}, version: 1, sentYears: [] }
+        }
+    });
+    const store = createArshjulStore({ filePath: file });
+    assert.deepStrictEqual(await store.countsByRole(), { r1: 2, r2: 1 });
+});
+
+test('countsByRole returns an empty object when the file does not exist', async () => {
+    const store = createArshjulStore({ filePath: tmpFile() });
+    assert.deepStrictEqual(await store.countsByRole(), {});
+});

@@ -44,7 +44,7 @@ describe('renderLanding', () => {
         });
         const links = [...root.querySelectorAll('a.group-link')];
         expect(links.length).toBe(3);
-        expect(links.map(a => a.textContent)).toEqual(['tarol', 'transportgruppen', 'fikagruppen']);
+        expect(links.map(a => a.querySelector('.group-link-name').textContent)).toEqual(['tarol', 'transportgruppen', 'fikagruppen']);
         expect(links[0].getAttribute('href')).toBe('wheel.html?role=i1');
         expect(links[2].getAttribute('href')).toBe('wheel.html?role=w2');
     });
@@ -58,7 +58,24 @@ describe('renderLanding', () => {
     it('escapes group names rather than injecting HTML', () => {
         renderLanding(root, { kind: 'ok', displayName: 'O', instruments: [], workgroups: [{ id: 'w1', name: '<img src=x onerror=alert(1)>' }] });
         expect(root.querySelector('img')).toBeNull();
-        expect(root.querySelector('a.group-link').textContent).toBe('<img src=x onerror=alert(1)>');
+        expect(root.querySelector('.group-link-name').textContent).toBe('<img src=x onerror=alert(1)>');
+    });
+
+    it('shows the reminder count on every group, including 0', () => {
+        renderLanding(root, {
+            kind: 'ok', displayName: 'O',
+            instruments: [{ id: 'i1', name: 'tarol', count: 3 }],
+            workgroups: [{ id: 'w1', name: 'a', count: 0 }]
+        });
+        const counts = [...root.querySelectorAll('a.group-link .group-count')];
+        expect(counts.map(c => c.textContent)).toEqual(['3', '0']);
+        expect(counts[1].classList.contains('group-count-zero')).toBe(true);
+        expect(counts[0].classList.contains('group-count-zero')).toBe(false);
+    });
+
+    it('shows 0 when the count field is missing', () => {
+        renderLanding(root, { kind: 'ok', displayName: 'O', instruments: [{ id: 'i1', name: 'tarol' }], workgroups: [] });
+        expect(root.querySelector('.group-count').textContent).toBe('0');
     });
 });
 
@@ -120,7 +137,7 @@ describe('fillModSection', () => {
             workgroups: [{ id: 'w1', name: 'transportgruppen' }]
         }));
         const links = [...root.querySelectorAll('.mod-section a.group-link')];
-        expect(links.map(a => a.textContent)).toEqual(['tarol', 'transportgruppen']);
+        expect(links.map(a => a.querySelector('.group-link-name').textContent)).toEqual(['tarol', 'transportgruppen']);
         expect(links[1].getAttribute('href')).toBe('wheel.html?role=w1');
     });
 
@@ -144,6 +161,6 @@ describe('fillModSection', () => {
         await fillModSection(root.querySelector('details.mod-section'), async () => { throw new Error('nope'); });
         expect(root.querySelector('.mod-section').textContent).toContain(MOD_LOAD_ERROR_TEXT);
         // The caller's own group link is untouched.
-        expect(root.querySelector('.group-section a.group-link').textContent).toBe('tarol');
+        expect(root.querySelector('.group-section a.group-link .group-link-name').textContent).toBe('tarol');
     });
 });

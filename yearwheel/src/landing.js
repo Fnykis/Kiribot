@@ -19,8 +19,13 @@ function groupSection(heading, groups) {
     const list = el('ul', 'group-list');
     for (const g of groups) {
         const li = el('li');
-        const a = el('a', 'group-link', g.name);
+        const a = el('a', 'group-link');
         a.setAttribute('href', `wheel.html?role=${encodeURIComponent(g.id)}`);
+        a.appendChild(el('span', 'group-link-name', g.name));
+        // Reminder count for the group's wheel; 0 is shown muted rather than hidden so
+        // every row reads the same way. Older backends send no count at all.
+        const count = g.count || 0;
+        a.appendChild(el('span', count === 0 ? 'group-count group-count-zero' : 'group-count', String(count)));
         li.appendChild(a);
         list.appendChild(li);
     }

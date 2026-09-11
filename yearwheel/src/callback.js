@@ -15,7 +15,7 @@ export async function handleCallback(search, root) {
 
     try {
         await apiPost('/api/web/token', { code });
-        window.location.replace('./index.html');
+        window.location.replace('./');
     } catch {
         root.textContent = 'Inloggningen misslyckades. Försök igen.';
     }
