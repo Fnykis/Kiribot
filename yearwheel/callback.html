@@ -2,12 +2,13 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#100b18" />
   <title>Loggar in…</title>
   <link rel="stylesheet" href="./src/styles.css" />
 </head>
 <body>
-  <main id="app">Loggar in…</main>
+  <main id="app" class="page-centered">Loggar in…</main>
   <script type="module">
     import { handleCallback } from './src/callback.js';
     handleCallback(window.location.search, document.getElementById('app'));

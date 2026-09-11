@@ -1,10 +1,14 @@
 import { apiGet, apiPost } from './api.js';
 import { buildAuthorizeUrl, newState } from './auth.js';
+import { icon } from './icons.js';
 
 export const NOT_MEMBER_TEXT = 'Du är inte medlem i Kiriakas Discord-server, så årshjulet är inte tillgängligt för dig.';
 export const NO_GROUPS_TEXT = 'Du måste ansluta till ett instrument eller en arbetsgrupp för att använda årshjulet. Har du nyligen ändrat din profil? Vänta då i några minuter och prova igen.';
 export const LOAD_ERROR_TEXT = 'Kunde inte ladda sidan. Försök igen senare.';
 export const MISSING_ROLE_NOTICE_TEXT = 'Du har inte längre tillgång till den gruppens årshjul.';
+export const SIGNED_IN_PREFIX = 'Inloggad som ';
+export const ANON_INTRO_TEXT = 'Logga in med Discord för att se och redigera årshjulet för dina grupper.';
+export const PICK_GROUP_TEXT = 'Välj en grupp för att öppna dess årshjul.';
 
 function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -13,14 +17,25 @@ function el(tag, className, text) {
     return node;
 }
 
+function noticeLine(className, iconName, text) {
+    const p = el('p', `notice ${className}`);
+    p.appendChild(icon(iconName));
+    p.appendChild(el('span', null, text));
+    return p;
+}
+
 function groupSection(heading, groups) {
     const section = el('section', 'group-section');
     section.appendChild(el('h2', null, heading));
     const list = el('ul', 'group-list');
     for (const g of groups) {
         const li = el('li');
-        const a = el('a', 'group-link', g.name);
+        // The link's text stays exactly the group name — the chevron is an <svg> with no
+        // text of its own, so the accessible name is the name and nothing else.
+        const a = el('a', 'group-link');
         a.setAttribute('href', `wheel.html?role=${encodeURIComponent(g.id)}`);
+        a.appendChild(el('span', 'group-link-name', g.name));
+        a.appendChild(icon('forward'));
         li.appendChild(a);
         list.appendChild(li);
     }
@@ -52,7 +67,7 @@ export async function fillModSection(details, loadGroups) {
         all = await loadGroups();
     } catch {
         details.dataset.loaded = 'false'; // allow a retry on the next open
-        body.replaceChildren(el('p', 'notice', MOD_LOAD_ERROR_TEXT));
+        body.replaceChildren(noticeLine('notice-warning', 'warning', MOD_LOAD_ERROR_TEXT));
         return;
     }
 
@@ -60,50 +75,63 @@ export async function fillModSection(details, loadGroups) {
     if (all.workgroups.length) body.appendChild(groupSection('Arbetsgrupper', all.workgroups));
 }
 
-function logoutButton() {
-    const btn = el('button', 'btn', 'Logga ut');
+// Logging out is not one of the things this page is for, so it sits apart from the group
+// list, under a rule, styled as the quiet action it is.
+function logoutRow() {
+    const row = el('div', 'logout-row');
+    const btn = el('button', 'btn btn-ghost');
     btn.id = 'logout-btn';
     btn.type = 'button';
-    return btn;
+    btn.appendChild(icon('logout'));
+    btn.appendChild(el('span', null, 'Logga ut'));
+    row.appendChild(btn);
+    return row;
 }
 
 export function renderLanding(root, state, notice) {
     root.replaceChildren();
     root.appendChild(el('h1', null, 'Årshjul'));
 
-    if (notice) root.appendChild(el('p', 'notice notice-transient', notice));
+    if (notice) {
+        const line = noticeLine('notice-transient', 'warning', notice);
+        line.setAttribute('role', 'status');
+        root.appendChild(line);
+    }
 
     if (state.kind === 'error') {
-        root.appendChild(el('p', 'notice', LOAD_ERROR_TEXT));
+        root.appendChild(noticeLine('notice-warning', 'warning', LOAD_ERROR_TEXT));
         return;
     }
 
     if (state.kind === 'anonymous') {
-        const btn = el('button', 'btn', 'Logga in med Discord');
+        root.appendChild(el('p', 'greeting', ANON_INTRO_TEXT));
+        const row = el('div', 'login-row');
+        const btn = el('button', 'btn btn-block', 'Logga in med Discord');
         btn.id = 'login-btn';
         btn.type = 'button';
-        root.appendChild(btn);
+        row.appendChild(btn);
+        root.appendChild(row);
         return;
     }
 
     if (state.kind === 'not_member') {
-        root.appendChild(el('p', 'notice', NOT_MEMBER_TEXT));
-        root.appendChild(logoutButton());
+        root.appendChild(noticeLine('notice-warning', 'warning', NOT_MEMBER_TEXT));
+        root.appendChild(logoutRow());
         return;
     }
 
     if (state.kind === 'no_groups') {
-        root.appendChild(el('p', 'notice', NO_GROUPS_TEXT));
+        root.appendChild(noticeLine('notice-warning', 'warning', NO_GROUPS_TEXT));
         if (state.isModerator) root.appendChild(modSection());
-        root.appendChild(logoutButton());
+        root.appendChild(logoutRow());
         return;
     }
 
-    root.appendChild(el('p', 'greeting', state.displayName));
+    root.appendChild(el('p', 'greeting', `${SIGNED_IN_PREFIX}${state.displayName} · ${PICK_GROUP_TEXT}`));
     if (state.instruments.length) root.appendChild(groupSection('Instrument', state.instruments));
     if (state.workgroups.length) root.appendChild(groupSection('Arbetsgrupper', state.workgroups));
     if (state.isModerator) root.appendChild(modSection());
-    root.appendChild(logoutButton());
+    root.appendChild(logoutRow());
 }
 
 export function toState(me) {

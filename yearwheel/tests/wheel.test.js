@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderWheel, initWheel, destinationFor, POLL_INTERVAL_MS, MONTH_NAMES, NO_CHANNEL_TEXT, UNDELIVERABLE_TEXT, VIA_MODERATOR_TEXT } from '../src/wheel.js';
+import { renderWheel, initWheel, destinationFor, POLL_INTERVAL_MS, MONTH_NAMES, NO_CHANNEL_TEXT, UNDELIVERABLE_TEXT, VIA_MODERATOR_TEXT, NO_BODY_TEXT, CLOSE_LABEL_TEXT, DISCARD_CONFIRM_TEXT } from '../src/wheel.js';
 import { ApiError } from '../src/api.js';
 
 let root;
@@ -292,5 +292,211 @@ describe('poll pause and cleanup', () => {
 
         // Only the second call's interval should still be pending — the first was torn down.
         expect(vi.getTimerCount()).toBe(1);
+    });
+});
+
+describe('expanding an entry', () => {
+    let root;
+    beforeEach(() => { root = document.createElement('div'); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    const two = [
+        entry({ id: 'a', monthDay: '01-05', title: 'Först', body: 'Kroppstext A' }),
+        entry({ id: 'b', monthDay: '01-06', title: 'Sedan', body: 'Kroppstext B' })
+    ];
+    const rowFor = id => root.querySelector(`.entry[data-id="${id}"]`);
+    const toggleFor = id => rowFor(id).querySelector('.entry-toggle');
+    const isOpen = id => rowFor(id).classList.contains('is-open');
+
+    it('starts every entry collapsed', () => {
+        renderWheel(root, { role: ROLE, entries: two });
+        expect(isOpen('a')).toBe(false);
+        expect(isOpen('b')).toBe(false);
+        expect(toggleFor('a').getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('opens the entry that was clicked and shows its body', () => {
+        renderWheel(root, { role: ROLE, entries: two });
+        toggleFor('a').click();
+        expect(isOpen('a')).toBe(true);
+        expect(toggleFor('a').getAttribute('aria-expanded')).toBe('true');
+        expect(rowFor('a').querySelector('.entry-body').textContent).toBe('Kroppstext A');
+    });
+
+    it('collapses the entry again when it is clicked a second time', () => {
+        renderWheel(root, { role: ROLE, entries: two });
+        toggleFor('a').click();
+        toggleFor('a').click();
+        expect(isOpen('a')).toBe(false);
+        expect(toggleFor('a').getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('collapses the open entry when another one is opened', () => {
+        renderWheel(root, { role: ROLE, entries: two });
+        toggleFor('a').click();
+        toggleFor('b').click();
+        expect(isOpen('a')).toBe(false);
+        expect(isOpen('b')).toBe(true);
+    });
+
+    it('names the empty body rather than opening onto nothing', () => {
+        renderWheel(root, { role: ROLE, entries: [entry({ body: '   ' })] });
+        expect(root.querySelector('.entry-body').textContent).toBe(NO_BODY_TEXT);
+    });
+
+    it('keeps edit and delete inside the panel the row opens', () => {
+        renderWheel(root, { role: ROLE, entries: [entry()] });
+        expect(root.querySelector('.entry-panel .entry-edit')).not.toBeNull();
+        expect(root.querySelector('.entry-panel .entry-delete')).not.toBeNull();
+    });
+
+    it('tells the caller which entry is open, and that none is', () => {
+        const seen = [];
+        renderWheel(root, { role: ROLE, entries: two }, { onToggleEntry: id => seen.push(id) });
+        toggleFor('a').click();
+        toggleFor('a').click();
+        expect(seen).toEqual(['a', null]);
+    });
+
+    it('restores the open entry when a redraw is asked for one', () => {
+        renderWheel(root, { role: ROLE, entries: two }, { expandedId: 'b' });
+        expect(isOpen('b')).toBe(true);
+        expect(isOpen('a')).toBe(false);
+    });
+
+    it('leaves an entry the user opened open across a poll redraw', async () => {
+        vi.useFakeTimers();
+        const wheelData = {
+            role: ROLE,
+            entries: [entry({ id: 'e1', body: 'Kroppstext' })]
+        };
+        await initWheel(root, '?role=r1', { get: async () => wheelData, poll: true });
+        root.querySelector('.entry-toggle').click();
+        expect(isOpen('e1')).toBe(true);
+
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+
+        expect(isOpen('e1')).toBe(true);
+    });
+});
+
+describe('the entry form as a modal', () => {
+    let root;
+    beforeEach(() => {
+        root = document.createElement('div');
+        document.body.className = '';
+    });
+
+    const wheelData = {
+        role: { id: 'r1', name: 'tarol', hasChannel: true, viaModerator: false },
+        entries: [{ id: 'e1', roleId: 'r1', monthDay: '01-15', title: 'Boka lokal', body: '', version: 1, sentYears: [] }]
+    };
+    const open = async (deps = {}) => {
+        await initWheel(root, '?role=r1', { get: async () => wheelData, poll: false, ...deps });
+        root.querySelector('#new-entry-btn').click();
+        return root.querySelector('dialog.modal');
+    };
+    const dirty = dialog => {
+        dialog.querySelector('input[name="title"]').dispatchEvent(new Event('input'));
+    };
+
+    it('opens the form inside a dialog rather than in the page', async () => {
+        const dialog = await open();
+        expect(dialog).not.toBeNull();
+        expect(dialog.hasAttribute('open')).toBe(true);
+        expect(dialog.querySelector('form.entry-form')).not.toBeNull();
+        // Still reachable where the page has always looked for it.
+        expect(root.querySelector('#form-slot form')).not.toBeNull();
+    });
+
+    it('names the dialog with the form heading', async () => {
+        const dialog = await open();
+        const heading = dialog.querySelector('.form-heading');
+        expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
+    });
+
+    it('locks the page behind the modal and lets go on close', async () => {
+        const dialog = await open();
+        expect(document.body.classList.contains('modal-open')).toBe(true);
+        dialog.querySelector('.modal-close').click();
+        expect(document.body.classList.contains('modal-open')).toBe(false);
+    });
+
+    it('closes an untouched form from the ✕, from Esc and from the backdrop', async () => {
+        for (const dismiss of [
+            d => d.querySelector('.modal-close').click(),
+            d => d.dispatchEvent(new Event('cancel', { cancelable: true })),
+            d => d.click()
+        ]) {
+            root = document.createElement('div');
+            const dialog = await open();
+            dismiss(dialog);
+            expect(root.querySelector('dialog.modal')).toBeNull();
+        }
+    });
+
+    it('labels the close button', async () => {
+        const dialog = await open();
+        expect(dialog.querySelector('.modal-close').getAttribute('aria-label')).toBe(CLOSE_LABEL_TEXT);
+    });
+
+    it('keeps a click inside the card from closing the modal', async () => {
+        const dialog = await open();
+        dialog.querySelector('.modal-card').click();
+        expect(root.querySelector('dialog.modal')).not.toBeNull();
+    });
+
+    it('asks before throwing away a half-typed entry', async () => {
+        const asked = [];
+        const dialog = await open({ confirm: msg => { asked.push(msg); return false; } });
+        dirty(dialog);
+        dialog.querySelector('.modal-close').click();
+        expect(asked).toEqual([DISCARD_CONFIRM_TEXT]);
+        expect(root.querySelector('dialog.modal')).not.toBeNull();
+    });
+
+    it('closes the half-typed entry once that is confirmed', async () => {
+        const dialog = await open({ confirm: () => true });
+        dirty(dialog);
+        dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+        expect(root.querySelector('dialog.modal')).toBeNull();
+    });
+
+    it('runs Avbryt through the same check', async () => {
+        const asked = [];
+        const dialog = await open({ confirm: msg => { asked.push(msg); return false; } });
+        dirty(dialog);
+        dialog.querySelector('button.cancel').click();
+        expect(asked).toEqual([DISCARD_CONFIRM_TEXT]);
+        expect(root.querySelector('dialog.modal')).not.toBeNull();
+    });
+
+    it('never asks about a form nobody typed in', async () => {
+        const asked = [];
+        const dialog = await open({ confirm: msg => { asked.push(msg); return true; } });
+        dialog.querySelector('button.cancel').click();
+        expect(asked).toEqual([]);
+        expect(root.querySelector('dialog.modal')).toBeNull();
+    });
+
+    it('shows a 409 notice inside the dialog, not behind it', async () => {
+        await initWheel(root, '?role=r1', {
+            get: async () => wheelData,
+            patch: async () => {
+                throw new ApiError(409, 'version_conflict', {
+                    entry: { id: 'e1', monthDay: '01-15', title: 'Serverns titel', body: '', version: 9 }
+                });
+            },
+            poll: false
+        });
+        root.querySelector('button.entry-edit').click();
+        const form = root.querySelector('#form-slot form');
+        form.querySelector('input[name="title"]').value = 'Min ändring';
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+        await new Promise(r => setTimeout(r, 0));
+
+        const dialog = root.querySelector('dialog.modal');
+        expect(dialog.textContent).toContain('Någon annan hann före — posten laddades om.');
+        expect(dialog.querySelector('input[name="title"]').value).toBe('Serverns titel');
     });
 });

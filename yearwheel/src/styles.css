@@ -1,31 +1,648 @@
-:root { --bg: #1e1f22; --fg: #f2f3f5; --accent: #5865f2; --muted: #b5bac1; --error: #b3261e; }
-* { box-sizing: border-box; }
-body { margin: 0; padding: 1.5rem; font-family: system-ui, sans-serif; background: var(--bg); color: var(--fg); }
-main { max-width: 40rem; margin: 0 auto; }
-h1 { font-size: 1.5rem; }
-h2 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2rem; }
-.notice { line-height: 1.5; }
-.group-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
-.group-link { display: block; padding: .9rem 1rem; background: #2b2d31; color: var(--fg); border-radius: .5rem; text-decoration: none; }
-.group-link:hover { background: #35373c; }
-.btn { margin-top: 2rem; padding: .75rem 1.25rem; background: var(--accent); color: #fff; border: 0; border-radius: .5rem; font-size: 1rem; cursor: pointer; }
-.entry-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
-.entry { padding: .9rem 1rem; background: #2b2d31; border-radius: .5rem; }
-.entry-date { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: .75rem; }
-.mod-section { margin-top: 2rem; border-top: 1px solid currentColor; padding-top: 1rem; opacity: 0.9; }
-.mod-section > summary { cursor: pointer; font-weight: 600; }
-.mod-section .mod-body { margin-top: 0.5rem; }
-.month-heading { font-size: 0.9rem; letter-spacing: 0.08em; margin: 1.5rem 0 0.25rem; opacity: 0.7; }
-.entry { display: flex; align-items: center; gap: 0.75rem; }
-.entry-date { font-variant-numeric: tabular-nums; opacity: 0.7; min-width: 2ch; }
-.entry-title { flex: 1; }
-.entry-undeliverable { font-size: 0.85em; opacity: 0.7; }
-.notice-warning { border-left: 3px solid currentColor; padding-left: 0.75rem; }
-.notice-mod { font-style: italic; opacity: 0.8; }
-.entry-form { display: grid; gap: 0.75rem; margin: 1rem 0; }
-.entry-form label { display: grid; gap: 0.25rem; }
-.entry-form .field-label { font-size: 0.85rem; opacity: 0.7; }
-.entry-form .date-row { display: flex; gap: 0.5rem; }
+/* Kiriaka Årshjul — mobile-first, dark purple.
+   Flat surfaces, one accent, no gradients and no glow: an entry list has to be scanned,
+   not admired. Every colour is a token so the two pages cannot drift apart. */
+
+:root {
+    /* The page is dark on purpose (it is opened from Discord, usually at night, usually on a
+       phone), so tell the UA up front — native selects and scrollbars follow this. */
+    color-scheme: dark;
+
+    --bg:          #100b18;
+    --surface:     #1a1226;
+    --surface-hi:  #241a33;
+    --line:        #2c2140;
+    --line-strong: #3d2e58;
+
+    --fg:          #f3edfb;  /* 15.9:1 on --surface */
+    --fg-2:        #c3b2dc;  /*  8.4:1 on --surface */
+    --fg-3:        #9585ae;  /*  5.2:1 on --bg      */
+
+    --accent:      #7c3aed;  /* white on it: 5.7:1  */
+    --accent-press:#6b2fd6;
+    --on-accent:   #ffffff;
+    --accent-text: #c9a6ff;  /* accent as text on dark: 8.7:1 */
+
+    --danger-text: #ff9d9d;
+    --danger-line: #5e2b3a;
+    --danger-bg:   #2a1420;
+
+    --focus:       #c9a6ff;
+
+    --radius:      12px;
+    --radius-sm:   9px;
+    --radius-pill: 999px;
+
+    --gutter:      1rem;
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    --motion:      180ms;
+    --ease:        cubic-bezier(.2, 0, 0, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+main {
+    max-width: 40rem;
+    margin-inline: auto;
+    padding: 0 var(--gutter) 2rem;
+}
+
+/* callback.html: a one-second page, centred so it does not read as a broken layout. */
+.page-centered {
+    display: grid;
+    place-items: center;
+    min-height: 100dvh;
+    text-align: center;
+    color: var(--fg-2);
+}
+
+h1 {
+    font-size: 1.6rem;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0;
+    overflow-wrap: anywhere;   /* group names are user data and can be one long word */
+}
+
+h2 { font-size: 1rem; margin: 0; }
+
+p { margin: 0; }
+
+:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────────── */
+/* Sticky and deliberately short: on a phone the list is the page, so the bar spends
+   only one row of height on the way back out. */
+.app-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    margin-inline: calc(-1 * var(--gutter));
+    padding: calc(var(--safe-top) + .25rem) var(--gutter) .25rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+    min-height: 44px;
+    margin-inline-start: -.5rem;
+    padding: 0 .5rem;
+    border-radius: var(--radius-sm);
+    color: var(--fg-2);
+    font-size: .95rem;
+    text-decoration: none;
+    transition: color var(--motion) var(--ease), background-color var(--motion) var(--ease);
+}
+.back-link:hover { color: var(--fg); }
+.back-link:active { background: var(--surface-hi); color: var(--fg); }
+
+/* ── Page heads ──────────────────────────────────────────────────────────────── */
+main > h1 { margin-top: calc(var(--safe-top) + 1.5rem); }
+main > .app-bar + h1 { margin-top: 1.25rem; }
+
+.wheel-meta,
+.greeting {
+    margin-top: .25rem;
+    color: var(--fg-3);
+    font-size: .9rem;
+}
+
+/* ── Notices ─────────────────────────────────────────────────────────────────── */
+.notice {
+    margin-top: 1rem;
+    color: var(--fg-2);
+    line-height: 1.5;
+}
+
+/* Meaning never rides on colour alone here — each of these carries its own icon. */
+.notice-warning,
+.notice-mod,
+.notice-transient {
+    display: flex;
+    align-items: flex-start;
+    gap: .625rem;
+    padding: .75rem .875rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-size: .9rem;
+}
+
+.notice-warning { border-color: var(--line-strong); }
+.notice-warning .icon { color: var(--accent-text); }
+.notice-mod { font-style: normal; }
+.notice-mod .icon { color: var(--fg-3); }
+.notice-transient { border-color: var(--line-strong); color: var(--fg); }
+.notice-transient .icon { color: var(--accent-text); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    min-height: 48px;
+    padding: .75rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color var(--motion) var(--ease);
+}
+.btn:hover { background: var(--accent-press); }
+.btn:active { background: var(--accent-press); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-block { width: 100%; }
+
+.btn-ghost {
+    background: transparent;
+    border-color: var(--line-strong);
+    color: var(--fg-2);
+    font-weight: 500;
+}
+.btn-ghost:hover,
+.btn-ghost:active { background: var(--surface-hi); color: var(--fg); }
+
+.btn-danger {
+    background: transparent;
+    border-color: var(--danger-line);
+    color: var(--danger-text);
+    font-weight: 500;
+}
+.btn-danger:hover,
+.btn-danger:active { background: var(--danger-bg); }
+
+/* Sticky rather than fixed: it holds its own row in the flow, so it can never cover the
+   last entry in the list the way a fixed bar does. */
+.action-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    margin: 1.5rem calc(-1 * var(--gutter)) 0;
+    padding: .75rem var(--gutter) calc(.75rem + var(--safe-bottom));
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+}
+
+/* ── Landing: group lists ────────────────────────────────────────────────────── */
+.group-section { margin-top: 1.75rem; }
+
+.group-section > h2 {
+    color: var(--fg-3);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.group-list {
+    list-style: none;
+    margin: .625rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: .5rem;
+}
+
+.group-link {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    min-height: 56px;
+    padding: .75rem .875rem .75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--fg);
+    font-weight: 500;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    transition: background-color var(--motion) var(--ease), border-color var(--motion) var(--ease);
+}
+.group-link:hover { background: var(--surface-hi); border-color: var(--line-strong); }
+.group-link:active { background: var(--surface-hi); }
+.group-link .icon { margin-inline-start: auto; color: var(--fg-3); }
+
+/* ── Landing: moderator section ──────────────────────────────────────────────── */
+.mod-section {
+    margin-top: 2rem;
+    border-top: 1px solid var(--line);
+    padding-top: 1rem;
+}
+
+.mod-section > summary {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 44px;
+    /* Bled back out by the negative margin so the row still lines up with the cards below,
+       while hover/press have a box to fill — the same feedback every other control gives. */
+    margin-inline: -.625rem;
+    padding: .25rem .625rem;
+    border-radius: var(--radius-sm);
+    color: var(--fg-2);
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+}
+.mod-section > summary::-webkit-details-marker { display: none; }
+.mod-section > summary::after {
+    content: '';
+    width: .5rem;
+    height: .5rem;
+    margin-inline-start: auto;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform var(--motion) var(--ease);
+}
+.mod-section[open] > summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+.mod-section > summary:hover { color: var(--fg); background: var(--surface); }
+.mod-section > summary:active { color: var(--fg); background: var(--surface-hi); }
+
+.mod-section .mod-body > .group-section:first-child { margin-top: .75rem; }
+
+.login-row { margin-top: 1.75rem; }
+
+.logout-row {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+}
+
+/* ── Wheel: months and entries ───────────────────────────────────────────────── */
+.month-heading {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 1.75rem 0 .625rem;
+    color: var(--fg-3);
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+}
+.month-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+}
+
+.entry-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: .5rem;
+}
+
+.entry {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+    transition: border-color var(--motion) var(--ease);
+}
+.entry.is-open { border-color: var(--line-strong); }
+
+/* The whole row is the control — a phone should not ask for a precise tap on a glyph. */
+.entry-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    width: 100%;
+    min-height: 56px;
+    padding: .875rem 1rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    transition: background-color var(--motion) var(--ease);
+}
+.entry-toggle:hover { background: var(--surface-hi); }
+.entry-toggle:active { background: var(--surface-hi); }
+.entry-toggle:focus-visible { outline-offset: -2px; }
+
+.entry-date {
+    flex: none;
+    min-width: 1.75rem;
+    color: var(--accent-text);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.entry-title {
+    flex: 1;
+    font-weight: 500;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.entry-undeliverable {
+    flex: none;
+    align-self: center;
+    padding: .125rem .5rem;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+    color: var(--fg-3);
+    font-size: .75rem;
+    white-space: nowrap;
+}
+
+.entry-chevron {
+    flex: none;
+    align-self: center;
+    color: var(--fg-3);
+    transition: transform var(--motion) var(--ease);
+}
+.entry.is-open .entry-chevron { transform: rotate(180deg); }
+
+/* 0fr → 1fr animates an unknown height without measuring it in JS. The inner wrapper also
+   flips visibility so the buttons inside a closed panel stay out of the tab order. */
+.entry-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--motion) var(--ease);
+}
+.entry.is-open .entry-panel { grid-template-rows: 1fr; }
+
+.entry-panel-inner {
+    overflow: hidden;
+    visibility: hidden;
+    transition: visibility var(--motion) var(--ease);
+}
+.entry.is-open .entry-panel-inner { visibility: visible; }
+
+.entry-panel-body {
+    padding: .875rem 1rem 1rem;
+    border-top: 1px solid var(--line);
+}
+
+.entry-body {
+    color: var(--fg-2);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.entry-body-empty { color: var(--fg-3); font-style: italic; }
+
+.entry-sent {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    margin-top: .625rem;
+    color: var(--fg-3);
+    font-size: .85rem;
+}
+.entry-sent .icon { width: 1rem; height: 1rem; }
+
+.entry-actions {
+    display: flex;
+    gap: .5rem;
+    margin-top: .875rem;
+}
+.entry-actions .btn {
+    flex: 1;
+    min-height: 44px;
+    padding: .5rem .75rem;
+    font-size: .9rem;
+}
+
+/* ── Wheel: empty state ──────────────────────────────────────────────────────── */
+.empty-state {
+    margin-top: 2rem;
+    padding: 2rem 1.25rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    text-align: center;
+}
+.empty-state .icon {
+    width: 2rem;
+    height: 2rem;
+    margin-inline: auto;
+    color: var(--fg-3);
+    stroke-width: 1.5;
+}
+.empty-state .empty-title { margin-top: .75rem; font-weight: 600; }
+.empty-state .empty-hint { margin-top: .25rem; color: var(--fg-3); font-size: .9rem; }
+
+/* ── Modal ───────────────────────────────────────────────────────────────────── */
+/* The slot only ever holds the dialog, and a <dialog> renders in the top layer, so where
+   the slot sits in the page no longer matters. */
+.form-slot:empty { display: none; }
+
+/* A bottom sheet on phones — it rises from the edge the thumb is already at, and leaves the
+   list visible above it so the wheel never disappears while a date is being entered. */
+.modal:not([open]) { display: none; }
+
+.modal {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    overflow: visible;
+}
+.modal::backdrop { background: rgba(6, 3, 12, .62); }
+
+.modal-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: 88dvh;
+    border-top: 1px solid var(--line-strong);
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: var(--surface);
+}
+
+/* The card scrolls, the close button does not: a long form on a short screen must never
+   scroll its own way out off-screen. */
+.modal-body {
+    display: grid;
+    gap: 1rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1.25rem var(--gutter) calc(1.25rem + var(--safe-bottom));
+}
+.modal-body .form-heading,
+.modal-body > .notice { padding-inline-end: 2.75rem; }
+
+.modal-close {
+    position: absolute;
+    top: .625rem;
+    inset-inline-end: .5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-3);
+    cursor: pointer;
+    transition: background-color var(--motion) var(--ease), color var(--motion) var(--ease);
+}
+.modal-close:hover,
+.modal-close:active { background: var(--surface-hi); color: var(--fg); }
+
+@keyframes modal-rise { from { transform: translateY(100%); } }
+@keyframes modal-pop  { from { transform: scale(.97); opacity: 0; } }
+@keyframes modal-fade { from { opacity: 0; } }
+
+.modal[open] .modal-card { animation: modal-rise 240ms var(--ease); }
+.modal[open]::backdrop { animation: modal-fade 240ms var(--ease); }
+
+body.modal-open { overflow: hidden; }
+
+/* ── Form ────────────────────────────────────────────────────────────────────── */
+/* No surface of its own — the modal card is the surface it sits on. */
+.entry-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.form-heading { font-size: 1.05rem; font-weight: 600; }
+
+.entry-form label { display: grid; gap: .375rem; }
+
+.entry-form .field-label {
+    color: var(--fg-2);
+    font-size: .85rem;
+    font-weight: 600;
+}
+
+.field-hint {
+    margin-top: .375rem;
+    color: var(--fg-3);
+    font-size: .8rem;
+}
+
+/* Fields answer to the same numbers as .btn — 48px tall, the same 9px corner, the same 1px
+   line — so a control row reads as one row whether it holds an input or a button. Not scoped
+   to .entry-form: a field added anywhere later should land on this, not on UA defaults. */
+input,
+select,
+textarea {
+    width: 100%;
+    min-height: 48px;
+    padding: .625rem .75rem;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bg);   /* recessed against the --surface card the form sits on */
+    color: var(--fg);
+    font: inherit;
+    font-size: 1rem;   /* 16px keeps iOS from zooming the page on focus */
+    transition: border-color var(--motion) var(--ease);
+}
+select { cursor: pointer; }
+textarea { min-height: 7rem; resize: vertical; line-height: 1.5; }
+input:hover,
+select:hover,
+textarea:hover { border-color: var(--accent-text); }
+input:focus,
+select:focus,
+textarea:focus { border-color: var(--accent-text); }
+input:disabled,
+select:disabled,
+textarea:disabled { opacity: .5; cursor: not-allowed; }
+
+.entry-form .date-row { display: flex; gap: .5rem; }
+.entry-form .date-row select { flex: 1; }
+.entry-form .date-row select[name="day"] { flex: 0 0 6rem; }
+
+/* The error node holds text and nothing else — the mark is drawn as a background so that
+   showFormError() can keep writing plain textContent, and so the message is never carried
+   by colour alone. */
 .form-error:empty { display: none; }
-.form-error { color: var(--error); }
-.notice-transient { font-style: italic; }
+.form-error {
+    padding: .625rem .75rem .625rem 2.25rem;
+    border: 1px solid var(--danger-line);
+    border-radius: var(--radius-sm);
+    background: var(--danger-bg)
+        url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff9d9d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4.5 3 20h18z'/%3E%3Cpath d='M12 10.5v4'/%3E%3Cpath d='M12 17.4v.1'/%3E%3C/svg%3E")
+        no-repeat .625rem .6rem / 1.1rem 1.1rem;
+    color: var(--danger-text);
+    font-size: .9rem;
+}
+
+.form-actions { display: flex; gap: .5rem; }
+.form-actions .btn { flex: 1; }
+
+/* ── Wider screens ───────────────────────────────────────────────────────────── */
+@media (min-width: 40rem) {
+    :root { --gutter: 1.5rem; }
+    h1 { font-size: 1.9rem; }
+    .action-bar { position: static; margin-inline: 0; padding-inline: 0; border-top: 0; background: none; }
+    /* Every button row stops stretching at the same breakpoint — a full-width Spara next to
+       a shrunk-to-content Ny post was the giveaway that these were styled separately. */
+    .action-bar .btn,
+    .login-row .btn { width: auto; }
+    .entry-actions .btn,
+    .form-actions .btn { flex: 0 0 auto; }
+
+    /* Pointer and a keyboard: the sheet becomes an ordinary centred dialog. */
+    .modal[open] {
+        display: grid;
+        place-items: center;
+        inset: 0;
+        height: 100%;
+        padding: 1.5rem;
+    }
+    .modal-card {
+        width: min(32rem, 100%);
+        max-height: 85dvh;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+    }
+    .modal[open] .modal-card { animation: modal-pop 200ms var(--ease); }
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
