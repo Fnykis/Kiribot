@@ -1,5 +1,7 @@
 // The full group roster is moderator-only. An ordinary member's browser never receives the
-// list of groups they are not in — see the parent spec's note on GET /api/web/me.
+// list of groups they are not in — see "Moderator access" in
+// docs/superpowers/specs/2026-09-10-arshjul-m2-design.md (GET /api/web/me only returns the
+// caller's own groups plus isModerator; this route is the moderator-only full roster).
 const { loadCounts, withCounts } = require('../../../utils/groupCounts');
 
 function createWebGroupsRoute({ memberGroups, arshjulStore, logger }) {
