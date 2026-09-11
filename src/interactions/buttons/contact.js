@@ -118,6 +118,14 @@ module.exports = {
 
             if (!submitted) return;
 
+            // Ack within Discord's 3s window before thread creation; a failed ack also means another collector already claimed this submit
+            try {
+                await submitted.deferReply({ flags: MessageFlags.Ephemeral });
+            } catch (error) {
+                logActivity(`Contact form: could not acknowledge modal submit by ${getNickname(interaction)}: ${error.message}`);
+                return;
+            }
+
             const subject = submitted.fields.getTextInputValue('subjectInput');
             const message = submitted.fields.getTextInputValue('textInput');
 
@@ -125,7 +133,7 @@ module.exports = {
             if (!aktivRole) {
                 logActivity(`Aktiv role missing while in contact form by ${getNickname(interaction)}`);
                 try {
-                    return await submitted.reply({ content: 'Något gick fel', flags: MessageFlags.Ephemeral });
+                    return await submitted.editReply({ content: 'Något gick fel' });
                 } catch (error) {
                     logActivity('Failed to reply to interaction (aktiv role missing):', error);
                     return;
@@ -162,7 +170,7 @@ module.exports = {
             } catch (error) {
                 logActivity('Thread creation failed:', error);
                 try {
-                    return await submitted.reply({ content: 'Något gick fel när tråden skulle skapas', flags: MessageFlags.Ephemeral });
+                    return await submitted.editReply({ content: 'Något gick fel när tråden skulle skapas' });
                 } catch (replyError) {
                     logActivity('Failed to reply to interaction (thread creation failed):', replyError);
                     return;
@@ -170,18 +178,11 @@ module.exports = {
             }
 
             try {
-                await submitted.reply({
-                    content: `Ditt meddelande har skickats i tråden: ${thread.toString()}`,
-                    flags: MessageFlags.Ephemeral
+                await submitted.editReply({
+                    content: `Ditt meddelande har skickats i tråden: ${thread.toString()}`
                 });
             } catch (error) {
-                logActivity('Sending message failed:', error);
-                try {
-                    return await submitted.reply({ content: 'Något gick fel när tråden skulle skapas', flags: MessageFlags.Ephemeral });
-                } catch (replyError) {
-                    logActivity('Failed to reply to interaction (sending message failed):', replyError);
-                    return;
-                }
+                logActivity('Failed to confirm contact message to user (thread was created):', error);
             }
         }
     }

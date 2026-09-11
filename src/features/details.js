@@ -4,11 +4,10 @@ const client = require('../core/client');
 const logActivity = require('../core/logger');
 const store = require('../state/store');
 const { ch_Medlemsdetaljer, guildId } = require('../core/constants');
+const { fetchAllMembers } = require('../utils/memberFetch');
 
 async function updateDetails(requiredDetails) {
 	const maxRetries = 3;
-	const retryDelay = 5000; // 5 seconds
-	let lastError = null;
 
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
 		try {
@@ -24,52 +23,17 @@ async function updateDetails(requiredDetails) {
 				throw new Error(`Guild with ID ${guildId} not found in cache`);
 			}
 
-			// Fetch members with increased timeout and retry handling
 			let members;
 			try {
-				members = await guild.members.fetch({
-					time: 60000, // 60 second timeout instead of default 15
-					force: false // Use cache when possible
-				});
+				members = await fetchAllMembers(guild, 'updateDetails');
 			} catch (fetchError) {
-				// Handle specific error types
-				if (fetchError.name === 'GuildMembersTimeout') {
-					lastError = fetchError;
-					if (attempt < maxRetries) {
-						const waitTime = retryDelay * attempt;
-						await logActivity(`GuildMembersTimeout in updateDetails (attempt ${attempt}/${maxRetries}). Retrying in ${waitTime/1000}s...`);
-						await new Promise(resolve => setTimeout(resolve, waitTime));
-						continue;
-					} else {
-						throw new Error(`GuildMembersTimeout: Failed to fetch members after ${maxRetries} attempts. Guild: ${guild.name} (${guild.id}), Member count: ${guild.memberCount || 'unknown'}`);
-					}
-				} else if (fetchError.name === 'GatewayRateLimitError' || fetchError.code === 'GatewayRateLimitError') {
-					lastError = fetchError;
-					// Extract retry time from error message if retryAfter property doesn't exist
-					let retryAfter = fetchError.retryAfter;
-					if (!retryAfter && fetchError.message) {
-						const retryMatch = fetchError.message.match(/Retry after ([\d.]+) seconds?/i);
-						if (retryMatch) {
-							retryAfter = parseFloat(retryMatch[1]) * 1000; // Convert to milliseconds
-						}
-					}
-					// Fallback to exponential backoff if we can't extract the time
-					if (!retryAfter) {
-						retryAfter = retryDelay * attempt;
-					}
-
-					if (attempt < maxRetries) {
-						await logActivity(`GatewayRateLimitError in updateDetails (attempt ${attempt}/${maxRetries}). Retrying after ${retryAfter/1000}s...`);
-						await new Promise(resolve => setTimeout(resolve, retryAfter));
-						continue;
-					} else {
-						// Don't throw - log and return gracefully
-						await logActivity(`GatewayRateLimitError: Rate limited after ${maxRetries} attempts. Guild: ${guild.name} (${guild.id}). Will retry on next scheduled run.`);
-						return;
-					}
-				} else {
-					throw fetchError;
+				const isRateLimit = fetchError.name === 'GatewayRateLimitError' || fetchError.code === 'GatewayRateLimitError';
+				if (isRateLimit || fetchError.name === 'GuildMembersTimeout') {
+					// Don't throw - log and return gracefully
+					await logActivity(`${fetchError.name}: could not fetch members for updateDetails. Guild: ${guild.name} (${guild.id}). Will retry on next scheduled run.`);
+					return;
 				}
+				throw fetchError;
 			}
 
 			const aktivRole = guild.roles.cache.find(role => role.name === 'aktiv');
@@ -133,7 +97,6 @@ async function updateDetails(requiredDetails) {
 			return; // Success, exit function
 
 		} catch (error) {
-			lastError = error;
 			const guild = client.guilds.cache.get(guildId);
 			const guildInfo = guild ? `Guild: ${guild.name} (${guild.id}), Members: ${guild.memberCount || 'unknown'}` : `Guild ID: ${guildId} (not in cache)`;
 

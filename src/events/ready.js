@@ -18,19 +18,6 @@ module.exports = {
 	once: true,
 	async execute(readyClient) {
 		loadPermissions();
-		dailyTasks();
-		scheduleDailyTask(3, 0, dailyTasks);
-		// scheduleDailyTask(8, 0, remindUsers);
-		remindUsers();
-		scheduleHourlyTask(postFikaList);
-		scheduleDailyTask(8, 0, sendFikaReminder);
-		scheduleHourlyTask(checkAndProcessPassedEvents);
-		scheduleTwiceDailyTask(3, 0, 15, 0, backupJsonFiles); // Backup at 3 AM and 3 PM
-		scheduleDailyTask(9, 0, () => {
-			// Only run on the 1st of each month
-			if (new Date().getDate() === 1) checkEmptyDriveFolders();
-		}); // Check for empty Drive folders on the 1st of each month at 9 AM
-		setTimeout(() => syncAktivMembersToSheet(), 60 * 1000);
 		try {
 			const guild = readyClient.guilds.cache.get(guildId);
 			if (guild) {
@@ -44,6 +31,19 @@ module.exports = {
 		} catch (err) {
 			console.error('ready: lineup unmute sweep failed', err);
 		}
+		dailyTasks().catch(err => logActivity(`Error in dailyTasks (startup): ${err.message}`));
+		scheduleDailyTask(3, 0, dailyTasks);
+		// scheduleDailyTask(8, 0, remindUsers);
+		remindUsers();
+		scheduleHourlyTask(postFikaList);
+		scheduleDailyTask(8, 0, sendFikaReminder);
+		scheduleHourlyTask(checkAndProcessPassedEvents);
+		scheduleTwiceDailyTask(3, 0, 15, 0, backupJsonFiles); // Backup at 3 AM and 3 PM
+		scheduleDailyTask(9, 0, () => {
+			// Only run on the 1st of each month
+			if (new Date().getDate() === 1) checkEmptyDriveFolders();
+		}); // Check for empty Drive folders on the 1st of each month at 9 AM
+		setTimeout(() => syncAktivMembersToSheet(), 60 * 1000);
 		logActivity(`Ready! Logged in as ${readyClient.user.tag}`);
 		// testFunction: delay updateSignupButtonMessage by 5 seconds on startup
 		setTimeout(() => {

@@ -4,7 +4,6 @@ const path = require('path');
 const client = require('../core/client');
 const logActivity = require('../core/logger');
 const { ch_Spelningar, ch_Signup, dir_EventsActive, guildId } = require('../core/constants');
-const { getEventJSON } = require('./signup');
 
 async function eventThreadUpdate(targetEventId = null) {
 	let eventName = 'unknown';

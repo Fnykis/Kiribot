@@ -471,15 +471,14 @@ async function findSubfolder(driveClient, parentFolderId, folderName) {
 		});
 
 		if (response.data.files && response.data.files.length > 0) {
-			// logActivity(`Found existing subfolder: ${folderName} (ID: ${response.data.files[0].id})`);
 			return response.data.files[0].id;
 		}
 
 		// Subfolder doesn't exist - return null (don't create, as service account can't own folders)
-		// logActivity(`Warning: Subfolder '${folderName}' not found. Please create it manually in Google Drive.`);
+		logActivity(`Warning: Subfolder '${folderName}' not found. Please create it manually in Google Drive.`);
 		return null;
 	} catch (error) {
-		// logActivity(`Error in findSubfolder for '${folderName}': ${error.message}`);
+		logActivity(`Error in findSubfolder for '${folderName}': ${error.message}`);
 		throw error;
 	}
 }
@@ -538,7 +537,7 @@ async function backupJsonFiles() {
 			try {
 				// Check if local file exists
 				if (!fs.existsSync(config.localPath)) {
-					// logActivity(`Error when backing up ${config.subfolderName}: file does not exist`);
+					logActivity(`Error when backing up ${config.subfolderName}: file does not exist`);
 					continue;
 				}
 
@@ -546,7 +545,7 @@ async function backupJsonFiles() {
 				const subfolderId = await findSubfolder(drive, backupFolderId, config.subfolderName);
 
 				if (!subfolderId) {
-					// logActivity(`Skipping backup of ${config.subfolderName}: subfolder does not exist in Google Drive`);
+					logActivity(`Skipping backup of ${config.subfolderName}: subfolder does not exist in Google Drive`);
 					continue;
 				}
 
@@ -579,7 +578,7 @@ async function backupJsonFiles() {
 						media: media,
 						supportsAllDrives: true
 					});
-					// logActivity(`Successfully updated backup: ${config.subfolderName}/${config.backupFileName}`);
+					logActivity(`Successfully updated backup: ${config.subfolderName}/${config.backupFileName}`);
 				} else {
 					// Create new file
 					const createResult = await drive.files.create({
@@ -587,11 +586,11 @@ async function backupJsonFiles() {
 						media: media,
 						supportsAllDrives: true
 					});
-					// logActivity(`Successfully created backup: ${config.subfolderName}/${config.backupFileName} (ID: ${createResult.data.id})`);
+					logActivity(`Successfully created backup: ${config.subfolderName}/${config.backupFileName} (ID: ${createResult.data.id})`);
 				}
 			} catch (error) {
-				// logActivity(`Error backing up ${config.subfolderName}: ${error.message}`);
-				// logActivity(`Full error details: ${JSON.stringify(error)}`);
+				logActivity(`Error backing up ${config.subfolderName}: ${error.message}`);
+				logActivity(`Full error details: ${JSON.stringify(error)}`);
 				// Continue with other files
 			}
 		}
@@ -600,13 +599,13 @@ async function backupJsonFiles() {
 		try {
 			const activeEventsDir = path.join(__dirname, '../../events/active');
 			if (!fs.existsSync(activeEventsDir)) {
-				// logActivity('Error: Active events directory does not exist, skipping backup');
+				logActivity('Error: Active events directory does not exist, skipping backup');
 			} else {
 				// Find existing active events subfolder (must be created manually by user)
 				const activeEventsSubfolderId = await findSubfolder(drive, backupFolderId, 'active events');
 
 				if (!activeEventsSubfolderId) {
-					// logActivity('Skipping active events backup: subfolder does not exist in Google Drive');
+					logActivity('Skipping active events backup: subfolder does not exist in Google Drive');
 					return;
 				}
 
@@ -646,7 +645,7 @@ async function backupJsonFiles() {
 								media: media,
 								supportsAllDrives: true
 							});
-							// logActivity(`Successfully updated active event backup: ${backupFileName}`);
+							logActivity(`Successfully updated active event backup: ${backupFileName}`);
 						} else {
 							// Create new file
 							const createResult = await drive.files.create({
@@ -654,21 +653,21 @@ async function backupJsonFiles() {
 								media: media,
 								supportsAllDrives: true
 							});
-							// logActivity(`Successfully created active event backup: ${backupFileName} (ID: ${createResult.data.id})`);
+							logActivity(`Successfully created active event backup: ${backupFileName} (ID: ${createResult.data.id})`);
 						}
 					} catch (error) {
-						// logActivity(`Error backing up active event ${fileName}: ${error.message}`);
-						// logActivity(`Full error details: ${JSON.stringify(error)}`);
+						logActivity(`Error backing up active event ${fileName}: ${error.message}`);
+						logActivity(`Full error details: ${JSON.stringify(error)}`);
 						// Continue with other files
 					}
 				}
 			}
 		} catch (error) {
-			// logActivity(`Error backing up active events: ${error.message}`);
+			logActivity(`Error backing up active events: ${error.message}`);
 		}
 
 	} catch (error) {
-		// logActivity(`Error in backupJsonFiles: ${error.message}`);
+		logActivity(`Error in backupJsonFiles: ${error.message}`);
 	}
 }
 
@@ -722,16 +721,16 @@ async function cleanupArchivedActiveEvents(drive, activeEventsSubfolderId) {
 							supportsAllDrives: true
 						});
 						deletedCount++;
-						// logActivity(`Deleted archived event backup: ${backupFile.name}`);
+						logActivity(`Deleted archived event backup: ${backupFile.name}`);
 					}
 				}
 			} catch (error) {
-				// logActivity(`Error checking/deleting backup file ${backupFile.name}: ${error.message}`);
+				logActivity(`Error checking/deleting backup file ${backupFile.name}: ${error.message}`);
 			}
 		}
 
 	} catch (error) {
-		// logActivity(`Error in cleanupArchivedActiveEvents: ${error.message}`);
+		logActivity(`Error in cleanupArchivedActiveEvents: ${error.message}`);
 	}
 }
 
@@ -820,10 +819,10 @@ async function cleanupOldBackups() {
 								supportsAllDrives: true
 							});
 							totalDeleted++;
-							// logActivity(`Deleted old backup: ${subfolder.name}/${file.name}`);
+							logActivity(`Deleted old backup: ${subfolder.name}/${file.name}`);
 						}
 					} catch (error) {
-						// logActivity(`Error processing file ${file.name} in ${subfolder.name}: ${error.message}`);
+						logActivity(`Error processing file ${file.name} in ${subfolder.name}: ${error.message}`);
 					}
 				}
 
@@ -832,12 +831,12 @@ async function cleanupOldBackups() {
 					await cleanupArchivedActiveEvents(drive, subfolder.id);
 				}
 			} catch (error) {
-				// logActivity(`Error processing subfolder ${subfolder.name}: ${error.message}`);
+				logActivity(`Error processing subfolder ${subfolder.name}: ${error.message}`);
 			}
 		}
 
 	} catch (error) {
-		// logActivity(`Error in cleanupOldBackups: ${error.message}`);
+		logActivity(`Error in cleanupOldBackups: ${error.message}`);
 	}
 }
 

@@ -1,5 +1,11 @@
 const logActivity = require('../core/logger');
 
+function runTask(task, ...args) {
+    Promise.resolve()
+        .then(() => task(...args))
+        .catch(err => logActivity(`Scheduled task "${task.name}" failed: ${err.message}`));
+}
+
 function scheduleDailyTask(hour, minute, task) {
     // Calculate the delay until the next time the task should run
     const now = new Date();
@@ -19,10 +25,10 @@ function scheduleDailyTask(hour, minute, task) {
 
     // Schedule the task to run at the target time
     setTimeout(() => {
-        task();
+        runTask(task);
 
         // Schedule the task to run every 24 hours
-        setInterval(task, 24 * 60 * 60 * 1000); // 24 hours in milliseconds
+        setInterval(() => runTask(task), 24 * 60 * 60 * 1000); // 24 hours in milliseconds
     }, delay);
 }
 
@@ -38,11 +44,11 @@ function scheduleHourlyTask(task) {
 
     // Schedule the task to run at the next hour
     setTimeout(() => {
-        task(true); // Pass true for update mode
+        runTask(task, true); // Pass true for update mode
 
         // Schedule the task to run every hour
         setInterval(() => {
-            task(true); // Pass true for update mode
+            runTask(task, true); // Pass true for update mode
         }, 60 * 60 * 1000); // 60 minutes in milliseconds
     }, delay);
 
@@ -65,9 +71,9 @@ function scheduleTwiceDailyTask(time1Hour, time1Minute, time2Hour, time2Minute, 
 	const delay1 = targetTime1 - now;
 
 	setTimeout(() => {
-		task();
+		runTask(task);
 		// Schedule to run every 24 hours
-		setInterval(task, 24 * 60 * 60 * 1000);
+		setInterval(() => runTask(task), 24 * 60 * 60 * 1000);
 	}, delay1);
 
 	// Schedule second time
@@ -84,9 +90,9 @@ function scheduleTwiceDailyTask(time1Hour, time1Minute, time2Hour, time2Minute, 
 	const delay2 = targetTime2 - now;
 
 	setTimeout(() => {
-		task();
+		runTask(task);
 		// Schedule to run every 24 hours
-		setInterval(task, 24 * 60 * 60 * 1000);
+		setInterval(() => runTask(task), 24 * 60 * 60 * 1000);
 	}, delay2);
 
 }

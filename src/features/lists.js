@@ -4,44 +4,49 @@ const path = require('path');
 const client = require('../core/client');
 const logActivity = require('../core/logger');
 const { ch_Sektionlista, ch_Arbetsgruppslista, ch_Nyckellista, hex_instr, hex_arbet, guildId } = require('../core/constants');
+const { fetchAllMembers } = require('../utils/memberFetch');
 
 async function checkRoles() {
 
     let guild = client.guilds.cache.get(guildId);
 
-	// Instrument
-    let roles = guild.roles.cache.filter(role => role.hexColor === hex_instr).sort((a, b) => a.name.localeCompare(b.name));
-    let data = {};
+    try {
+        // Instrument
+        let roles = guild.roles.cache.filter(role => role.hexColor === hex_instr).sort((a, b) => a.name.localeCompare(b.name));
+        let data = {};
 
-    let members = await guild.members.fetch();
-    roles.each(role => {
-        let users = members.filter(member =>
-            member.roles.cache.find(r => r.id === role.id) &&
-            member.roles.cache.find(r => r.name === `aktiv`)
-        );
-        data[role.name] = users.map(user => user.displayName);
-    });
-    fs.writeFileSync('src/data/instrumentList.json', JSON.stringify(data));
+        let members = await fetchAllMembers(guild, 'checkRoles (instrument)');
+        roles.each(role => {
+            let users = members.filter(member =>
+                member.roles.cache.find(r => r.id === role.id) &&
+                member.roles.cache.find(r => r.name === `aktiv`)
+            );
+            data[role.name] = users.map(user => user.displayName);
+        });
+        fs.writeFileSync('src/data/instrumentList.json', JSON.stringify(data));
 
-	postInstrumentList(true);
+        postInstrumentList(true);
 
-	// Workgroup - Wait 1 minute before second fetch to avoid rate limits
-	await new Promise(resolve => setTimeout(resolve, 60 * 1000)); // 1 minute delay
+        // Workgroup - Wait 1 minute before second fetch to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 60 * 1000)); // 1 minute delay
 
-    roles = guild.roles.cache.filter(role => role.hexColor === hex_arbet).sort((a, b) => a.name.localeCompare(b.name));
-    data = {};
+        roles = guild.roles.cache.filter(role => role.hexColor === hex_arbet).sort((a, b) => a.name.localeCompare(b.name));
+        data = {};
 
-    members = await guild.members.fetch();
-    roles.each(role => {
-        let users = members.filter(member =>
-            member.roles.cache.find(r => r.id === role.id) &&
-            member.roles.cache.find(r => r.name === `aktiv`)
-        );
-        data[role.name] = users.map(user => user.displayName);
-    });
-    fs.writeFileSync('src/data/groupList.json', JSON.stringify(data));
+        members = await fetchAllMembers(guild, 'checkRoles (workgroup)');
+        roles.each(role => {
+            let users = members.filter(member =>
+                member.roles.cache.find(r => r.id === role.id) &&
+                member.roles.cache.find(r => r.name === `aktiv`)
+            );
+            data[role.name] = users.map(user => user.displayName);
+        });
+        fs.writeFileSync('src/data/groupList.json', JSON.stringify(data));
 
-	postGroupList(true);
+        postGroupList(true);
+    } catch (error) {
+        logActivity(`checkRoles failed: ${error.message}`);
+    }
 
 }
 

@@ -26,6 +26,13 @@ module.exports = {
 
         // modal_signup - create new signup
         if (customId === 'modal_signup') {
+            // Ack within Discord's 3s window before posting; otherwise the modal errors and a re-submit creates a duplicate signup
+            try {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            } catch (error) {
+                logActivity(`New signup: could not acknowledge modal submit by ${getNickname(interaction)}: ${error.message}`);
+                return;
+            }
             try {
                 const fields = interaction.fields;
                 let signupName = fields.getTextInputValue('nameInput');
@@ -136,10 +143,9 @@ module.exports = {
                 const row_noDrive = new ActionRowBuilder()
                     .addComponents(btn_noDrive);
 
-                await interaction.reply({
+                await interaction.editReply({
                     content: contentReply + "\n\nOm du **inte** vill att det skapas en Google Drive länk så klickar du på knappen nedan.\n-# Om du inte klickar knappen kommer en mapp och länk skapas.",
-                    components: [row_noDrive],
-                    flags: MessageFlags.Ephemeral
+                    components: [row_noDrive]
                 });
 
                 logActivity(getNickname(interaction) + " created a new signup: " + signupName);
@@ -155,11 +161,13 @@ module.exports = {
             } catch (error) {
                 logActivity(`Error during modal submission for user ${interaction.user.tag} (${interaction.user.id}):`, error);
                 try {
-                    const replyOptions = { content: 'Ett fel uppstod när din förfrågan skulle behandlas!', flags: MessageFlags.Ephemeral };
-                    if (interaction.replied || interaction.deferred) {
-                        await interaction.followUp(replyOptions);
+                    const content = 'Ett fel uppstod när din förfrågan skulle behandlas!';
+                    if (interaction.replied) {
+                        await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
+                    } else if (interaction.deferred) {
+                        await interaction.editReply({ content });
                     } else {
-                        await interaction.reply(replyOptions);
+                        await interaction.reply({ content, flags: MessageFlags.Ephemeral });
                     }
                 } catch (replyError) {
                     logActivity(`Failed to send error reply to user ${interaction.user.tag}:`, replyError);
@@ -179,14 +187,17 @@ module.exports = {
             }
 
             if (modalId === 'modal_signupEdit') {
+                try {
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                } catch (error) {
+                    logActivity(`Edit signup: could not acknowledge modal submit by ${getNickname(interaction)}: ${error.message}`);
+                    return;
+                }
 
                 try {
                     const signupChannel = client.channels.cache.get(ch_Signup);
                     if (!signupChannel) {
-                        await interaction.reply({
-                            content: 'Kunde inte hitta signup-kanalen.',
-                            flags: MessageFlags.Ephemeral
-                        });
+                        await interaction.editReply({ content: 'Kunde inte hitta signup-kanalen.' });
                         return;
                     }
 
@@ -255,7 +266,10 @@ module.exports = {
 
                     let files = fs.readdirSync(dir_EventsActive);
                     let fileName = files.find(file => file.endsWith('_' + id + '.json'));
-                    if (!fileName) return;
+                    if (!fileName) {
+                        await interaction.editReply({ content: 'Kunde inte hitta spelningen. Den kanske har tagits bort.' });
+                        return;
+                    }
 
                     lockFile.lock(`${fileName}.lock`, { stale: (5 * 60 * 1000), retries: 3, retryWait: 100 }, async (err) => {
                         if (err) {
@@ -284,7 +298,7 @@ module.exports = {
                     }
 
                     await message.edit({ embeds: [embedEdit], components: [row_buttons] });
-                    await interaction.reply({ content: contentReply, flags: MessageFlags.Ephemeral });
+                    await interaction.editReply({ content: contentReply });
 
                     logActivity("Signup for " + signupEditName + " was edited by " + getNickname(interaction));
                     postCalendar(true);
@@ -292,6 +306,11 @@ module.exports = {
 
                 } catch (error) {
                     logActivity("Error while editing signup: " + error);
+                    try {
+                        await interaction.editReply({ content: 'Ett fel uppstod när signupen skulle redigeras!' });
+                    } catch (replyError) {
+                        logActivity(`Failed to send error reply to user ${interaction.user.tag}:`, replyError);
+                    }
                 }
             }
         }
