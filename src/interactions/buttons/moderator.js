@@ -1,6 +1,6 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags, PermissionFlagsBits, ChannelType, UserSelectMenuBuilder } = require('discord.js');
 const logActivity = require('../../core/logger');
-const { role_moderator, role_discordgruppen, hex_arbet, hex_instr, cat_Arbetsgrupper, cat_Sektioner } = require('../../core/constants');
+const { role_moderator, role_discordgruppen, hex_arbet, hex_instr, cat_Arbetsgrupper, cat_Sektioner, ch_YourProfile } = require('../../core/constants');
 const store = require('../../state/store');
 const { getNickname } = require('../../utils/interactionUtils');
 const { cleanupOutdatedSignups } = require('../../features/signup');
@@ -22,6 +22,7 @@ module.exports = {
             customId.startsWith('finalConfirmRemoveSection') ||
             customId === 'adjustPermissions' ||
             customId === 'cleanupSignups' ||
+            customId === 'setInactive' ||
             customId === 'permissions_signup-creation' ||
             customId.startsWith('toggle_signup-creation_')
         );
@@ -79,12 +80,17 @@ module.exports = {
                 .setLabel('Städa upp signups')
                 .setStyle(ButtonStyle.Secondary);
 
+            const btn_setInactive = new ButtonBuilder()
+                .setCustomId('setInactive')
+                .setLabel('Sätt medlem som inaktiv')
+                .setStyle(ButtonStyle.Secondary);
+
             const row1_buttons = new ActionRowBuilder()
                 .addComponents(btn_addWorkgroup, btn_editWorkgroup, btn_removeWorkgroup);
             const row2_buttons = new ActionRowBuilder()
                 .addComponents(btn_addSection, btn_editSection, btn_removeSection);
             const row3_buttons = new ActionRowBuilder()
-                .addComponents(btn_adjustPermissions, btn_cleanupSignups);
+                .addComponents(btn_adjustPermissions, btn_cleanupSignups, btn_setInactive);
 
             await interaction.reply({
                 content: '',
@@ -148,6 +154,33 @@ module.exports = {
                 logActivity(`${getNickname(interaction)} - Error in cleanupSignups: ${error}. Invoked by ${getNickname(interaction)}`);
                 await interaction.editReply({ content: 'Ett fel uppstod under städningen. Kontrollera loggar för detaljer.' });
             }
+            return;
+        }
+
+        // setInactive button
+        if (customId === 'setInactive') {
+            const allowedRoleIds = [role_moderator, role_discordgruppen];
+            const member = interaction.member;
+            const guild = interaction.guild;
+            const isOwner = member.id === guild?.ownerId;
+            const hasRole = member.roles.cache.some(role => allowedRoleIds.includes(role.id));
+            if (!isOwner && !hasRole) return interaction.reply({ content: 'Du har inte behörighet att använda denna funktion.', flags: MessageFlags.Ephemeral });
+
+            // Discord's user picker cannot be filtered by role, so the menu handler skips anyone who is not aktiv.
+            const menu_members = new UserSelectMenuBuilder()
+                .setCustomId('setInactive_select')
+                .setPlaceholder('Välj medlem(mar) som ska sättas som inaktiva')
+                .setMinValues(1)
+                .setMaxValues(25);
+
+            const row_menu = new ActionRowBuilder()
+                .addComponents(menu_members);
+
+            await interaction.reply({
+                content: `Välj vilka medlemmar som ska sättas som **inaktiva**. De får ett meddelande i en privat tråd och kan själva byta tillbaka i <#${ch_YourProfile}>.`,
+                components: [row_menu],
+                flags: MessageFlags.Ephemeral
+            });
             return;
         }
 

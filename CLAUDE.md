@@ -12,6 +12,10 @@ State plainly: what will happen, when (e.g. "next bot restart," "as soon as this
 
 Applies to: any `channel.send`/DM, any permanent panel/button message (e.g. `postArshjulPanel`), any role/permission change, any slash-command registration that changes visible bot behavior, and any manual deploy/config step that will trigger one of these on the real server. Say it before the user acts, not after.
 
+## ALWAYS: use the nickname helpers for member names
+
+Any user-facing name (messages, threads, embeds, logs) goes through `src/utils/interactionUtils.js`: `getNickname(interaction)` for the acting user, `getMemberNickname(member)` for any other `GuildMember`. Never read `member.nickname` / `user.username` directly — the helpers hold the nickname-then-username fallback in one place.
+
 ## ALWAYS: report non-frontend and non-yearwheel file changes
 
 At the END of every response where you created, modified, or deleted any file **outside `frontend/`** and **outside `yearwheel/`** (exclude anything under `docs/`), finish the message with:

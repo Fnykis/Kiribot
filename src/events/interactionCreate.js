@@ -23,6 +23,7 @@ const infoModals = require('../interactions/modals/info');
 const signupDropdowns = require('../interactions/menus/signupDropdowns');
 const editSignupDropdown = require('../interactions/menus/editSignupDropdown');
 const reminderDropdown = require('../interactions/menus/reminderDropdown');
+const setInactiveMenu = require('../interactions/menus/setInactiveMenu');
 
 // Commands
 const infoCommand = require('../commands/info');
@@ -74,6 +75,10 @@ module.exports = {
 				if (signupDropdowns.matches(customId)) await signupDropdowns.execute(interaction);
 				else if (editSignupDropdown.matches(customId)) await editSignupDropdown.execute(interaction);
 				else if (reminderDropdown.matches(customId)) await reminderDropdown.execute(interaction);
+
+			} else if (interaction.isUserSelectMenu()) {
+				const customId = interaction.customId;
+				if (setInactiveMenu.matches(customId)) await setInactiveMenu.execute(interaction);
 			}
 
 		} catch (error) {

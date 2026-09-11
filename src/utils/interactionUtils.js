@@ -1,8 +1,13 @@
 const logActivity = require('../core/logger');
 
+// Helper function to get a guild member's nickname, falling back to their username
+function getMemberNickname(member) {
+	return member.nickname || member.user.username;
+}
+
 // Helper function to get user nickname or username
 function getNickname(interaction) {
-	return interaction.member ? (interaction.member.nickname || interaction.member.user.username) : interaction.user.username;
+	return interaction.member ? getMemberNickname(interaction.member) : interaction.user.username;
 }
 
 // Utility function to safely reply to Discord interactions
@@ -29,4 +34,4 @@ async function safeReply(interaction, content, options = {}) {
     }
 }
 
-module.exports = { getNickname, safeReply };
+module.exports = { getNickname, getMemberNickname, safeReply };
