@@ -1,0 +1,1 @@
+{"nodes": [{"id": "core_client_client", "label": "Discord Client singleton", "file_type": "code", "source_file": "src/core/client.js", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

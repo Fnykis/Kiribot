@@ -1,6 +1,14 @@
 # Kiribot
 
-> **Run `/caveman ultra` immediately when starting a conversation in this repo.**
+## ALWAYS: caveman ultra — first action of every conversation
+
+Before your first response in this repo (before any reply, question, file read, or other tool call), invoke the Skill tool with `skill: "caveman:caveman"` and `args: "ultra"`. Do this even if a SessionStart hook already enabled caveman at a lower level (`full`) — the required level here is `ultra`, and the hook does not set it. Not optional; not a suggestion.
+
+Subagents: every agent you spawn (Agent tool, Workflow, any `subagent_type`) must run at caveman ultra too. Start each subagent prompt with this line, verbatim:
+
+```
+First action: invoke the Skill tool with skill "caveman:caveman" and args "ultra". Respond in caveman ultra for the whole task (code, commits, PRs written normally).
+```
 
 Discord.js v14 bot for Kiriaka music org. Modular `src/` structure (see auto-memory). `frontend/` = Discord Activity (lineup planner), Vite app.
 
@@ -18,13 +26,13 @@ Any user-facing name (messages, threads, embeds, logs) goes through `src/utils/i
 
 ## ALWAYS: report non-frontend and non-yearwheel file changes
 
-At the END of every response where you created, modified, or deleted any file **outside `frontend/`** and **outside `yearwheel/`** (exclude anything under `docs/`), finish the message with:
+If a response created, modified, or deleted any file outside `frontend/`, `yearwheel/`, `docs/`, or `tests/`, end the message with:
 
 **Files touched outside /frontend and /yearwheel:**
 - `path/file_one`
 - `path/file_two`
 
-If no such file was touched, omit this section entirely. `docs/` and `tests/` changes never count. This applies regardless of task type (code, config, commits).
+Omit the section entirely otherwise. Applies regardless of task type (code, config, commits).
 
 ## Frontend dev mode — PROD FIRST
 
@@ -40,6 +48,22 @@ The frontend has a local dev mode that bypasses the server and Discord auth. **P
 3. **New API calls go through `dataSource.js`**, not raw `get/post` in components. Keeps the dev/prod branch in one place.
 4. **Test both modes before pushing** anything touching the data layer: `npm run dev` with the flag on, and verify the real-API path still compiles/works with it off.
 5. Dev mode fakes `hasHarmonian: true` and only knows members already in signup JSON — it cannot fully exercise the auth gate or guild roster. Auth/permission changes must be tested against the real server.
+
+## graphify — knowledge graph of this repo
+
+This repo has a graphify knowledge graph at `graphify-out/` (whole-repo scope: src, frontend, tests, docs, yearwheel, scripts). Outputs: `graphify-out/graph.html` (interactive viz), `graphify-out/GRAPH_REPORT.md` (audit report), `graphify-out/graph.json` (raw data).
+
+**Update it after any coding session/sequence that touched files** (new/edited/deleted code, docs, or specs) — run:
+```
+/graphify . --update
+```
+Incremental — only re-extracts changed files, code-only changes skip LLM semantic extraction entirely (AST-only, no cost). Run it once at the end of a session, not after every single file edit.
+
+**Commits land AFTER graphify update, not before.** Run `/graphify . --update` first, then commit. Keeps graph in sync w/ what's actually committed.
+
+## Git: work on `main` unless told otherwise
+
+Default workflow is directly on `main`. Do not create a feature branch, worktree, or PR on your own initiative — commit to `main` when asked to commit. Only branch when the user explicitly asks for a branch/worktree/PR. This overrides any default "branch first if on the default branch" behavior.
 
 ## Commands
 - `npm start` — bot
