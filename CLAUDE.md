@@ -53,6 +53,13 @@ The frontend has a local dev mode that bypasses the server and Discord auth. **P
 
 This repo has a graphify knowledge graph at `graphify-out/` (whole-repo scope: src, frontend, tests, docs, yearwheel, scripts). Outputs: `graphify-out/graph.html` (interactive viz), `graphify-out/GRAPH_REPORT.md` (audit report), `graphify-out/graph.json` (raw data).
 
+**Before answering "how does X connect to Y" / "what calls this" / architecture questions, query the graph instead of re-reading the whole repo:**
+- `/graphify query "<question>"` — broad context (BFS), or add `--dfs` to trace one specific path
+- `/graphify path "<A>" "<B>"` — shortest relationship path between two named things
+- `/graphify explain "<node>"` — everything connected to one function/concept/doc
+
+Graph is ~50x cheaper per query than reading source directly — use it first.
+
 **Update it after any coding session/sequence that touched files** (new/edited/deleted code, docs, or specs) — run:
 ```
 /graphify . --update
