@@ -506,6 +506,37 @@ async function syncEventsToSheet() {
 	}
 }
 
+// How many days before the fika date the reminder thread is posted
+const fikaReminderLeadDays = 2;
+
+// Returns the fika entry whose date equals targetDate (midnight), or null.
+// Rows are scanned in sheet order; the first row with a date >= targetDate decides.
+function findFikaEntry(rows, targetDate) {
+	for (const row of rows) {
+		const date = row[0];
+		if (!date || date.trim() === '') break;
+
+		const dateObj = new Date(date);
+		if (isNaN(dateObj.getTime())) continue;
+		dateObj.setHours(0, 0, 0, 0);
+
+		if (dateObj.getTime() < targetDate.getTime()) continue;
+
+		// First date on or after the target — only a match if it's exactly the target
+		if (dateObj.getTime() === targetDate.getTime()) {
+			const storstad = row[1] === 'TRUE' || row[1] === true;
+			const extraInfo = row[2] || '';
+			const names = [];
+			for (let j = 3; j < row.length; j++) {
+				if (row[j] && row[j].trim() !== '') names.push(row[j].trim());
+			}
+			return { storstad, extraInfo, names };
+		}
+		return null;
+	}
+	return null;
+}
+
 async function sendFikaReminder() {
 	try {
 		const auth = createAuth(['https://www.googleapis.com/auth/spreadsheets.readonly']);
@@ -518,33 +549,11 @@ async function sendFikaReminder() {
 		const rows = response.data.values;
 		if (!rows || rows.length === 0) return;
 
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
+		const targetDate = new Date();
+		targetDate.setHours(0, 0, 0, 0);
+		targetDate.setDate(targetDate.getDate() + fikaReminderLeadDays);
 
-		let fikaEntry = null;
-		for (const row of rows) {
-			const date = row[0];
-			if (!date || date.trim() === '') break;
-
-			const dateObj = new Date(date);
-			if (isNaN(dateObj.getTime())) continue;
-			dateObj.setHours(0, 0, 0, 0);
-
-			if (dateObj.getTime() < today.getTime()) continue;
-
-			// First upcoming date — check if it's today
-			if (dateObj.getTime() === today.getTime()) {
-				const storstad = row[1] === 'TRUE' || row[1] === true;
-				const extraInfo = row[2] || '';
-				const names = [];
-				for (let j = 3; j < row.length; j++) {
-					if (row[j] && row[j].trim() !== '') names.push(row[j].trim());
-				}
-				fikaEntry = { storstad, extraInfo, names };
-			}
-			break;
-		}
-
+		const fikaEntry = findFikaEntry(rows, targetDate);
 		if (!fikaEntry) return;
 
 		const guild = client.guilds.cache.get(config.guildId);
@@ -556,12 +565,13 @@ async function sendFikaReminder() {
 			return member ? `<@${member.id}>` : name;
 		});
 
-		const dateLabel = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}`;
+		const dateLabel = `${String(targetDate.getDate()).padStart(2, '0')}/${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
+		const weekdayLabel = targetDate.toLocaleDateString('sv-SE', { weekday: 'long' });
 
-		let content = `## Fikadags! 🍌\n`;
-		if (fikaEntry.storstad) content += `### Obs! **Storstäd** idag!\n`;
+		let content = `## Fika på ${weekdayLabel}! 🍌\n`;
+		if (fikaEntry.storstad) content += `### Obs! **Storstäd** på ${weekdayLabel}!\n`;
 		if (fikaEntry.extraInfo) content += `_${fikaEntry.extraInfo}_\n`;
-		content += `\n${mentions.join(', ')} — ni har fika och städ idag!\nUndrar ni något om städet som ska göras varje vecka så finns det knappar i #fikalista.`;
+		content += `\n${mentions.join(', ')} — ni har fika och städ på ${weekdayLabel} ${dateLabel}!\nUndrar ni något om städet som ska göras varje vecka så finns det knappar i #fikalista.`;
 		content += `\n-# Tagga medlemmar om ni vill lägga till dem i tråden.`;
 
 		const channel = client.channels.cache.get(ch_FikaList);
@@ -581,4 +591,4 @@ async function sendFikaReminder() {
 	}
 }
 
-module.exports = { postFikaList, getCleaningInstructions, getFikaInstructions, syncEventsToSheet, syncAktivMembersToSheet, sendFikaReminder };
+module.exports = { postFikaList, getCleaningInstructions, getFikaInstructions, syncEventsToSheet, syncAktivMembersToSheet, sendFikaReminder, findFikaEntry, fikaReminderLeadDays };
