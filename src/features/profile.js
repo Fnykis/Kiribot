@@ -142,7 +142,7 @@ async function postYourProfile() {
 	const row1_buttons = new ActionRowBuilder()
 		.addComponents(btn_name, btn_status, btn_inst, btn_work);
 	const row2_buttons = new ActionRowBuilder()
-		.addComponents(btn_details, btn_nyckel, btn_kontakt);
+		.addComponents(btn_details, btn_nyckel/*, btn_kontakt*/); // btn_kontakt disabled for now
 	const row3_buttons = new ActionRowBuilder()
 		.addComponents(btn_view);
 

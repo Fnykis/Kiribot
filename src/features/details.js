@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, UserSelectMenuBuilder } = require('discord.js');
 const fs = require('fs');
 const client = require('../core/client');
 const logActivity = require('../core/logger');
@@ -118,7 +118,7 @@ async function postDetailsButtons(update) {
 
 	// Dynamically create buttons based on requiredFields
     const row_buttons = new ActionRowBuilder();
-    store.getRequiredFields().forEach(field => {
+    store.getRequiredFields().filter(field => field !== 'nyckel').forEach(field => { // nyckel has its own channel
         const sanitizedId = field.replace(/å/g, "a").replace(/ä/g, "a").replace(/ö/g, "o");
         const button = new ButtonBuilder()
             .setCustomId(sanitizedId)
@@ -127,6 +127,15 @@ async function postDetailsButtons(update) {
         row_buttons.addComponents(button);
     });
 
+    // Disabled for now: contact lookup picker (own row under the buttons; placeholder doubles as label).
+    // const row_menu = new ActionRowBuilder().addComponents(
+    //     new UserSelectMenuBuilder()
+    //         .setCustomId('visakontakt_select')
+    //         .setPlaceholder('Kontaktuppgifter (välj medlem)')
+    //         .setMinValues(1)
+    //         .setMaxValues(1)
+    // );
+
 	if (update) {
         try {
 			// Fetch the last message in the channel
@@ -134,9 +143,9 @@ async function postDetailsButtons(update) {
 			const lastMessage = messages.first();
 
 			// Update the last message
-			lastMessage.edit({
+			await lastMessage.edit({
 				content: `Tryck på knapparna för att visa medlemsdetaljer`,
-				components: [row_buttons],
+				components: [row_buttons], // row_menu disabled for now
 			 });
 		} catch (error) {
             logActivity(`Failed to update details buttons: ${error}`);
@@ -145,7 +154,7 @@ async function postDetailsButtons(update) {
         try {
 			channel.send({
 				content: `Tryck på knapparna för att visa medlemsdetaljer`,
-				components: [row_buttons],
+				components: [row_buttons], // row_menu disabled for now
 			});
 		} catch (error) {
             logActivity(`Failed to post details buttons: ${error}`);

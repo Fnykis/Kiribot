@@ -15,6 +15,7 @@ const { updateDetails } = require('../features/details');
 const { postCalendar } = require('../features/calendar');
 const { verktygSignup, updateSignupButtonMessage } = require('../features/signup');
 const { postYourProfile } = require('../features/profile');
+const { postDetailsButtons } = require('../features/details');
 
 module.exports = {
 	name: Events.ClientReady,
@@ -79,7 +80,8 @@ async function oneTimeFunction() {
 	if (state.executed) return;
 
 	// --- one-time task ---
-	await postYourProfile(); // edits the panel message in #din-profil (adds Kontaktuppgifter button)
+	await postYourProfile(); // edits the panel message in #din-profil
+	await postDetailsButtons(true); // edits the panel message in #medlemsdetaljer
 	// ---------------------
 
 	state.executed = true;

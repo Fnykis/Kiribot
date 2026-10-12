@@ -458,15 +458,16 @@ module.exports = {
                             return `**${field.charAt(0).toUpperCase() + field.slice(1)}:** ${value}`;
                         })
                         .join('\n');
-                    const contactEntries = `**Mail:** ${userDetails.mail || '-'}\n**Mobil:** ${userDetails.mobil || '-'}`;
+                    // Disabled for now: contact info in profile view
+                    // const contactEntries = `**Mail:** ${userDetails.mail || '-'}\n**Mobil:** ${userDetails.mobil || '-'}`;
 
                     await interaction.reply({
                         content: `**Namn:** ${member.displayName}\n` +
                             `**Status:** ${memberStatus}\n` +
                             `**Instrument:** ${memberInstruments.length ? memberInstruments.join(', ') : '-' }\n` +
                             `**Arbetsgrupper:** ${memberWorkgroups.length ? memberWorkgroups.join(', ') : '-' }` +
-                            `${userDetailEntries ? '\n' + userDetailEntries : ''}\n` +
-                            contactEntries,
+                            `${userDetailEntries ? '\n' + userDetailEntries : ''}`,
+                            // `\n` + contactEntries, // disabled for now
                         flags: MessageFlags.Ephemeral
                     });
                 } else {
