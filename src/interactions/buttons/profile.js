@@ -21,6 +21,7 @@ module.exports = {
             customId === 'arbetsgrupp' ||
             customId.startsWith('roleArbetsgrupp-') ||
             customId === 'detaljer' ||
+            customId === 'kontaktuppgifter' ||
             customId === 'visaprofil' ||
             (() => {
                 const sanitizedFields = store.getRequiredFields().map(field =>
@@ -376,6 +377,44 @@ module.exports = {
             return;
         }
 
+        // kontaktuppgifter button
+        if (customId === 'kontaktuppgifter') {
+            const detailsFilePath = 'src/data/detailsList.json';
+            let userDetails = {};
+            if (fs.existsSync(detailsFilePath)) {
+                const detailsData = JSON.parse(fs.readFileSync(detailsFilePath, 'utf8'));
+                userDetails = [...detailsData.aktiv, ...detailsData.inaktiv].find(user => user.id === interaction.member.user.id) || {};
+            }
+            const existing = field => (userDetails[field] && userDetails[field] !== '-' ? userDetails[field] : '');
+
+            const modal = new ModalBuilder()
+                .setCustomId('modal_kontaktuppgifter')
+                .setTitle('Kontaktuppgifter');
+
+            const mailInput = new TextInputBuilder()
+                .setCustomId('mail')
+                .setLabel('Mail (valfritt)')
+                .setStyle(TextInputStyle.Short)
+                .setMaxLength(100)
+                .setRequired(false)
+                .setValue(existing('mail'));
+
+            const mobilInput = new TextInputBuilder()
+                .setCustomId('mobil')
+                .setLabel('Mobil (valfritt)')
+                .setStyle(TextInputStyle.Short)
+                .setMaxLength(100)
+                .setRequired(false)
+                .setValue(existing('mobil'));
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(mailInput),
+                new ActionRowBuilder().addComponents(mobilInput)
+            );
+            await interaction.showModal(modal);
+            return;
+        }
+
         // visaprofil button
         if (customId === 'visaprofil') {
             const activeRole = interaction.guild.roles.cache.find(role => role.name === 'aktiv');
@@ -419,13 +458,15 @@ module.exports = {
                             return `**${field.charAt(0).toUpperCase() + field.slice(1)}:** ${value}`;
                         })
                         .join('\n');
+                    const contactEntries = `**Mail:** ${userDetails.mail || '-'}\n**Mobil:** ${userDetails.mobil || '-'}`;
 
                     await interaction.reply({
                         content: `**Namn:** ${member.displayName}\n` +
                             `**Status:** ${memberStatus}\n` +
                             `**Instrument:** ${memberInstruments.length ? memberInstruments.join(', ') : '-' }\n` +
                             `**Arbetsgrupper:** ${memberWorkgroups.length ? memberWorkgroups.join(', ') : '-' }` +
-                            `${userDetailEntries ? '\n' + userDetailEntries : ''}`,
+                            `${userDetailEntries ? '\n' + userDetailEntries : ''}\n` +
+                            contactEntries,
                         flags: MessageFlags.Ephemeral
                     });
                 } else {

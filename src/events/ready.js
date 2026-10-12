@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { Events } = require('discord.js');
 const logActivity = require('../core/logger');
 const { cleanupOldLogs } = require('../core/logger');
@@ -12,6 +14,7 @@ const { checkRoles, postNyckelList } = require('../features/lists');
 const { updateDetails } = require('../features/details');
 const { postCalendar } = require('../features/calendar');
 const { verktygSignup, updateSignupButtonMessage } = require('../features/signup');
+const { postYourProfile } = require('../features/profile');
 
 module.exports = {
 	name: Events.ClientReady,
@@ -33,8 +36,7 @@ module.exports = {
 		}
 		dailyTasks().catch(err => logActivity(`Error in dailyTasks (startup): ${err.message}`));
 		scheduleDailyTask(3, 0, dailyTasks);
-		// scheduleDailyTask(8, 0, remindUsers);
-		remindUsers();
+		oneTimeFunction().catch(err => logActivity(`Error in oneTimeFunction: ${err.message}`));
 		scheduleHourlyTask(postFikaList);
 		scheduleDailyTask(8, 0, sendFikaReminder);
 		scheduleHourlyTask(checkAndProcessPassedEvents);
@@ -68,36 +70,19 @@ async function dailyTasks() {
 	postNyckelList(true);
 }
 
-async function remindUsers() {
-	/*
-	const embed = {
-		"title": "Tester",
-		"description": "Här skrivs information till alla glada människor.",
-		"color": 7419530,
-		"footer": {
-			"text": "har svarat ja  -  ID: 4255523",
-			"iconURL": "https://ollelindberg.se/kiribot/replycount/0.webp"
-		},
-		"fields": [
-			{
-			"name": "Plats",
-			"value": "I rymden",
-			"inline": true
-			},
-			{
-			"name": "Datum",
-			"value": "13/5",
-			"inline": true
-			}
-		]
-	};
-	await client.channels.cache.get(ch_BotTest).send({
-		content: `till aktiva`,
-		embeds: [embed]
-	});
-	*/
+// Runs the task below once, then flags it done in oneTimeFunctionState.json.
+// Reuse: swap the task body, set "executed" back to false, restart the bot.
+const oneTimeStatePath = path.join(__dirname, 'oneTimeFunctionState.json');
 
-	// await client.channels.cache.get(ch_BotTest).send({
-	// 	content: `## Test\nHär står något kul!\n-# Meddelande skickat till BotTest av __Olle L__\n-# <@${"602246889727066182"}>\n-# Tagga fler personer om du vill lägga till dem i konversationen.`
-	// });
+async function oneTimeFunction() {
+	const state = JSON.parse(fs.readFileSync(oneTimeStatePath, 'utf8'));
+	if (state.executed) return;
+
+	// --- one-time task ---
+	await postYourProfile(); // edits the panel message in #din-profil (adds Kontaktuppgifter button)
+	// ---------------------
+
+	state.executed = true;
+	fs.writeFileSync(oneTimeStatePath, JSON.stringify(state, null, 4));
+	logActivity('oneTimeFunction executed');
 }

@@ -129,6 +129,11 @@ async function postYourProfile() {
 		.setLabel('Nyckel')
 		.setStyle(ButtonStyle.Secondary);
 
+	const btn_kontakt = new ButtonBuilder()
+		.setCustomId('kontaktuppgifter')
+		.setLabel('Kontaktuppgifter')
+		.setStyle(ButtonStyle.Secondary);
+
 	const btn_view = new ButtonBuilder()
 		.setCustomId('visaprofil')
 		.setLabel('👁 Visa din profil')
@@ -137,25 +142,15 @@ async function postYourProfile() {
 	const row1_buttons = new ActionRowBuilder()
 		.addComponents(btn_name, btn_status, btn_inst, btn_work);
 	const row2_buttons = new ActionRowBuilder()
-		.addComponents(btn_details, btn_nyckel);
+		.addComponents(btn_details, btn_nyckel, btn_kontakt);
 	const row3_buttons = new ActionRowBuilder()
 		.addComponents(btn_view);
 
-	client.channels.cache.get(ch_YourProfile).messages.fetch({ limit: 1 }).then(messages => {
-		let lastMessage = messages.first();
-
-		lastMessage.edit({
-			content: `Tryck på knapparna för att ändra i din profil`,
-			components: [row1_buttons, row2_buttons, row3_buttons],
-		});
-	})
-	/*
-	client.channels.cache.get(ch_YourProfile).send({
+	const messages = await client.channels.cache.get(ch_YourProfile).messages.fetch({ limit: 1 });
+	await messages.first().edit({
 		content: `Tryck på knapparna för att ändra i din profil`,
-		components: [row1_buttons, row2_buttons],
+		components: [row1_buttons, row2_buttons, row3_buttons],
 	});
-	*/
-
 };
 
 module.exports = { postYourProfile, sendInstrumentNotification, sendWorkgroupNotification };
