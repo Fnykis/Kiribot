@@ -129,11 +129,6 @@ async function postYourProfile() {
 		.setLabel('Nyckel')
 		.setStyle(ButtonStyle.Secondary);
 
-	const btn_kontakt = new ButtonBuilder()
-		.setCustomId('kontaktuppgifter')
-		.setLabel('Kontaktuppgifter')
-		.setStyle(ButtonStyle.Secondary);
-
 	const btn_view = new ButtonBuilder()
 		.setCustomId('visaprofil')
 		.setLabel('👁 Visa din profil')
@@ -142,7 +137,7 @@ async function postYourProfile() {
 	const row1_buttons = new ActionRowBuilder()
 		.addComponents(btn_name, btn_status, btn_inst, btn_work);
 	const row2_buttons = new ActionRowBuilder()
-		.addComponents(btn_details, btn_nyckel/*, btn_kontakt*/); // btn_kontakt disabled for now
+		.addComponents(btn_details, btn_nyckel);
 	const row3_buttons = new ActionRowBuilder()
 		.addComponents(btn_view);
 

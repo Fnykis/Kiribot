@@ -11,7 +11,6 @@ module.exports = {
         return (
             customId === 'modal_namn' ||
             customId === 'modal_detaljer' ||
-            customId === 'modal_kontaktuppgifter' ||
             customId === 'modal_title'
         );
     },
@@ -36,39 +35,6 @@ module.exports = {
             await interaction.reply({ content: `Ditt visningsnamn är nu: **${nickname}** 🎉`, flags: MessageFlags.Ephemeral });
 
             logActivity(interaction.member.user.username + " changed their nickname to " + nickname);
-            return;
-        }
-
-        // modal_kontaktuppgifter
-        if (customId === 'modal_kontaktuppgifter') {
-            try {
-                const mail = interaction.fields.getTextInputValue('mail').trim() || '-';
-                const mobil = interaction.fields.getTextInputValue('mobil').trim() || '-';
-
-                const detailsFilePath = 'src/data/detailsList.json';
-                if (!fs.existsSync(detailsFilePath)) {
-                    await interaction.reply({ content: `Efterfrågan misslyckades.`, flags: MessageFlags.Ephemeral });
-                    logActivity(`${getNickname(interaction)} failed to update contact info - file not found`);
-                    return;
-                }
-                const detailsData = JSON.parse(fs.readFileSync(detailsFilePath, 'utf8'));
-
-                const userId = interaction.member.user.id;
-                const user = [...detailsData.aktiv, ...detailsData.inaktiv].find(u => u.id === userId);
-
-                if (user) {
-                    user.mail = mail;
-                    user.mobil = mobil;
-                    fs.writeFileSync(detailsFilePath, JSON.stringify(detailsData, null, 2));
-                    await interaction.reply({ content: `Du har uppdaterat dina kontaktuppgifter!`, flags: MessageFlags.Ephemeral });
-                    logActivity(`${getNickname(interaction)} updated their contact info`);
-                } else {
-                    await interaction.reply({ content: `Uppdateringen misslyckades - prova igen.`, flags: MessageFlags.Ephemeral });
-                    logActivity(`${getNickname(interaction)} failed to update their contact info - user not found`);
-                }
-            } catch (error) {
-                logActivity("Error when updating contact info for " + getNickname(interaction) + ": " + error);
-            }
             return;
         }
 

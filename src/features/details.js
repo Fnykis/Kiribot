@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, UserSelectMenuBuilder } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
 const client = require('../core/client');
 const logActivity = require('../core/logger');
@@ -127,15 +127,6 @@ async function postDetailsButtons(update) {
         row_buttons.addComponents(button);
     });
 
-    // Disabled for now: contact lookup picker (own row under the buttons; placeholder doubles as label).
-    // const row_menu = new ActionRowBuilder().addComponents(
-    //     new UserSelectMenuBuilder()
-    //         .setCustomId('visakontakt_select')
-    //         .setPlaceholder('Kontaktuppgifter (välj medlem)')
-    //         .setMinValues(1)
-    //         .setMaxValues(1)
-    // );
-
 	if (update) {
         try {
 			// Fetch the last message in the channel
@@ -145,7 +136,7 @@ async function postDetailsButtons(update) {
 			// Update the last message
 			await lastMessage.edit({
 				content: `Tryck på knapparna för att visa medlemsdetaljer`,
-				components: [row_buttons], // row_menu disabled for now
+				components: [row_buttons],
 			 });
 		} catch (error) {
             logActivity(`Failed to update details buttons: ${error}`);
@@ -154,7 +145,7 @@ async function postDetailsButtons(update) {
         try {
 			channel.send({
 				content: `Tryck på knapparna för att visa medlemsdetaljer`,
-				components: [row_buttons], // row_menu disabled for now
+				components: [row_buttons],
 			});
 		} catch (error) {
             logActivity(`Failed to post details buttons: ${error}`);
