@@ -17,7 +17,7 @@ export const GRID_STEP = 36;
 
 const INSTRUMENT_ABBREV = {
     '1:a': '1', '2:a': '2', '3:a': '3', '4:a': '4',
-    'repenique': 'rep', 'skak/agogo': 'sk', 'tarol': 'tar', 'timbal': 'tim',
+    'repinique': 'rep', 'repenique': 'rep', 'skak/agogo': 'sk', 'tarol': 'tar', 'timbal': 'tim',
 };
 
 export function abbreviateInstrument(key) {
@@ -29,6 +29,7 @@ const INSTRUMENT_COLORS = {
     '2:a':        '#e67e22',
     '3:a':        '#f1c40f',
     '4:a':        '#2ecc71',
+    'repinique':  '#3498db',
     'repenique':  '#3498db',
     'skak/agogo': '#9b59b6',
     'tarol':      '#1abc9c',
@@ -41,6 +42,7 @@ const INSTRUMENT_GLOW = {
     '2:a':        'rgba(230, 126, 34, 0.55)',
     '3:a':        'rgba(241, 196, 15, 0.55)',
     '4:a':        'rgba(46, 204, 113, 0.55)',
+    'repinique':  'rgba(52, 152, 219, 0.55)',
     'repenique':  'rgba(52, 152, 219, 0.55)',
     'skak/agogo': 'rgba(155, 89, 182, 0.55)',
     'tarol':      'rgba(26, 188, 156, 0.55)',

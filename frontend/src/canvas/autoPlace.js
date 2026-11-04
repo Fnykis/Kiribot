@@ -1,5 +1,5 @@
 // Row order top→bottom (back→front of stage)
-const MAIN_ROW_ORDER = ['repenique', 'tarol', '3:a', '4:a'];
+const MAIN_ROW_ORDER = ['repinique', 'repenique', 'tarol', '3:a', '4:a'];
 const RIGHT_COLUMN_INSTRUMENTS = new Set(['timbal', 'skak/agogo']);
 
 export function computeAutoPositions(members, gridStep, stageW, stageH) {
