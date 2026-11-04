@@ -25,4 +25,13 @@ function truncateText(text, maxLength = 200) {
     return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut) + '...';
 }
 
-module.exports = { formatChannelName, makeFileNameFriendly, truncateText };
+// Discord doesn't render a masked link whose label contains an emoji
+function maskedLinkLabel(name) {
+    const label = name
+        .replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\p{Regional_Indicator}️‍⃣]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return label || 'Signup';
+}
+
+module.exports = { formatChannelName, makeFileNameFriendly, truncateText, maskedLinkLabel };
