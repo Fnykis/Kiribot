@@ -630,7 +630,8 @@ async function loadPlanner(concertId) {
             if (err.status === 409) {
                 refreshState(concertId, sidebarInner, stage);
             } else {
-                showStatus('Något gick fel: ' + (err.message || err), true);
+                showTransientError('Något gick fel: ' + (err.message || err));
+                refreshState(concertId, sidebarInner, stage);
             }
         }
     });
@@ -655,7 +656,7 @@ async function loadPlanner(concertId) {
                     renderAvailable(sidebarInner, updated);
                     renderStage(stage, updated);
                 } catch (err) {
-                    showStatus('Kunde inte lägga till medlem: ' + (err.message || err), true);
+                    showTransientError('Kunde inte lägga till medlem: ' + (err.message || err));
                 }
             }
         });
@@ -677,7 +678,7 @@ async function loadPlanner(concertId) {
                         }, _accessToken);
                         setEvent(updated);
                     } catch (err) {
-                        showStatus(`Kunde inte placera ${p.displayName}: ${err.message || err}`, true);
+                        showTransientError(`Kunde inte placera ${p.displayName}: ${err.message || err}`);
                         break;
                     }
                 }
@@ -710,7 +711,7 @@ async function loadPlanner(concertId) {
                         const updated = await removeMember({ concertId, userId: entry.userId }, _accessToken);
                         setEvent(updated);
                     } catch (err) {
-                        showStatus('Kunde inte rensa: ' + (err.message || err), true);
+                        showTransientError('Kunde inte rensa: ' + (err.message || err));
                         return;
                     }
                 }
