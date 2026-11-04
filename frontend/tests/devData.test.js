@@ -183,3 +183,15 @@ describe('changeInstrument', () => {
         catch (e) { expect(e.status).toBe(404); }
     });
 });
+
+describe('signup notes', () => {
+    it('getState and place return no note key on signups', () => {
+        const raw = sampleEvents();
+        raw[0].signups['1:a'][0].note = 'Sjuk';
+        const dev = createDevData(raw);
+        const noNotes = (ev) => Object.values(ev.signups).flat().every(s => !('note' in s));
+        expect(noNotes(dev.getState('100'))).toBe(true);
+        const updated = dev.place({ concertId: '100', userId: 'u1', displayName: 'Anna A', instrument: '1:a', x: 1, y: 1 });
+        expect(noNotes(updated)).toBe(true);
+    });
+});

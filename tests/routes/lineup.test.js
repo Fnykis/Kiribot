@@ -353,3 +353,79 @@ test('changeInstrument: 404 event_not_found', async () => {
     assert.strictEqual(res.statusCode, 404);
     assert.deepStrictEqual(res.body, { error: 'event_not_found' });
 });
+
+// ---------- NOTES NOT LEAKED ----------
+
+const noteEvent = {
+    id: 'c1', name: 'Demo', date: '08/03/26',
+    signups: {
+        '1:a': [{ name: 'A', id: 'u1', response: 'ja', note: 'Sjuk' }],
+        '2:a': [{ name: 'B', id: 'u2', response: 'nej', note: 'Borta' }]
+    },
+    lineup: [{
+        userId: 'u1', displayName: 'A', instrument: '1:a',
+        position: { x: 1, y: 1 }, manuallyAdded: false, placedAt: 't'
+    }]
+};
+
+function assertNoNotes(body) {
+    for (const list of Object.values(body.signups)) {
+        for (const s of list) assert.ok(!('note' in s), 'note leaked');
+    }
+}
+
+function assertStoredNote(store) {
+    assert.strictEqual(store.peek().signups['1:a'][0].note, 'Sjuk');
+}
+
+test('place: response omits signup notes, store keeps them', async () => {
+    const ev = JSON.parse(JSON.stringify(noteEvent));
+    ev.lineup = [];
+    const store = makeStore(ev);
+    const handler = createPlaceRoute({
+        lineupStore: store, instrumentList: INSTRUMENT_LIST,
+        isGuildMember: async () => true, now: () => 't'
+    });
+    const res = mockRes();
+    await handler({ body: { concertId: 'c1', userId: 'u1', displayName: 'A', instrument: '1:a', x: 1, y: 1 } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assertNoNotes(res.body);
+    assertStoredNote(store);
+});
+
+test('move: response omits signup notes, store keeps them', async () => {
+    const store = makeStore(noteEvent);
+    const res = mockRes();
+    await createMoveRoute({ lineupStore: store })({ body: { concertId: 'c1', userId: 'u1', x: 5, y: 5 } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assertNoNotes(res.body);
+    assertStoredNote(store);
+});
+
+test('mestre: response omits signup notes, store keeps them', async () => {
+    const store = makeStore(noteEvent);
+    const res = mockRes();
+    await createMestreRoute({ lineupStore: store })({ body: { concertId: 'c1', userId: 'u1', x: 5, y: 5 } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assertNoNotes(res.body);
+    assertStoredNote(store);
+});
+
+test('remove: response omits signup notes, store keeps them', async () => {
+    const store = makeStore(noteEvent);
+    const res = mockRes();
+    await createRemoveRoute({ lineupStore: store })({ body: { concertId: 'c1', userId: 'u1' } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assertNoNotes(res.body);
+    assertStoredNote(store);
+});
+
+test('changeInstrument: response omits signup notes, store keeps them', async () => {
+    const store = makeStore(noteEvent);
+    const res = mockRes();
+    await createChangeInstrumentRoute({ lineupStore: store, instrumentList: INSTRUMENT_LIST })(
+        { body: { concertId: 'c1', userId: 'u1', instrument: 'tarol' } }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assertNoNotes(res.body);
+    assertStoredNote(store);
+});

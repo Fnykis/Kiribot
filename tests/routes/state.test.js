@@ -36,3 +36,15 @@ test('state: 404 when event not found', async () => {
     assert.strictEqual(res.statusCode, 404);
     assert.deepStrictEqual(res.body, { error: 'event_not_found' });
 });
+
+test('state: response omits signup notes and keeps other signup fields', async () => {
+    const store = {
+        async loadEvent() {
+            return { id: 'c1', signups: { '1:a': [{ id: 'u1', name: 'A', response: 'nej', note: 'Sjuk' }] }, lineup: [] };
+        }
+    };
+    const handler = createStateRoute({ lineupStore: store });
+    const res = mockRes();
+    await handler({ params: { concertId: 'c1' } }, res);
+    assert.deepStrictEqual(res.body.signups['1:a'][0], { id: 'u1', name: 'A', response: 'nej' });
+});

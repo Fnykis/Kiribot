@@ -9,6 +9,7 @@ const { parseEventDate } = require('../utils/dateUtils');
 const { syncEventsToSheet } = require('../services/google/sheets');
 const { findEventThread } = require('./eventThread');
 const { logArchived } = require('../services/eventMetrics');
+const { archiveEventFile } = require('../utils/eventArchive');
 
 function getEventJSON(eventId) {
 	try {
@@ -269,13 +270,8 @@ async function cleanupOutdatedSignups(nickname) {
                             const oldPath = path.join(dir_EventsActive, fileName);
                             const newPath = path.join(dir_EventsArchived, fileName);
 
-                            // Create the archive directory if it doesn't exist
-                            if (!fs.existsSync(dir_EventsArchived)) {
-                                fs.mkdirSync(dir_EventsArchived, { recursive: true });
-                            }
-
-                            // Move the file
-                            fs.renameSync(oldPath, newPath);
+                            // Move the file (creates archive dir, saves archivedAt)
+                            archiveEventFile(oldPath, newPath);
                             filesMoved++;
 
                             try {
@@ -357,13 +353,8 @@ async function moveToArchived(event) {
         const oldPath = path.join(dir_EventsActive, event.file);
         const newPath = path.join(dir_EventsArchived, event.file);
 
-        // Create the archive directory if it doesn't exist
-        if (!fs.existsSync(dir_EventsArchived)) {
-            fs.mkdirSync(dir_EventsArchived, { recursive: true });
-        }
-
-        // Move the file
-        fs.renameSync(oldPath, newPath);
+        // Move the file (creates archive dir, saves archivedAt)
+        archiveEventFile(oldPath, newPath);
 
         try {
             const archivedData = JSON.parse(fs.readFileSync(newPath, 'utf8'));

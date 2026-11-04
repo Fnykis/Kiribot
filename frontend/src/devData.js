@@ -25,6 +25,10 @@ export function createDevData(rawEvents) {
         if (!e || !e.id) continue;
         const clone = JSON.parse(JSON.stringify(e));
         clone.lineup = Array.isArray(e.lineup) ? clone.lineup : [];
+        // Mirror backend: planner responses never carry signup notes.
+        for (const list of Object.values(clone.signups || {})) {
+            if (Array.isArray(list)) for (const s of list) if (s) delete s.note;
+        }
         events[e.id] = clone;
     }
 

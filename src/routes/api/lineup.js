@@ -1,3 +1,5 @@
+const { withoutSignupNotes } = require('../../utils/eventResponse');
+
 const STAGE_W = 1000;
 const STAGE_H = 600;
 
@@ -54,7 +56,7 @@ function createPlaceRoute({ lineupStore, instrumentList, isGuildMember, now = ()
             if (err.message === 'event_not_found') return res.status(404).json({ error: 'event_not_found' });
             throw err;
         }
-        return res.json(updated);
+        return res.json(withoutSignupNotes(updated));
     };
 }
 
@@ -80,7 +82,7 @@ function createMoveRoute({ lineupStore }) {
             if (err.message === 'event_not_found') return res.status(404).json({ error: 'event_not_found' });
             throw err;
         }
-        return res.json(updated);
+        return res.json(withoutSignupNotes(updated));
     };
 }
 
@@ -112,7 +114,7 @@ function createMestreRoute({ lineupStore }) {
             if (err.message === 'event_not_found') return res.status(404).json({ error: 'event_not_found' });
             throw err;
         }
-        return res.json(updated);
+        return res.json(withoutSignupNotes(updated));
     };
 }
 
@@ -128,7 +130,7 @@ function createRemoveRoute({ lineupStore }) {
             ev.lineup = ev.lineup.filter(e => e.userId !== userId);
             return ev;
         });
-        return res.json(updated);
+        return res.json(withoutSignupNotes(updated));
     };
 }
 
@@ -163,7 +165,7 @@ function createChangeInstrumentRoute({ lineupStore, instrumentList }) {
             if (err.message === 'event_not_found') return res.status(404).json({ error: 'event_not_found' });
             throw err;
         }
-        return res.json(updated);
+        return res.json(withoutSignupNotes(updated));
     };
 }
 

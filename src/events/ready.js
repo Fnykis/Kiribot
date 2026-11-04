@@ -8,6 +8,7 @@ const { ch_LineupVoice, guildId } = require('../core/constants');
 const { loadPermissions } = require('../services/permissions');
 const { scheduleDailyTask, scheduleHourlyTask, scheduleTwiceDailyTask } = require('../services/scheduler');
 const { cleanupLocks } = require('../services/lockUtils');
+const { cleanupEventNotes } = require('../services/eventNoteCleanup');
 const { backupJsonFiles, cleanupOldBackups, checkAndProcessPassedEvents, checkEmptyDriveFolders } = require('../services/google/drive');
 const { postFikaList, syncAktivMembersToSheet, sendFikaReminder } = require('../services/google/sheets');
 const { checkRoles, postNyckelList } = require('../features/lists');
@@ -64,6 +65,7 @@ async function dailyTasks() {
 		updateDetails().catch(err => logActivity(`Error in updateDetails (from dailyTasks): ${err.message}`));
 	}, 60 * 1000); // 1 minute delay after checkRoles completes
 	cleanupLocks();
+	cleanupEventNotes().catch(err => logActivity(`Error in cleanupEventNotes: ${err.message}`));
 	cleanupOldLogs();
 	cleanupOldUiMetricsLogs();
 	verktygSignup();
