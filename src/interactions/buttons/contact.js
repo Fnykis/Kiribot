@@ -4,6 +4,34 @@ const logActivity = require('../../core/logger');
 const { ch_Sektionlista, ch_Arbetsgruppslista } = require('../../core/constants');
 const { getNickname } = require('../../utils/interactionUtils');
 
+const MESSAGE_LIMIT = 2000;
+const SUBJECT_MAX_LENGTH = 100;
+
+function capitalize(name) {
+    return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function getEligibleMembers(guild, targetChannel) {
+    const aktivRole = guild.roles.cache.find(r => r.name.toLowerCase() === 'aktiv');
+    if (!aktivRole) return null;
+    return aktivRole.members.filter(m =>
+        !m.user.bot &&
+        m.id !== guild.ownerId &&
+        targetChannel.permissionsFor(m).has(PermissionFlagsBits.ViewChannel)
+    );
+}
+
+function buildFooter(targetChannel, userId, eligibleMembers) {
+    const mentions = Array.from(eligibleMembers.keys()).map(id => `<@${id}>`).join(' ');
+    return `\n\n-# Meddelande skickat till **${capitalize(targetChannel.name)}** av <@${userId}>\n-# ${mentions}\n-# Tagga fler personer om du vill lägga till dem i konversationen.`;
+}
+
+// Room left for the body: limit minus "## <subject>\n" header (worst-case subject) and footer
+function getMessageBudget(footer) {
+    const header = `## ${'x'.repeat(SUBJECT_MAX_LENGTH)}\n`;
+    return Math.max(1, Math.min(4000, MESSAGE_LIMIT - header.length - footer.length));
+}
+
 module.exports = {
     matches(customId) {
         return (
@@ -88,20 +116,25 @@ module.exports = {
                 return interaction.reply({ content: 'Något gick fel', flags: MessageFlags.Ephemeral });
             }
 
+            const previewMembers = getEligibleMembers(interaction.guild, targetChannel);
+            const messageBudget = getMessageBudget(buildFooter(targetChannel, interaction.user.id, previewMembers ?? new Map()));
+
             const modal = new ModalBuilder()
                 .setCustomId('modal_contact')
-                .setTitle(`Kontaktar ${targetChannel.name.charAt(0).toUpperCase() + targetChannel.name.slice(1)}`);
+                .setTitle(`Kontaktar ${capitalize(targetChannel.name)}`);
 
             const subjectInput = new TextInputBuilder()
                 .setCustomId('subjectInput')
                 .setLabel("Ämne")
                 .setStyle(TextInputStyle.Short)
+                .setMaxLength(SUBJECT_MAX_LENGTH)
                 .setRequired(true);
 
             const textInput = new TextInputBuilder()
                 .setCustomId('textInput')
                 .setLabel("Meddelande")
                 .setStyle(TextInputStyle.Paragraph)
+                .setMaxLength(messageBudget)
                 .setRequired(true);
 
             const actionRow1 = new ActionRowBuilder().addComponents(subjectInput);
@@ -129,8 +162,8 @@ module.exports = {
             const subject = submitted.fields.getTextInputValue('subjectInput');
             const message = submitted.fields.getTextInputValue('textInput');
 
-            const aktivRole = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === 'aktiv');
-            if (!aktivRole) {
+            const eligibleMembers = getEligibleMembers(interaction.guild, targetChannel);
+            if (!eligibleMembers) {
                 logActivity(`Aktiv role missing while in contact form by ${getNickname(interaction)}`);
                 try {
                     return await submitted.editReply({ content: 'Något gick fel' });
@@ -140,17 +173,7 @@ module.exports = {
                 }
             }
 
-            const aktivMembers = aktivRole.members;
-
-            const eligibleMembers = aktivMembers.filter(m =>
-                !m.user.bot &&
-                m.id !== interaction.guild.ownerId &&
-                targetChannel.permissionsFor(m).has(PermissionFlagsBits.ViewChannel)
-            );
-
-            const mentions = [
-                ...Array.from(eligibleMembers.values()).map(m => `<@${m.id}>`)
-            ].join(' ');
+            const footer = buildFooter(targetChannel, interaction.user.id, eligibleMembers);
 
             const thread = await contactChannel.threads.create({
                 name: `${getNickname(interaction)} - ${subject}`.slice(0, 100),
@@ -163,8 +186,11 @@ module.exports = {
                     ...Array.from(eligibleMembers.keys()),
                     interaction.user.id
                 ];
+                // Safety net: roster may have grown since the modal was shown
+                const header = `## ${subject}\n`;
+                const body = message.slice(0, Math.max(0, MESSAGE_LIMIT - header.length - footer.length));
                 await thread.send({
-                    content: `## ${subject}\n${message}\n\n-# Meddelande skickat till **${targetChannel.name.charAt(0).toUpperCase() + targetChannel.name.slice(1)}** av <@${interaction.user.id}>\n-# ${mentions}\n-# Tagga fler personer om du vill lägga till dem i konversationen.`,
+                    content: `${header}${body}${footer}`,
                     allowedMentions: { users: mentionIds }
                 });
             } catch (error) {

@@ -1,34 +1,35 @@
-# Graph Report - .  (2026-09-12)
+# Graph Report - .  (2026-11-04)
 
 ## Corpus Check
-- 2 files · ~0 words
-- Verdict: corpus is large enough that graph structure adds value.
+- Large corpus: 207 files · ~192,682 words. Semantic extraction will be expensive (many Claude tokens). Consider running on a subfolder, or use --no-semantic to run AST-only.
 
 ## Summary
-- 1099 nodes · 1682 edges · 105 communities detected
-- Extraction: 73% EXTRACTED · 26% INFERRED · 0% AMBIGUOUS · INFERRED: 445 edges (avg confidence: 0.78)
+- 1114 nodes · 1713 edges · 106 communities detected
+- Extraction: 73% EXTRACTED · 26% INFERRED · 0% AMBIGUOUS · INFERRED: 450 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_Core Bot Command Flow|Core Bot Command Flow]]
-- [[_COMMUNITY_AuthCORS Tests & Sidebar|Auth/CORS Tests & Sidebar]]
-- [[_COMMUNITY_Debug Overlay & Voice Routes|Debug Overlay & Voice Routes]]
+- [[_COMMUNITY_AuthCORS Tests & Harness|Auth/CORS Tests & Harness]]
+- [[_COMMUNITY_Auth Middleware & Sidebar|Auth Middleware & Sidebar]]
 - [[_COMMUNITY_Yearwheel API Client|Yearwheel API Client]]
 - [[_COMMUNITY_Activity Design Rationale|Activity Design Rationale]]
-- [[_COMMUNITY_Arshjul Dispatcher|Arshjul Dispatcher]]
 - [[_COMMUNITY_CLAUDE.md Repo Rules|CLAUDE.md Repo Rules]]
+- [[_COMMUNITY_Arshjul Dispatcher|Arshjul Dispatcher]]
 - [[_COMMUNITY_Canvas Drag Issues|Canvas Drag Issues]]
 - [[_COMMUNITY_Lineup API & Client|Lineup API & Client]]
 - [[_COMMUNITY_Mobile Canvas PanZoom|Mobile Canvas Pan/Zoom]]
 - [[_COMMUNITY_Bot Core & Commands|Bot Core & Commands]]
+- [[_COMMUNITY_Arshjul Store|Arshjul Store]]
 - [[_COMMUNITY_Frontend Dev Data|Frontend Dev Data]]
 - [[_COMMUNITY_App Ideas & Drive Backup|App Ideas & Drive Backup]]
 - [[_COMMUNITY_Service Test Suites|Service Test Suites]]
-- [[_COMMUNITY_Stockholm Date Utils|Stockholm Date Utils]]
 - [[_COMMUNITY_Event Log|Event Log]]
+- [[_COMMUNITY_Stockholm Date Utils|Stockholm Date Utils]]
 - [[_COMMUNITY_Activity Invite|Activity Invite]]
-- [[_COMMUNITY_Scheduler Tasks|Scheduler Tasks]]
+- [[_COMMUNITY_Contact Button Handler|Contact Button Handler]]
 - [[_COMMUNITY_Voice Controls SVG|Voice Controls SVG]]
+- [[_COMMUNITY_Member Groups Service|Member Groups Service]]
 - [[_COMMUNITY_Member Status Service|Member Status Service]]
 - [[_COMMUNITY_Wheel Page Tests|Wheel Page Tests]]
 - [[_COMMUNITY_Showsignups Command|Showsignups Command]]
@@ -36,34 +37,33 @@
 - [[_COMMUNITY_Arshjul Web DesignPlans|Arshjul Web Design/Plans]]
 - [[_COMMUNITY_Nickname Rule & Panels|Nickname Rule & Panels]]
 - [[_COMMUNITY_Dispatcher Rationale|Dispatcher Rationale]]
-- [[_COMMUNITY_CORS Test Harness|CORS Test Harness]]
 - [[_COMMUNITY_Dispatcher Tests|Dispatcher Tests]]
 - [[_COMMUNITY_Repo Rules & Moderator Panel|Repo Rules & Moderator Panel]]
 - [[_COMMUNITY_Member Status Notify|Member Status Notify]]
 - [[_COMMUNITY_Event Thread & Reminders|Event Thread & Reminders]]
-- [[_COMMUNITY_Arshjul Store|Arshjul Store]]
+- [[_COMMUNITY_Arshjul Store Plans|Arshjul Store Plans]]
+- [[_COMMUNITY_Lineup Planner Specs|Lineup Planner Specs]]
 - [[_COMMUNITY_OAuth Session Cookie|OAuth Session Cookie]]
 - [[_COMMUNITY_Polling Realtime & Revocation|Polling Realtime & Revocation]]
-- [[_COMMUNITY_Lineup Planner Specs|Lineup Planner Specs]]
-- [[_COMMUNITY_Live Server Impact Rule|Live Server Impact Rule]]
-- [[_COMMUNITY_Nickname Helpers|Nickname Helpers]]
+- [[_COMMUNITY_Live Server Flag Rule|Live Server Flag Rule]]
+- [[_COMMUNITY_Nickname Helper Rule|Nickname Helper Rule]]
 - [[_COMMUNITY_Fika List (Google Sheets Sync)|Fika List (Google Sheets Sync)]]
-- [[_COMMUNITY_Task 9 Wheel Route and Access Gate|Task 9: Wheel Route and Access Gate]]
 - [[_COMMUNITY_Task 14 Discord Panel Button (arshjulPa|Task 14: Discord Panel Button (arshjulPa]]
 - [[_COMMUNITY_Task 5 Member Group Resolution (memberG|Task 5: Member Group Resolution (memberG]]
+- [[_COMMUNITY_Task 9 Wheel Route and Access Gate|Task 9: Wheel Route and Access Gate]]
 - [[_COMMUNITY_Task 10 Wire Web API into Express|Task 10: Wire Web API into Express]]
 - [[_COMMUNITY_Flat Write Model + Audit Log Rationale|Flat Write Model + Audit Log Rationale]]
 - [[_COMMUNITY_Test-Channel Gate (arshjulLive)|Test-Channel Gate (arshjulLive)]]
 - [[_COMMUNITY_arshjul.json Drive Backup Gap Risk|arshjul.json Drive Backup Gap Risk]]
 - [[_COMMUNITY_modal_namn nickname handler|modal_namn nickname handler]]
-- [[_COMMUNITY_modal_editSection- handler|modal_editSection- handler]]
 - [[_COMMUNITY_modal_addSection handler|modal_addSection handler]]
+- [[_COMMUNITY_modal_editSection- handler|modal_editSection- handler]]
 - [[_COMMUNITY_oneTimeFunction.js active implementation|oneTimeFunction.js active implementation]]
 - [[_COMMUNITY_MAX_TITLE_LENGTH constant|MAX_TITLE_LENGTH constant]]
 - [[_COMMUNITY_Rationale 1500-char body limit leaves h|Rationale: 1500-char body limit leaves h]]
 - [[_COMMUNITY_findEventThread stub (featureseventThre|findEventThread stub (features/eventThre]]
-- [[_COMMUNITY_parseCookies  serializeCookie tests|parseCookies / serializeCookie tests]]
 - [[_COMMUNITY_getNickname  getMemberNickname tests|getNickname / getMemberNickname tests]]
+- [[_COMMUNITY_parseCookies  serializeCookie tests|parseCookies / serializeCookie tests]]
 - [[_COMMUNITY_ttlCache Test Suite|ttlCache Test Suite]]
 - [[_COMMUNITY_Concert Line-up Planner Overview|Concert Line-up Planner Overview]]
 - [[_COMMUNITY_GET apime Route|GET /api/me Route]]
@@ -135,29 +135,24 @@
   /Users/brummelisa/Grossisten/Code/Github/Kiribot/frontend/src/api.js → docs/superpowers/specs/2026-05-12-lineup-planner-design.md
 - `fetchInstruments()` --implements--> `GET /api/instruments Endpoint Design`  [INFERRED]
   /Users/brummelisa/Grossisten/Code/Github/Kiribot/frontend/src/dataSource.js → docs/superpowers/specs/2026-06-05-dot-instrument-change-design.md
-- `wireGestures()` --shares_data_with--> `Stage/Sidebar/Header DOM Structure`  [INFERRED]
+- `wireDrag()` --shares_data_with--> `Stage/Sidebar/Header DOM Structure`  [INFERRED]
   /Users/brummelisa/Grossisten/Code/Github/Kiribot/frontend/src/canvas/drag.js → frontend/index.html
-- `renderStage()` --implements--> `Instrument Name Inside Dot Feature`  [INFERRED]
-  /Users/brummelisa/Grossisten/Code/Github/Kiribot/frontend/src/canvas/stage.js → docs/superpowers/specs/2026-05-14-lineup-planner-m5-issues.md
-
-## Hyperedges (group relationships)
-- **Frontend dev/prod data-layer pattern** — claude_main_js, claude_datasource_js, claude_devdata_js, claude_routes_api, claude_vite_dev_mode_flag [EXTRACTED 1.00]
-- **ALWAYS rules every response must follow** — claude_caveman_ultra_rule, claude_live_server_flag_rule, claude_nickname_helpers_rule, claude_report_files_touched_rule [EXTRACTED 1.00]
-- **Session end flow: graphify update then commit on main** — claude_graphify_update_rule, claude_git_main_rule, claude_graphify_knowledge_graph [INFERRED 0.80]
+- `renderStage()` --shares_data_with--> `Stage/Sidebar/Header DOM Structure`  [INFERRED]
+  /Users/brummelisa/Grossisten/Code/Github/Kiribot/frontend/src/canvas/stage.js → frontend/index.html
 
 ## Communities
 
 ### Community 0 - "Core Bot Command Flow"
 Cohesion: 0.03
-Nodes (100): restPost(), get(), createAuth(), postCalendar(), postSignupButtons(), createConcertsRoute(), Concerts list route tests, execute() (+92 more)
+Nodes (102): get(), createAuth(), postCalendar(), postSignupButtons(), createConcertsRoute(), Concerts list route tests, cleanupOldLogs, checkDateFormat() (+94 more)
 
-### Community 1 - "Auth/CORS Tests & Sidebar"
+### Community 1 - "Auth/CORS Tests & Harness"
 Cohesion: 0.03
-Nodes (78): createAuthMiddleware(), Discord bearer-token auth middleware tests, computeAvailable(), renderAvailable(), sidebar/available.js test suite, parseCookies(), serializeCookie(), CORS/web-session Express integration tests (+70 more)
+Nodes (73): restPost(), listen(), ensurePanel(), installDebugOverlay(), push(), render(), toggle(), toggleDebugOverlay() (+65 more)
 
-### Community 2 - "Debug Overlay & Voice Routes"
+### Community 2 - "Auth Middleware & Sidebar"
 Cohesion: 0.03
-Nodes (67): ensurePanel(), installDebugOverlay(), render(), toggle(), toggleDebugOverlay(), POST /api/voice/leave route, POST /api/voice/mute route, applyPipLayout() (+59 more)
+Nodes (75): createAuthMiddleware(), Discord bearer-token auth middleware tests, computeAvailable(), renderAvailable(), sidebar/available.js test suite, parseCookies(), serializeCookie(), CORS/web-session Express integration tests (+67 more)
 
 ### Community 3 - "Yearwheel API Client"
 Cohesion: 0.06
@@ -167,17 +162,17 @@ Nodes (59): API_BASE (VITE_API_BASE env constant), apiDelete(), ApiError, apiGet
 Cohesion: 0.03
 Nodes (71): muteToggle.js (Frontend Round Button), POST /api/voice/mute Route, voiceStateUpdate Auto-Mute/Unmute Handler, JSON File Concurrency Risk (Rationale), Carnivalesco CSS Design Tokens, Dot Gradient Fill + Glow (stage.js), Righteous/Poppins Typography, dataSource.js / devData.js Branch Pattern (+63 more)
 
-### Community 5 - "Arshjul Dispatcher"
-Cohesion: 0.04
-Nodes (48): isRealMonthDay(), channelFor, fetchChannel, runTick, safeTick, scheduleNext, send (dispatch entry), start (+40 more)
-
-### Community 6 - "CLAUDE.md Repo Rules"
+### Community 5 - "CLAUDE.md Repo Rules"
 Cohesion: 0.06
 Nodes (50): src/routes/api/*.js, auto-memory (MEMORY.md), Rationale: SessionStart hook sets caveman full, not ultra, caveman:caveman skill (args: ultra), Rule: caveman ultra first action of every conversation, Commands: npm start, npm run register, frontend dev, vitest, frontend/src/dataSource.js (dev/prod branch), frontend/src/devData.js (dev adapter) (+42 more)
 
+### Community 6 - "Arshjul Dispatcher"
+Cohesion: 0.06
+Nodes (38): isRealMonthDay(), channelFor, fetchChannel, runTick, safeTick, scheduleNext, send (dispatch entry), start (+30 more)
+
 ### Community 7 - "Canvas Drag Issues"
-Cohesion: 0.09
-Nodes (37): Dot Jump on Drag Start Bug, Sidebar Drag Ghost Invisible Bug, Grid Snap Feature Request, Instrument Name Inside Dot Feature, Poll Update Yanks Dragged Dot Bug, Poll Aborts Sidebar Drag Bug, Optimistic-Then-Persist Rationale, Radial Menu Drum Flyout UI Design (+29 more)
+Cohesion: 0.1
+Nodes (33): Dot Jump on Drag Start Bug, Sidebar Drag Ghost Invisible Bug, Grid Snap Feature Request, Instrument Name Inside Dot Feature, Poll Update Yanks Dragged Dot Bug, Poll Aborts Sidebar Drag Bug, Optimistic-Then-Persist Rationale, Radial Menu Drum Flyout UI Design (+25 more)
 
 ### Community 8 - "Lineup API & Client"
 Cohesion: 0.11
@@ -185,123 +180,123 @@ Nodes (29): API Surface (/api/lineup/*), “Ställ upp alla” Feature Request, 
 
 ### Community 9 - "Mobile Canvas Pan/Zoom"
 Cohesion: 0.14
-Nodes (27): dvh-in-Discord-iframe Rationale, Transform Wrapper Approach A (Pan/Zoom), Fit-Width/Fit-Height Geometry, Mobile Canvas Pan+Zoom Design, Mobile Canvas Pan+Zoom Implementation Plan, Module-Level _gestures Scope Rationale, Task 1: Dynamic Zoom Bounds in viewport.js, Task 2: fitToWidth/refit Helpers (+19 more)
+Nodes (28): dvh-in-Discord-iframe Rationale, Transform Wrapper Approach A (Pan/Zoom), Fit-Width/Fit-Height Geometry, Mobile Canvas Pan+Zoom Design, Mobile Canvas Pan+Zoom Implementation Plan, Module-Level _gestures Scope Rationale, Task 1: Dynamic Zoom Bounds in viewport.js, Task 2: fitToWidth/refit Helpers (+20 more)
 
 ### Community 10 - "Bot Core & Commands"
-Cohesion: 0.14
-Nodes (19): execute (/info command), Discord Client singleton, logActivity, register(), execute(), loadOneTimeFunction(), execute(), handleChangeSignup() (+11 more)
+Cohesion: 0.11
+Nodes (20): execute (/info command), Discord Client singleton, logActivity, register(), execute(), loadOneTimeFunction(), execute(), handleChangeSignup() (+12 more)
 
-### Community 11 - "Frontend Dev Data"
+### Community 11 - "Arshjul Store"
+Cohesion: 0.12
+Nodes (10): createArshjulStore(), seeded(), tmpFile(), Rationale: count lookup fails soft to 0 (decoration, not an access decision), loadCounts(), withCounts(), createWebGroupsRoute(), createWebMeRoute() (+2 more)
+
+### Community 12 - "Frontend Dev Data"
 Cohesion: 0.11
 Nodes (14): changeInstrument (dev), createDevData(), getConcerts (dev), getInstruments (dev), getMembers (dev), getState (dev), move (dev), place (dev) (+6 more)
 
-### Community 12 - "App Ideas & Drive Backup"
+### Community 13 - "App Ideas & Drive Backup"
 Cohesion: 0.11
 Nodes (18): Three-Component Architecture (App Idea), Core Data Flow (App Idea), Message Parsing Fragility (Rationale), Mixed-Content/HTTPS Blocker (Rationale), Årshjul Backup On-Hold, Service-Account Storage Quota Root Cause, Shared Drive Migration Fix, Cloudflare Pages Frontend Hosting (+10 more)
 
-### Community 13 - "Service Test Suites"
+### Community 14 - "Service Test Suites"
 Cohesion: 0.16
 Nodes (19): createActivityInviteService tests, dueWindow tests, isRealMonthDay tests, createArshjulDispatcher tests, validateEntryInput tests, createArshjulStore tests, findFikaEntry / fikaReminderLeadDays tests, scheduleRevoke / cancelRevoke tests (+11 more)
 
-### Community 14 - "Stockholm Date Utils"
+### Community 15 - "Event Log"
+Cohesion: 0.37
+Nodes (13): append(), deleteEventLog(), getLogPath(), logArchived(), logCancelled(), logEventCreated(), logReminderSent(), logReopened() (+5 more)
+
+### Community 16 - "Stockholm Date Utils"
 Cohesion: 0.24
 Nodes (12): clockInStockholm(), dueWindow(), effectiveMonthDay(), hourInStockholm(), isAheadOfToday(), isLeapYear(), msUntilNextSendHour(), pad() (+4 more)
 
-### Community 15 - "Event Log"
-Cohesion: 0.5
-Nodes (11): append(), deleteEventLog(), getLogPath(), logArchived(), logCancelled(), logEventCreated(), logReminderSent(), logReopened() (+3 more)
-
-### Community 16 - "Activity Invite"
+### Community 17 - "Activity Invite"
 Cohesion: 0.31
 Nodes (5): createActivityInviteService(), execute(), cancelRevoke(), scheduleReplyDeletion(), scheduleRevoke()
 
-### Community 17 - "Scheduler Tasks"
+### Community 18 - "Contact Button Handler"
 Cohesion: 0.46
-Nodes (6): execute(), remindUsers(), runTask(), scheduleDailyTask(), scheduleHourlyTask(), scheduleTwiceDailyTask()
+Nodes (6): buildFooter(), capitalize(), execute(), getEligibleMembers(), getMessageBudget(), matches()
 
-### Community 18 - "Voice Controls SVG"
+### Community 19 - "Voice Controls SVG"
 Cohesion: 0.57
 Nodes (6): line(), micOffIcon(), micOnIcon(), path(), rect(), svg()
 
-### Community 19 - "Member Status Service"
+### Community 20 - "Member Groups Service"
+Cohesion: 0.33
+Nodes (3): createMemberGroupsService(), noCache(), service()
+
+### Community 21 - "Member Status Service"
 Cohesion: 0.29
 Nodes (2): createMemberStatusService(), service()
 
-### Community 20 - "Wheel Page Tests"
+### Community 22 - "Wheel Page Tests"
 Cohesion: 0.38
 Nodes (4): isOpen(), open(), rowFor(), toggleFor()
 
-### Community 21 - "Showsignups Command"
+### Community 23 - "Showsignups Command"
 Cohesion: 0.48
 Nodes (5): execute(), formatEventDate(), getResponseLabels(), getSignupMessageLink(), getUserReplyFromEvent()
 
-### Community 22 - "Activity Invite Feature"
+### Community 24 - "Activity Invite Feature"
 Cohesion: 0.33
 Nodes (6): activityInvite Service (Embedded App Invite), btn_lineup_invite Handler, permissions.json Feature Gate, Signupverktyg Panel, Entry Generator (Invite Component), Auto-Mute Activity User Journey
 
-### Community 23 - "Arshjul Web Design/Plans"
+### Community 25 - "Arshjul Web Design/Plans"
 Cohesion: 0.33
 Nodes (7): Årshjul Web App Design, Additive Tunnel Hostname Rationale, Årshjul Milestone 1 Implementation Plan, Årshjul Milestone 2 Design, Task 10: Origin Allowlist Middleware, Årshjul Milestone 2 Implementation Plan, btn_arshjul Wired into #verktyg Message
 
-### Community 24 - "Nickname Rule & Panels"
+### Community 26 - "Nickname Rule & Panels"
 Cohesion: 0.33
 Nodes (3): Rule: Use Nickname Helpers, postYourProfile(), verktygSignup()
 
-### Community 25 - "Dispatcher Rationale"
+### Community 27 - "Dispatcher Rationale"
 Cohesion: 0.33
 Nodes (6): Per-Clicker Revocation Scope Rationale, REVOKE_DELAY_MS Shared Timer Decision, Dispatcher Concept, Dispatcher Schedule & Tick Rules, Task 12: Dispatcher Tick, Send-Then-Mark Ordering Rationale
 
-### Community 26 - "CORS Test Harness"
-Cohesion: 0.4
-Nodes (1): listen()
-
-### Community 27 - "Dispatcher Tests"
+### Community 28 - "Dispatcher Tests"
 Cohesion: 0.4
 Nodes (2): createArshjulDispatcher(), harness()
 
-### Community 34 - "Repo Rules & Moderator Panel"
+### Community 35 - "Repo Rules & Moderator Panel"
 Cohesion: 0.5
 Nodes (4): Rule: Report Non-Frontend File Changes, Rule: Flag Live Discord Server Impact, Moderator Tools Panel, README File Structure Overview
 
-### Community 35 - "Member Status Notify"
+### Community 36 - "Member Status Notify"
 Cohesion: 0.5
 Nodes (4): buildMessage, findRoles, notifyMember (private thread), memberStatus.setMembersInactive
 
-### Community 40 - "Event Thread & Reminders"
+### Community 41 - "Event Thread & Reminders"
 Cohesion: 0.67
 Nodes (2): eventThreadUpdate(), Reminder System
 
-### Community 41 - "Arshjul Store"
+### Community 42 - "Arshjul Store Plans"
 Cohesion: 0.67
 Nodes (3): Task 6: Årshjul Store (Read Side), Re-fire Guard Rationale (sentYears), Task 3-4: Store Locked Writes/Update/Delete
 
-### Community 42 - "OAuth Session Cookie"
-Cohesion: 0.67
-Nodes (3): OAuth Session Cookie Auth Flow, Host-Only Cookie / Same-Site Rationale, Task 12: Landing Page (4 Session States)
-
-### Community 43 - "Polling Realtime & Revocation"
-Cohesion: 0.67
-Nodes (3): Polling-Only Realtime Rationale, Revocation-While-Open Handling, Task 13: Wheel Page with Revocation Handling
-
-### Community 44 - "Lineup Planner Specs"
+### Community 43 - "Lineup Planner Specs"
 Cohesion: 0.67
 Nodes (3): Concert Line-up Planner Design Spec, Lineup Planner M3 Design, Lineup Planner M5 Issues & Design Notes
 
-### Community 45 - "Live Server Impact Rule"
+### Community 44 - "OAuth Session Cookie"
+Cohesion: 0.67
+Nodes (3): OAuth Session Cookie Auth Flow, Host-Only Cookie / Same-Site Rationale, Task 12: Landing Page (4 Session States)
+
+### Community 45 - "Polling Realtime & Revocation"
+Cohesion: 0.67
+Nodes (3): Polling-Only Realtime Rationale, Revocation-While-Open Handling, Task 13: Wheel Page with Revocation Handling
+
+### Community 46 - "Live Server Flag Rule"
 Cohesion: 0.67
 Nodes (3): postArshjulPanel, Live server has real members always on, Flag live Discord server impact rule
 
-### Community 46 - "Nickname Helpers"
+### Community 47 - "Nickname Helper Rule"
 Cohesion: 0.67
 Nodes (3): src/utils/interactionUtils.js, Nickname-then-username fallback held in one place, Use nickname helpers rule
 
-### Community 63 - "Fika List (Google Sheets Sync)"
+### Community 64 - "Fika List (Google Sheets Sync)"
 Cohesion: 1.0
 Nodes (1): Fika List (Google Sheets Sync)
-
-### Community 64 - "Task 9: Wheel Route and Access Gate"
-Cohesion: 1.0
-Nodes (2): Task 9: Wheel Route and Access Gate, Task 8: GET Wheel hasChannel/viaModerator
 
 ### Community 65 - "Task 14: Discord Panel Button (arshjulPa"
 Cohesion: 1.0
@@ -311,259 +306,263 @@ Nodes (2): Task 14: Discord Panel Button (arshjulPanel.js), arshjulPanel.js Appr
 Cohesion: 1.0
 Nodes (2): Task 5: Member Group Resolution (memberGroups), Task 6: listAllGroups + isModerator
 
-### Community 67 - "Task 10: Wire Web API into Express"
+### Community 67 - "Task 9: Wheel Route and Access Gate"
+Cohesion: 1.0
+Nodes (2): Task 9: Wheel Route and Access Gate, Task 8: GET Wheel hasChannel/viaModerator
+
+### Community 68 - "Task 10: Wire Web API into Express"
 Cohesion: 1.0
 Nodes (2): Task 10: Wire Web API into Express, Task 11: Wire Routes into Express
 
-### Community 68 - "Flat Write Model + Audit Log Rationale"
+### Community 69 - "Flat Write Model + Audit Log Rationale"
 Cohesion: 1.0
 Nodes (2): Flat Write Model + Audit Log Rationale, Task 9: Write Routes Create/Update/Delete
 
-### Community 69 - "Test-Channel Gate (arshjulLive)"
+### Community 70 - "Test-Channel Gate (arshjulLive)"
 Cohesion: 1.0
 Nodes (2): Test-Channel Gate (arshjulLive), Task 13: Start Dispatcher / Config
 
-### Community 70 - "arshjul.json Drive Backup Gap Risk"
+### Community 71 - "arshjul.json Drive Backup Gap Risk"
 Cohesion: 1.0
 Nodes (2): arshjul.json Drive Backup Gap Risk, Drive Backup Known Gap (Deploy Note)
 
-### Community 71 - "modal_namn nickname handler"
+### Community 72 - "modal_namn nickname handler"
 Cohesion: 1.0
 Nodes (2): modal_namn nickname handler, modal_title nickname handler
-
-### Community 72 - "modal_editSection- handler"
-Cohesion: 1.0
-Nodes (2): modal_editSection- handler, modal_editWorkgroup- handler
 
 ### Community 73 - "modal_addSection handler"
 Cohesion: 1.0
 Nodes (2): modal_addSection handler, modal_addWorkgroup handler
 
-### Community 74 - "oneTimeFunction.js active implementation"
+### Community 74 - "modal_editSection- handler"
+Cohesion: 1.0
+Nodes (2): modal_editSection- handler, modal_editWorkgroup- handler
+
+### Community 75 - "oneTimeFunction.js active implementation"
 Cohesion: 1.0
 Nodes (2): oneTimeFunction.js active implementation, oneTimeFunction.example.js template
 
-### Community 75 - "MAX_TITLE_LENGTH constant"
+### Community 76 - "MAX_TITLE_LENGTH constant"
 Cohesion: 1.0
 Nodes (2): MAX_TITLE_LENGTH constant, Rationale: 100-char title limit matches Discord thread-name limit
 
-### Community 76 - "Rationale: 1500-char body limit leaves h"
+### Community 77 - "Rationale: 1500-char body limit leaves h"
 Cohesion: 1.0
 Nodes (2): Rationale: 1500-char body limit leaves headroom under Discord's 2000 limit, MAX_BODY_LENGTH constant
 
-### Community 77 - "findEventThread stub (features/eventThre"
+### Community 78 - "findEventThread stub (features/eventThre"
 Cohesion: 1.0
 Nodes (2): findEventThread stub (features/eventThread), processPassedEvent tests
-
-### Community 78 - "parseCookies / serializeCookie tests"
-Cohesion: 1.0
-Nodes (2): parseCookies / serializeCookie tests, createWebSession tests
 
 ### Community 79 - "getNickname / getMemberNickname tests"
 Cohesion: 1.0
 Nodes (2): getNickname / getMemberNickname tests, createMemberStatusService tests
 
-### Community 80 - "ttlCache Test Suite"
+### Community 80 - "parseCookies / serializeCookie tests"
+Cohesion: 1.0
+Nodes (2): parseCookies / serializeCookie tests, createWebSession tests
+
+### Community 81 - "ttlCache Test Suite"
 Cohesion: 1.0
 Nodes (2): ttlCache Test Suite, createTtlCache (tested contract)
 
-### Community 102 - "Concert Line-up Planner Overview"
+### Community 103 - "Concert Line-up Planner Overview"
 Cohesion: 1.0
 Nodes (1): Concert Line-up Planner Overview
 
-### Community 103 - "GET /api/me Route"
+### Community 104 - "GET /api/me Route"
 Cohesion: 1.0
 Nodes (1): GET /api/me Route
 
-### Community 104 - "Task 1: Cookie Parse/Serialize"
+### Community 105 - "Task 1: Cookie Parse/Serialize"
 Cohesion: 1.0
 Nodes (1): Task 1: Cookie Parse/Serialize
 
-### Community 105 - "Task 2: Signed Session Tokens (webSessio"
+### Community 106 - "Task 2: Signed Session Tokens (webSessio"
 Cohesion: 1.0
 Nodes (1): Task 2: Signed Session Tokens (webSession)
 
-### Community 106 - "Task 3: webAuth Middleware"
+### Community 107 - "Task 3: webAuth Middleware"
 Cohesion: 1.0
 Nodes (1): Task 3: webAuth Middleware
 
-### Community 107 - "Task 4: Per-Call Redirect URI in OAuth S"
+### Community 108 - "Task 4: Per-Call Redirect URI in OAuth S"
 Cohesion: 1.0
 Nodes (1): Task 4: Per-Call Redirect URI in OAuth Service
 
-### Community 108 - "Task 7: Token and Logout Routes"
+### Community 109 - "Task 7: Token and Logout Routes"
 Cohesion: 1.0
 Nodes (1): Task 7: Token and Logout Routes
 
-### Community 109 - "Task 8: GET /api/web/me Route"
+### Community 110 - "Task 8: GET /api/web/me Route"
 Cohesion: 1.0
 Nodes (1): Task 8: GET /api/web/me Route
 
-### Community 110 - "Task 11: Frontend Project and API Client"
+### Community 111 - "Task 11: Frontend Project and API Client"
 Cohesion: 1.0
 Nodes (1): Task 11: Frontend Project and API Client
 
-### Community 111 - "Task 15: End-to-End Verification"
+### Community 112 - "Task 15: End-to-End Verification"
 Cohesion: 1.0
 Nodes (1): Task 15: End-to-End Verification
 
-### Community 112 - "Task 1: Europe/Stockholm Date Utilities"
+### Community 113 - "Task 1: Europe/Stockholm Date Utilities"
 Cohesion: 1.0
 Nodes (1): Task 1: Europe/Stockholm Date Utilities
 
-### Community 113 - "Task 2: Entry Input Validation"
+### Community 114 - "Task 2: Entry Input Validation"
 Cohesion: 1.0
 Nodes (1): Task 2: Entry Input Validation
 
-### Community 114 - "Task 5: Role→Channel Resolution"
+### Community 115 - "Task 5: Role→Channel Resolution"
 Cohesion: 1.0
 Nodes (1): Task 5: Role→Channel Resolution
 
-### Community 115 - "Task 14: apiPatch/apiDelete"
+### Community 116 - "Task 14: apiPatch/apiDelete"
 Cohesion: 1.0
 Nodes (1): Task 14: apiPatch/apiDelete
 
-### Community 116 - "Task 16: Month Grouping/Banner/Moderator"
+### Community 117 - "Task 16: Month Grouping/Banner/Moderator"
 Cohesion: 1.0
 Nodes (1): Task 16: Month Grouping/Banner/Moderator Line
 
-### Community 117 - "Task 17: Entry Form + CRUD Wiring"
+### Community 118 - "Task 17: Entry Form + CRUD Wiring"
 Cohesion: 1.0
 Nodes (1): Task 17: Entry Form + CRUD Wiring
 
-### Community 118 - "Task 18: Full Verification"
+### Community 119 - "Task 18: Full Verification"
 Cohesion: 1.0
 Nodes (1): Task 18: Full Verification
 
-### Community 119 - "Lineup Data Model (event.lineup array)"
+### Community 120 - "Lineup Data Model (event.lineup array)"
 Cohesion: 1.0
 Nodes (1): Lineup Data Model (event.lineup array)
 
-### Community 120 - "Milestone Plan M0-M6"
+### Community 121 - "Milestone Plan M0-M6"
 Cohesion: 1.0
 Nodes (1): Milestone Plan M0-M6
 
-### Community 121 - "Cybrancee/Cloudflare Architecture"
+### Community 122 - "Cybrancee/Cloudflare Architecture"
 Cohesion: 1.0
 Nodes (1): Cybrancee/Cloudflare Architecture
 
-### Community 122 - "Placement Model (Pattern B - placed bool"
+### Community 123 - "Placement Model (Pattern B - placed bool"
 Cohesion: 1.0
 Nodes (1): Placement Model (Pattern B - placed boolean)
 
-### Community 123 - "mergeRoster Function Contract"
+### Community 124 - "mergeRoster Function Contract"
 Cohesion: 1.0
 Nodes (1): mergeRoster Function Contract
 
-### Community 124 - "lineupStore.js Module Contract"
+### Community 125 - "lineupStore.js Module Contract"
 Cohesion: 1.0
 Nodes (1): lineupStore.js Module Contract
 
-### Community 125 - "Text Selectable During Drag Bug"
+### Community 126 - "Text Selectable During Drag Bug"
 Cohesion: 1.0
 Nodes (1): Text Selectable During Drag Bug
 
-### Community 126 - "Mobile Redesign Lineup Planner Design"
+### Community 127 - "Mobile Redesign Lineup Planner Design"
 Cohesion: 1.0
 Nodes (1): Mobile Redesign Lineup Planner Design
 
-### Community 127 - "Finger Arbitration Gesture Model"
+### Community 128 - "Finger Arbitration Gesture Model"
 Cohesion: 1.0
 Nodes (1): Finger Arbitration Gesture Model
 
-### Community 128 - "Drawer Sliver Model"
+### Community 129 - "Drawer Sliver Model"
 Cohesion: 1.0
 Nodes (1): Drawer Sliver Model
 
-### Community 129 - "Lineup Prompt Timeout + No-Join Re-hide "
+### Community 130 - "Lineup Prompt Timeout + No-Join Re-hide "
 Cohesion: 1.0
 Nodes (1): Lineup Prompt Timeout + No-Join Re-hide Design
 
-### Community 130 - "Drop 3x Zoom-In Decision"
+### Community 131 - "Drop 3x Zoom-In Decision"
 Cohesion: 1.0
 Nodes (1): Drop 3x Zoom-In Decision
 
-### Community 131 - "Role Resolution by Color"
+### Community 132 - "Role Resolution by Color"
 Cohesion: 1.0
 Nodes (1): Role Resolution by Color
 
-### Community 132 - "Two Levels of Access Control"
+### Community 133 - "Two Levels of Access Control"
 Cohesion: 1.0
 Nodes (1): Two Levels of Access Control
 
-### Community 133 - "arshjul.json Data Model"
+### Community 134 - "arshjul.json Data Model"
 Cohesion: 1.0
 Nodes (1): arshjul.json Data Model
 
-### Community 134 - "Årshjul Deploy Status Doc"
+### Community 135 - "Årshjul Deploy Status Doc"
 Cohesion: 1.0
 Nodes (1): Årshjul Deploy Status Doc
 
-### Community 135 - "Dot-Swap Ghost/Line Logic"
+### Community 136 - "Dot-Swap Ghost/Line Logic"
 Cohesion: 1.0
 Nodes (1): Dot-Swap Ghost/Line Logic
 
-### Community 136 - "setMestre (dev)"
+### Community 137 - "setMestre (dev)"
 Cohesion: 1.0
 Nodes (1): setMestre (dev)
 
-### Community 137 - "setMute (dev stub)"
+### Community 138 - "setMute (dev stub)"
 Cohesion: 1.0
 Nodes (1): setMute (dev stub)
 
-### Community 138 - "leaveVoice (dev stub)"
+### Community 139 - "leaveVoice (dev stub)"
 Cohesion: 1.0
 Nodes (1): leaveVoice (dev stub)
 
-### Community 139 - "isInSignups"
+### Community 140 - "isInSignups"
 Cohesion: 1.0
 Nodes (1): isInSignups
 
-### Community 140 - "state: selectedIds getter/setter/clear"
+### Community 141 - "state: selectedIds getter/setter/clear"
 Cohesion: 1.0
 Nodes (1): state: selectedIds getter/setter/clear
 
-### Community 141 - "Channel/role/category ID constants"
+### Community 142 - "Channel/role/category ID constants"
 Cohesion: 1.0
 Nodes (1): Channel/role/category ID constants
 
-### Community 142 - "stop"
+### Community 143 - "stop"
 Cohesion: 1.0
 Nodes (1): stop
 
-### Community 143 - "findEventFile"
+### Community 144 - "findEventFile"
 Cohesion: 1.0
 Nodes (1): findEventFile
 
-### Community 144 - "loadEvent"
+### Community 145 - "loadEvent"
 Cohesion: 1.0
 Nodes (1): loadEvent
 
-### Community 145 - "byColor"
+### Community 146 - "byColor"
 Cohesion: 1.0
 Nodes (1): byColor
 
-### Community 146 - "exchangeCode"
+### Community 147 - "exchangeCode"
 Cohesion: 1.0
 Nodes (1): exchangeCode
 
-### Community 147 - "requiredFields state (get/set)"
+### Community 148 - "requiredFields state (get/set)"
 Cohesion: 1.0
 Nodes (1): requiredFields state (get/set)
 
-### Community 148 - "permissionSettings state (get/set)"
+### Community 149 - "permissionSettings state (get/set)"
 Cohesion: 1.0
 Nodes (1): permissionSettings state (get/set)
 
-### Community 149 - "previousFikaData state (get/set)"
+### Community 150 - "previousFikaData state (get/set)"
 Cohesion: 1.0
 Nodes (1): previousFikaData state (get/set)
 
-### Community 150 - "scheduleReplyDeletion tests"
+### Community 151 - "scheduleReplyDeletion tests"
 Cohesion: 1.0
 Nodes (1): scheduleReplyDeletion tests
 
-### Community 151 - "STATE_KEY sessionStorage key"
+### Community 152 - "STATE_KEY sessionStorage key"
 Cohesion: 1.0
 Nodes (1): STATE_KEY sessionStorage key
 
@@ -582,19 +581,17 @@ Nodes (1): STATE_KEY sessionStorage key
   These have ≤1 connection - possible missing edges or undocumented components.
 - **Thin community `Member Status Service`** (7 nodes): `createMemberStatusService()`, `fakeClient()`, `fakeMember()`, `fakeThread()`, `service()`, `memberStatus.js`, `memberStatus.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `CORS Test Harness`** (5 nodes): `listen()`, `listenAsync()`, `minClient()`, `minConfig()`, `cors.test.js`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Dispatcher Tests`** (5 nodes): `createArshjulDispatcher()`, `fakeChannel()`, `harness()`, `arshjulDispatcher.js`, `arshjulDispatcher.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Event Thread & Reminders`** (3 nodes): `eventThread()`, `eventThreadUpdate()`, `Reminder System`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Fika List (Google Sheets Sync)`** (2 nodes): `Fika List (Google Sheets Sync)`, `moveToArchived()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Task 9: Wheel Route and Access Gate`** (2 nodes): `Task 9: Wheel Route and Access Gate`, `Task 8: GET Wheel hasChannel/viaModerator`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Task 14: Discord Panel Button (arshjulPa`** (2 nodes): `Task 14: Discord Panel Button (arshjulPanel.js)`, `arshjulPanel.js Approach Removed`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Task 5: Member Group Resolution (memberG`** (2 nodes): `Task 5: Member Group Resolution (memberGroups)`, `Task 6: listAllGroups + isModerator`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Task 9: Wheel Route and Access Gate`** (2 nodes): `Task 9: Wheel Route and Access Gate`, `Task 8: GET Wheel hasChannel/viaModerator`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Task 10: Wire Web API into Express`** (2 nodes): `Task 10: Wire Web API into Express`, `Task 11: Wire Routes into Express`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -606,9 +603,9 @@ Nodes (1): STATE_KEY sessionStorage key
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `modal_namn nickname handler`** (2 nodes): `modal_namn nickname handler`, `modal_title nickname handler`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `modal_editSection- handler`** (2 nodes): `modal_editSection- handler`, `modal_editWorkgroup- handler`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `modal_addSection handler`** (2 nodes): `modal_addSection handler`, `modal_addWorkgroup handler`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `modal_editSection- handler`** (2 nodes): `modal_editSection- handler`, `modal_editWorkgroup- handler`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `oneTimeFunction.js active implementation`** (2 nodes): `oneTimeFunction.js active implementation`, `oneTimeFunction.example.js template`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -618,9 +615,9 @@ Nodes (1): STATE_KEY sessionStorage key
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `findEventThread stub (features/eventThre`** (2 nodes): `findEventThread stub (features/eventThread)`, `processPassedEvent tests`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `parseCookies / serializeCookie tests`** (2 nodes): `parseCookies / serializeCookie tests`, `createWebSession tests`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `getNickname / getMemberNickname tests`** (2 nodes): `getNickname / getMemberNickname tests`, `createMemberStatusService tests`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `parseCookies / serializeCookie tests`** (2 nodes): `parseCookies / serializeCookie tests`, `createWebSession tests`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `ttlCache Test Suite`** (2 nodes): `ttlCache Test Suite`, `createTtlCache (tested contract)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -736,9 +733,9 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Realtime Sync via WebSocket (Planned)` and `poll.js (5s Polling Loop)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `get()` connect `Core Bot Command Flow` to `Auth/CORS Tests & Sidebar`, `Yearwheel API Client`, `Canvas Drag Issues`, `Lineup API & Client`, `Activity Invite`, `Scheduler Tasks`?**
-  _High betweenness centrality (0.218) - this node is a cross-community bridge._
-- **Why does `buildApp()` connect `Auth/CORS Tests & Sidebar` to `Core Bot Command Flow`, `Debug Overlay & Voice Routes`, `Arshjul Dispatcher`, `Canvas Drag Issues`, `Lineup API & Client`?**
-  _High betweenness centrality (0.144) - this node is a cross-community bridge._
-- **Why does `loadPlanner()` connect `Debug Overlay & Voice Routes` to `Auth/CORS Tests & Sidebar`, `Canvas Drag Issues`, `Lineup API & Client`, `Mobile Canvas Pan/Zoom`, `Frontend Dev Data`?**
-  _High betweenness centrality (0.098) - this node is a cross-community bridge._
+- **Why does `get()` connect `Core Bot Command Flow` to `Auth Middleware & Sidebar`, `Yearwheel API Client`, `Canvas Drag Issues`, `Lineup API & Client`, `Event Log`, `Activity Invite`, `Contact Button Handler`?**
+  _High betweenness centrality (0.224) - this node is a cross-community bridge._
+- **Why does `buildApp()` connect `Auth Middleware & Sidebar` to `Core Bot Command Flow`, `Auth/CORS Tests & Harness`, `Arshjul Dispatcher`, `Canvas Drag Issues`, `Lineup API & Client`, `Arshjul Store`, `Member Groups Service`?**
+  _High betweenness centrality (0.145) - this node is a cross-community bridge._
+- **Why does `loadPlanner()` connect `Auth/CORS Tests & Harness` to `Auth Middleware & Sidebar`, `Canvas Drag Issues`, `Lineup API & Client`, `Mobile Canvas Pan/Zoom`, `Frontend Dev Data`?**
+  _High betweenness centrality (0.099) - this node is a cross-community bridge._
