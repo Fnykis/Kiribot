@@ -61,10 +61,11 @@ test('exchangeCode throws on non-2xx', async () => {
     await assert.rejects(() => oauth.exchangeCode('bad'), /invalid_grant|400/);
 });
 
-test('verifyToken calls Discord /users/@me and returns user', async () => {
+test('verifyToken calls Discord /oauth2/@me and returns user', async () => {
     const fetch = mockFetch({
-        'https://discord.com/api/users/@me': () => ({
-            status: 200, body: { id: 'u1', username: 'foo', global_name: 'Foo' }
+        'https://discord.com/api/oauth2/@me': () => ({
+            status: 200,
+            body: { application: { id: 'c' }, user: { id: 'u1', username: 'foo', global_name: 'Foo' } }
         })
     });
     const oauth = createOAuthService({
@@ -79,9 +80,9 @@ test('verifyToken calls Discord /users/@me and returns user', async () => {
 test('verifyToken caches', async () => {
     let calls = 0;
     const fetch = mockFetch({
-        'https://discord.com/api/users/@me': () => {
+        'https://discord.com/api/oauth2/@me': () => {
             calls++;
-            return { status: 200, body: { id: 'u1', username: 'foo' } };
+            return { status: 200, body: { application: { id: 'c' }, user: { id: 'u1', username: 'foo' } } };
         }
     });
     const oauth = createOAuthService({
@@ -93,9 +94,53 @@ test('verifyToken caches', async () => {
     assert.strictEqual(calls, 1);
 });
 
+test('verifyToken rejects a token issued to another application', async () => {
+    const fetch = mockFetch({
+        'https://discord.com/api/oauth2/@me': () => ({
+            status: 200,
+            body: { application: { id: 'other-app' }, user: { id: 'u1', username: 'foo' } }
+        })
+    });
+    const oauth = createOAuthService({
+        fetch, clientId: 'c', clientSecret: 's', redirectUri: 'r',
+        verifyCache: createTtlCache({ ttlMs: 60000 })
+    });
+    await assert.rejects(() => oauth.verifyToken('AT'), /issued to another application/);
+});
+
+test('verifyToken does not cache a token issued to another application', async () => {
+    let calls = 0;
+    const fetch = mockFetch({
+        'https://discord.com/api/oauth2/@me': () => {
+            calls++;
+            return { status: 200, body: { application: { id: 'other-app' }, user: { id: 'u1' } } };
+        }
+    });
+    const oauth = createOAuthService({
+        fetch, clientId: 'c', clientSecret: 's', redirectUri: 'r',
+        verifyCache: createTtlCache({ ttlMs: 60000 })
+    });
+    await assert.rejects(() => oauth.verifyToken('AT'));
+    await assert.rejects(() => oauth.verifyToken('AT'));
+    assert.strictEqual(calls, 2);
+});
+
+test('verifyToken rejects a token without the identify scope', async () => {
+    const fetch = mockFetch({
+        'https://discord.com/api/oauth2/@me': () => ({
+            status: 200, body: { application: { id: 'c' } }
+        })
+    });
+    const oauth = createOAuthService({
+        fetch, clientId: 'c', clientSecret: 's', redirectUri: 'r',
+        verifyCache: createTtlCache({ ttlMs: 60000 })
+    });
+    await assert.rejects(() => oauth.verifyToken('AT'), /no user/);
+});
+
 test('verifyToken throws on 401', async () => {
     const fetch = mockFetch({
-        'https://discord.com/api/users/@me': () => ({ status: 401, body: {} })
+        'https://discord.com/api/oauth2/@me': () => ({ status: 401, body: {} })
     });
     const oauth = createOAuthService({
         fetch, clientId: 'c', clientSecret: 's', redirectUri: 'r',

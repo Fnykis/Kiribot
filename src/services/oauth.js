@@ -28,13 +28,20 @@ function createOAuthService({ fetch, clientId, clientSecret, redirectUri, verify
         const cached = verifyCache.get(accessToken);
         if (cached) return cached;
 
-        const res = await fetch('https://discord.com/api/users/@me', {
+        const res = await fetch('https://discord.com/api/oauth2/@me', {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
         if (!res.ok) {
             throw new Error(`Discord verify failed: HTTP ${res.status}`);
         }
-        const user = await res.json();
+        const { application, user } = await res.json();
+        // Any Discord app's user token passes /users/@me, so require one issued to this app.
+        if (application?.id !== clientId) {
+            throw new Error('Discord verify failed: token issued to another application');
+        }
+        if (!user) {
+            throw new Error('Discord verify failed: no user on token');
+        }
         verifyCache.set(accessToken, user);
         return user;
     }
