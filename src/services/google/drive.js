@@ -483,8 +483,42 @@ async function findSubfolder(driveClient, parentFolderId, folderName) {
 	}
 }
 
+// --- Backup error logging helpers (keep log compact) ---
+
+// Systemic errors affect every upload (auth/permission/quota), so retrying other files is pointless.
+const BACKUP_ABORT_LOG_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const lastBackupAbortLog = new Map(); // reason -> timestamp of last logged abort
+
+function getDriveErrorReason(error) {
+	return error?.errors?.[0]?.reason || error?.response?.data?.error?.errors?.[0]?.reason || null;
+}
+
+function summarizeDriveError(error) {
+	const parts = [];
+	const status = error?.code || error?.status;
+	if (status) parts.push(`HTTP ${status}`);
+	const reason = getDriveErrorReason(error);
+	if (reason) parts.push(reason);
+	return parts.length ? ` [${parts.join(', ')}]` : '';
+}
+
+function isSystemicDriveError(error) {
+	const status = Number(error?.code || error?.status);
+	return status === 401 || status === 403;
+}
+
+// Logs one abort line, at most once per BACKUP_ABORT_LOG_INTERVAL_MS per distinct reason.
+function logBackupAbort(error) {
+	const key = getDriveErrorReason(error) || String(error?.code || error?.status || 'unknown');
+	const last = lastBackupAbortLog.get(key) || 0;
+	if (Date.now() - last < BACKUP_ABORT_LOG_INTERVAL_MS) return;
+	lastBackupAbortLog.set(key, Date.now());
+	logActivity(`Backup aborted: ${error.message}${summarizeDriveError(error)} (repeats suppressed for 24h)`);
+}
+
 // Main backup function that uploads JSON files to Google Drive
 async function backupJsonFiles() {
+	let aborted = false;
 	try {
 
 		// Authenticate with Google Drive API
@@ -589,13 +623,18 @@ async function backupJsonFiles() {
 					logActivity(`Successfully created backup: ${config.subfolderName}/${config.backupFileName} (ID: ${createResult.data.id})`);
 				}
 			} catch (error) {
-				logActivity(`Error backing up ${config.subfolderName}: ${error.message}`);
-				logActivity(`Full error details: ${JSON.stringify(error)}`);
+				if (isSystemicDriveError(error)) {
+					logBackupAbort(error);
+					aborted = true;
+					break;
+				}
+				logActivity(`Error backing up ${config.subfolderName}: ${error.message}${summarizeDriveError(error)}`);
 				// Continue with other files
 			}
 		}
 
 		// Backup active events files
+		if (aborted) return;
 		try {
 			const activeEventsDir = path.join(__dirname, '../../events/active');
 			if (!fs.existsSync(activeEventsDir)) {
@@ -656,8 +695,11 @@ async function backupJsonFiles() {
 							logActivity(`Successfully created active event backup: ${backupFileName} (ID: ${createResult.data.id})`);
 						}
 					} catch (error) {
-						logActivity(`Error backing up active event ${fileName}: ${error.message}`);
-						logActivity(`Full error details: ${JSON.stringify(error)}`);
+						if (isSystemicDriveError(error)) {
+							logBackupAbort(error);
+							break;
+						}
+						logActivity(`Error backing up active event ${fileName}: ${error.message}${summarizeDriveError(error)}`);
 						// Continue with other files
 					}
 				}
